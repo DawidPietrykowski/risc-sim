@@ -1,6 +1,9 @@
 use anyhow::{anyhow, Context, Ok, Result};
+use utils::binary_utils::*;
 
 mod test;
+mod rv32i;
+mod utils;
 
 #[derive(Clone)]
 struct RInstruction {
@@ -44,20 +47,27 @@ enum Instruction{
 
 struct Cpu{
     reg_x32: [u32; 31],
-    reg_pc: u32
+    reg_pc: u32,
+    skip_pc_increment: bool
 }
 
 impl Cpu { 
     pub fn new() -> Cpu {
         Cpu { 
             reg_x32: [0x0; 31],
-            reg_pc: 0x0
+            reg_pc: 0x0,
+            skip_pc_increment: false
         }
     }  
 
     pub fn execute_operation<I>(&mut self, operation: &impl Operation<I>) -> Result<()> {
+        self.skip_pc_increment = false;
+
         operation.execute(self)?;
-        self.reg_pc += 1;
+        
+        if !self.skip_pc_increment {
+            self.reg_pc += 1;
+        }
         Ok(())
     }
 
@@ -79,6 +89,26 @@ impl Cpu {
         *reg_value = i32_to_u32(value);
         Ok(())
     }
+
+    pub fn write_x_u32(&mut self, id: u8, value: u32) -> Result<()> {
+        let reg_value = self.reg_x32.get_mut(id as usize)
+        .context(format!("Register x{} does not exist", id))?;
+
+        *reg_value = value;
+        Ok(())
+    }
+
+    pub fn read_pc_u32(&self) -> u32{
+        self.reg_pc
+    }
+
+    pub fn write_pc_u32(&mut self, val: u32) {
+        self.reg_pc = val;
+    }
+
+    pub fn set_skip_pc_increment_flag(&mut self) {
+        self.skip_pc_increment = true;
+    }
 }
 
 trait Operation<I>{
@@ -86,39 +116,6 @@ trait Operation<I>{
     fn instruction(&self) -> &I;
     
     fn execute(&self, cpu: &mut Cpu) -> Result<()>;
-}
-
-fn u16_to_i16(value: u16) -> i16 {
-    i16::from_ne_bytes(value.to_ne_bytes())
-}
-
-fn i16_to_u16(value: i16) -> u16 {
-    u16::from_ne_bytes(value.to_ne_bytes())
-}
-
-fn u32_to_i32(value: u32) -> i32 {
-    i32::from_ne_bytes(value.to_ne_bytes())
-}
-
-fn i32_to_u32(value: i32) -> u32 {
-    u32::from_ne_bytes(value.to_ne_bytes())
-}
-
-fn sign_extend_12bit_to_16bit(value: u16) -> i16{
-    let positive: bool = (value & (0b1 << 11)) == 0;
-    match positive {
-        true => u16_to_i16(value),
-        false => u16_to_i16(value | (0b1111 << 12))
-    }
-}
-
-fn sign_extend_12bit_to_32bit(value: u16) -> i32{
-    let positive: bool = (value & (0b1 << 11)) == 0;
-    let padding: u32 = match positive {
-        true => 0x0,
-        false => 0xFFFFF000,
-    };
-    u32_to_i32(padding | value as u32)
 }
 
 struct AddI{
@@ -191,7 +188,7 @@ impl Operation<IInstruction> for ORI {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let imm = sign_extend_12bit_to_32bit(self.instruction.imm);
         let rs1 = cpu.read_x_i32(self.instruction.rs1)?;
-        cpu.write_x_i32(self.instruction.rd, rs1 & imm)?;
+        cpu.write_x_i32(self.instruction.rd, rs1 | imm)?;
         Ok(())
     }
     
@@ -211,7 +208,7 @@ impl Operation<IInstruction> for XORI {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let imm = sign_extend_12bit_to_32bit(self.instruction.imm);
         let rs1 = cpu.read_x_i32(self.instruction.rs1)?;
-        cpu.write_x_i32(self.instruction.rd, rs1 & imm)?;
+        cpu.write_x_i32(self.instruction.rd, rs1 ^ imm)?;
         Ok(())
     }
     
@@ -224,6 +221,114 @@ impl Operation<IInstruction> for XORI {
     }
 }
 
+
+struct SLLI{
+    instruction: IInstruction
+}
+
+impl Operation<IInstruction> for SLLI {
+    fn execute(&self, cpu: &mut Cpu) -> Result<()> {
+        let shamt = (self.instruction.imm & 0b11111) as u32;
+        let res: u32 = cpu.read_x_u32(self.instruction.rs1)? << shamt;
+        cpu.write_x_u32(self.instruction.rd, res)?;
+        Ok(())
+    }
+    
+    fn new(instruction: IInstruction) -> Self {
+        SLLI { instruction: instruction }
+    }
+    
+    fn instruction(&self) -> &IInstruction {
+        &self.instruction
+    }
+}
+
+struct SRLI{
+    instruction: IInstruction
+}
+
+impl Operation<IInstruction> for SRLI {
+    fn execute(&self, cpu: &mut Cpu) -> Result<()> {
+        let shamt = (self.instruction.imm & 0b11111) as u32;
+        let res: u32 = cpu.read_x_u32(self.instruction.rs1)? >> shamt;
+        cpu.write_x_u32(self.instruction.rd, res)?;
+        Ok(())
+    }
+    
+    fn new(instruction: IInstruction) -> Self {
+        SRLI { instruction: instruction }
+    }
+    
+    fn instruction(&self) -> &IInstruction {
+        &self.instruction
+    }
+}
+
+
+struct SRAI{
+    instruction: IInstruction
+}
+
+impl Operation<IInstruction> for SRAI {
+    fn execute(&self, cpu: &mut Cpu) -> Result<()> {
+        let shamt = (self.instruction.imm & 0b11111) as u32;
+        let res: i32 = cpu.read_x_i32(self.instruction.rs1)? >> shamt;
+        cpu.write_x_i32(self.instruction.rd, res)?;
+        Ok(())
+    }
+    
+    fn new(instruction: IInstruction) -> Self {
+        SRAI { instruction: instruction }
+    }
+    
+    fn instruction(&self) -> &IInstruction {
+        &self.instruction
+    }
+}
+
+struct LUI{
+    instruction: UInstruction
+}
+
+impl Operation<UInstruction> for LUI {
+    fn execute(&self, cpu: &mut Cpu) -> Result<()> {
+        let shifted_imm = self.instruction.imm << 12;
+        cpu.write_x_u32(self.instruction.rd, shifted_imm)?;
+        Ok(())
+    }
+    
+    fn new(instruction: UInstruction) -> Self {
+        LUI { instruction: instruction }
+    }
+    
+    fn instruction(&self) -> &UInstruction {
+        &self.instruction
+    }
+}
+
+struct AUIPC{
+    instruction: UInstruction
+}
+
+impl Operation<UInstruction> for AUIPC {
+    fn execute(&self, cpu: &mut Cpu) -> Result<()> {
+        let res: u32 = (self.instruction.imm << 12).wrapping_add(cpu.read_pc_u32());
+        
+        cpu.write_pc_u32(res);
+        cpu.set_skip_pc_increment_flag(); // Disable default pc increment logic
+
+        cpu.write_x_u32(self.instruction.rd, res)?;
+        Ok(())
+    }
+    
+    fn new(instruction: UInstruction) -> Self {
+        AUIPC { instruction: instruction }
+    }
+    
+    fn instruction(&self) -> &UInstruction {
+        &self.instruction
+    }
+}
 
 fn main() -> Result<()> {
     let mut cpu = Cpu::new();
