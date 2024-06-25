@@ -1,7 +1,7 @@
 use anyhow::{Ok, Result};
 
-mod test;
 mod isa;
+mod test;
 mod utils;
 
 fn main() -> Result<()> {
@@ -21,8 +21,6 @@ fn main() -> Result<()> {
 
     // println!("{}", sign_extend_12bit_to_16bit(signed_10));
     // println!("{}", sign_extend_12bit_to_16bit(signed_n10));
-
-
 
     // Test ADDI 10 to 0 = 10
     // let addi_instruction = IInstruction {
@@ -46,7 +44,7 @@ fn main() -> Result<()> {
     // addi_op.execute(&mut cpu)?;
     // assert_eq!(cpu.read_x_i32(1)?, 8);
 
-    // // Test SLTI 
+    // // Test SLTI
     // let slti_instruction = IInstruction {
     //     rd: 2,
     //     func3: 2,
@@ -102,6 +100,6 @@ fn main() -> Result<()> {
     // assert_eq!(cpu.read_x_u32(5)?, 0b0101);
 
     // println!("All tests passed successfully!");
-    
+
     Ok(())
 }

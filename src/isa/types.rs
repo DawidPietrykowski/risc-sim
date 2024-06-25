@@ -1,4 +1,3 @@
-
 #[derive(Clone)]
 pub struct RInstruction {
     pub rd: u8,
@@ -32,9 +31,9 @@ pub struct UInstruction {
 }
 
 #[derive(Clone)]
-pub enum Instruction{
+pub enum Instruction {
     R(RInstruction),
     I(IInstruction),
     S(SInstruction),
-    U(UInstruction)
+    U(UInstruction),
 }

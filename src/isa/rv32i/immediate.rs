@@ -4,8 +4,8 @@ use crate::utils::binary_utils::*;
 
 use anyhow::{Ok, Result};
 
-pub struct AddI{
-    instruction: IInstruction
+pub struct AddI {
+    instruction: IInstruction,
 }
 
 impl Operation<IInstruction> for AddI {
@@ -16,38 +16,42 @@ impl Operation<IInstruction> for AddI {
         cpu.write_x_i32(self.instruction.rd, res)?;
         Ok(())
     }
-    
+
     fn new(instruction: IInstruction) -> Self {
-        AddI { instruction: instruction }
+        AddI {
+            instruction: instruction,
+        }
     }
-    
+
     fn instruction(&self) -> &IInstruction {
         &self.instruction
     }
 }
-pub struct SLTI{
-    instruction: IInstruction
+pub struct SLTI {
+    instruction: IInstruction,
 }
 
 impl Operation<IInstruction> for SLTI {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let imm = sign_extend_12bit_to_32bit(self.instruction.imm);
         let rs1 = cpu.read_x_i32(self.instruction.rs1)?;
-        cpu.write_x_i32(self.instruction.rd, if rs1 < imm {1} else {0})?;
+        cpu.write_x_i32(self.instruction.rd, if rs1 < imm { 1 } else { 0 })?;
         Ok(())
     }
-    
+
     fn new(instruction: IInstruction) -> Self {
-        SLTI { instruction: instruction }
+        SLTI {
+            instruction: instruction,
+        }
     }
-    
+
     fn instruction(&self) -> &IInstruction {
         &self.instruction
     }
 }
 
-pub struct ANDI{
-    instruction: IInstruction
+pub struct ANDI {
+    instruction: IInstruction,
 }
 
 impl Operation<IInstruction> for ANDI {
@@ -57,18 +61,20 @@ impl Operation<IInstruction> for ANDI {
         cpu.write_x_i32(self.instruction.rd, rs1 & imm)?;
         Ok(())
     }
-    
+
     fn new(instruction: IInstruction) -> Self {
-        ANDI { instruction: instruction }
+        ANDI {
+            instruction: instruction,
+        }
     }
-    
+
     fn instruction(&self) -> &IInstruction {
         &self.instruction
     }
 }
 
-pub struct ORI{
-    instruction: IInstruction
+pub struct ORI {
+    instruction: IInstruction,
 }
 
 impl Operation<IInstruction> for ORI {
@@ -78,17 +84,19 @@ impl Operation<IInstruction> for ORI {
         cpu.write_x_i32(self.instruction.rd, rs1 | imm)?;
         Ok(())
     }
-    
+
     fn new(instruction: IInstruction) -> Self {
-        ORI { instruction: instruction }
+        ORI {
+            instruction: instruction,
+        }
     }
-    
+
     fn instruction(&self) -> &IInstruction {
         &self.instruction
     }
 }
-pub struct XORI{
-    instruction: IInstruction
+pub struct XORI {
+    instruction: IInstruction,
 }
 
 impl Operation<IInstruction> for XORI {
@@ -98,19 +106,20 @@ impl Operation<IInstruction> for XORI {
         cpu.write_x_i32(self.instruction.rd, rs1 ^ imm)?;
         Ok(())
     }
-    
+
     fn new(instruction: IInstruction) -> Self {
-        XORI { instruction: instruction }
+        XORI {
+            instruction: instruction,
+        }
     }
-    
+
     fn instruction(&self) -> &IInstruction {
         &self.instruction
     }
 }
 
-
-pub struct SLLI{
-    instruction: IInstruction
+pub struct SLLI {
+    instruction: IInstruction,
 }
 
 impl Operation<IInstruction> for SLLI {
@@ -120,18 +129,20 @@ impl Operation<IInstruction> for SLLI {
         cpu.write_x_u32(self.instruction.rd, res)?;
         Ok(())
     }
-    
+
     fn new(instruction: IInstruction) -> Self {
-        SLLI { instruction: instruction }
+        SLLI {
+            instruction: instruction,
+        }
     }
-    
+
     fn instruction(&self) -> &IInstruction {
         &self.instruction
     }
 }
 
-pub struct SRLI{
-    instruction: IInstruction
+pub struct SRLI {
+    instruction: IInstruction,
 }
 
 impl Operation<IInstruction> for SRLI {
@@ -141,19 +152,20 @@ impl Operation<IInstruction> for SRLI {
         cpu.write_x_u32(self.instruction.rd, res)?;
         Ok(())
     }
-    
+
     fn new(instruction: IInstruction) -> Self {
-        SRLI { instruction: instruction }
+        SRLI {
+            instruction: instruction,
+        }
     }
-    
+
     fn instruction(&self) -> &IInstruction {
         &self.instruction
     }
 }
 
-
-pub struct SRAI{
-    instruction: IInstruction
+pub struct SRAI {
+    instruction: IInstruction,
 }
 
 impl Operation<IInstruction> for SRAI {
@@ -163,18 +175,20 @@ impl Operation<IInstruction> for SRAI {
         cpu.write_x_i32(self.instruction.rd, res)?;
         Ok(())
     }
-    
+
     fn new(instruction: IInstruction) -> Self {
-        SRAI { instruction: instruction }
+        SRAI {
+            instruction: instruction,
+        }
     }
-    
+
     fn instruction(&self) -> &IInstruction {
         &self.instruction
     }
 }
 
-pub struct LUI{
-    instruction: UInstruction
+pub struct LUI {
+    instruction: UInstruction,
 }
 
 impl Operation<UInstruction> for LUI {
@@ -183,35 +197,39 @@ impl Operation<UInstruction> for LUI {
         cpu.write_x_u32(self.instruction.rd, shifted_imm)?;
         Ok(())
     }
-    
+
     fn new(instruction: UInstruction) -> Self {
-        LUI { instruction: instruction }
+        LUI {
+            instruction: instruction,
+        }
     }
-    
+
     fn instruction(&self) -> &UInstruction {
         &self.instruction
     }
 }
 
 pub struct AUIPC {
-    instruction: UInstruction
+    instruction: UInstruction,
 }
 
 impl Operation<UInstruction> for AUIPC {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let res: u32 = (self.instruction.imm << 12).wrapping_add(cpu.read_pc_u32());
-        
+
         cpu.write_pc_u32(res);
         cpu.set_skip_pc_increment_flag(); // Disable default pc increment logic
 
         cpu.write_x_u32(self.instruction.rd, res)?;
         Ok(())
     }
-    
+
     fn new(instruction: UInstruction) -> Self {
-        AUIPC { instruction: instruction }
+        AUIPC {
+            instruction: instruction,
+        }
     }
-    
+
     fn instruction(&self) -> &UInstruction {
         &self.instruction
     }

@@ -1,27 +1,27 @@
 use crate::utils::binary_utils::*;
 
-use anyhow::{Ok, Result, Context};
+use anyhow::{Context, Ok, Result};
 
-pub struct Cpu{
+pub struct Cpu {
     reg_x32: [u32; 31],
     reg_pc: u32,
-    skip_pc_increment: bool
+    skip_pc_increment: bool,
 }
 
-impl Cpu { 
+impl Cpu {
     pub fn new() -> Cpu {
-        Cpu { 
+        Cpu {
             reg_x32: [0x0; 31],
             reg_pc: 0x0,
-            skip_pc_increment: false
+            skip_pc_increment: false,
         }
-    }  
+    }
 
     pub fn execute_operation<I>(&mut self, operation: &impl Operation<I>) -> Result<()> {
         self.skip_pc_increment = false;
 
         operation.execute(self)?;
-        
+
         if !self.skip_pc_increment {
             self.reg_pc += 1;
         }
@@ -29,9 +29,11 @@ impl Cpu {
     }
 
     pub fn read_x_u32(&self, id: u8) -> Result<u32> {
-        let value = self.reg_x32.get(id as usize)
-        .context(format!("Register x{} does not exist", id))?;
-        
+        let value = self
+            .reg_x32
+            .get(id as usize)
+            .context(format!("Register x{} does not exist", id))?;
+
         Ok(*value)
     }
 
@@ -43,9 +45,11 @@ impl Cpu {
         if id == 0 {
             return Ok(()); // x0 is hardwired to 0
         }
-        
-        let reg_value = self.reg_x32.get_mut(id as usize)
-        .context(format!("Register x{} does not exist", id))?;
+
+        let reg_value = self
+            .reg_x32
+            .get_mut(id as usize)
+            .context(format!("Register x{} does not exist", id))?;
 
         *reg_value = i32_to_u32(value);
         Ok(())
@@ -56,14 +60,16 @@ impl Cpu {
             return Ok(()); // x0 is hardwired to 0
         }
 
-        let reg_value = self.reg_x32.get_mut(id as usize)
-        .context(format!("Register x{} does not exist", id))?;
+        let reg_value = self
+            .reg_x32
+            .get_mut(id as usize)
+            .context(format!("Register x{} does not exist", id))?;
 
         *reg_value = value;
         Ok(())
     }
 
-    pub fn read_pc_u32(&self) -> u32{
+    pub fn read_pc_u32(&self) -> u32 {
         self.reg_pc
     }
 
@@ -76,9 +82,9 @@ impl Cpu {
     }
 }
 
-pub trait Operation<I>{
+pub trait Operation<I> {
     fn new(instruction: I) -> Self;
     fn instruction(&self) -> &I;
-    
+
     fn execute(&self, cpu: &mut Cpu) -> Result<()>;
 }
