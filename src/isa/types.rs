@@ -37,3 +37,10 @@ pub enum Instruction {
     S(SInstruction),
     U(UInstruction),
 }
+
+pub trait InstructionType {}
+
+impl InstructionType for RInstruction {}
+impl InstructionType for IInstruction {}
+impl InstructionType for SInstruction {}
+impl InstructionType for UInstruction {}

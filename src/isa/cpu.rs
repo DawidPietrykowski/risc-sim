@@ -1,4 +1,5 @@
 use crate::utils::binary_utils::*;
+use crate::isa::types::InstructionType;
 
 use anyhow::{Context, Ok, Result};
 
@@ -17,7 +18,7 @@ impl Cpu {
         }
     }
 
-    pub fn execute_operation<I>(&mut self, operation: &impl Operation<I>) -> Result<()> {
+    pub fn execute_operation<I: InstructionType>(&mut self, operation: &impl Operation<I>) -> Result<()> {
         self.skip_pc_increment = false;
 
         operation.execute(self)?;
@@ -82,7 +83,7 @@ impl Cpu {
     }
 }
 
-pub trait Operation<I> {
+pub trait Operation<I: InstructionType> {
     fn new(instruction: I) -> Self;
     fn instruction(&self) -> &I;
 
