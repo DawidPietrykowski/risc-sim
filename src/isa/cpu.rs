@@ -3,10 +3,13 @@ use crate::isa::types::InstructionType;
 
 use anyhow::{Context, Ok, Result};
 
+use super::types::{decode_program_line, Instruction, InstructionData, ProgramLine, Word};
+
 pub struct Cpu {
     reg_x32: [u32; 31],
     reg_pc: u32,
     skip_pc_increment: bool,
+    program: Vec<ProgramLine>
 }
 
 impl Cpu {
@@ -15,17 +18,70 @@ impl Cpu {
             reg_x32: [0x0; 31],
             reg_pc: 0x0,
             skip_pc_increment: false,
+            program: vec![]
         }
     }
 
+    pub fn run_cycle(&mut self) -> Result<()> {
+        // Fetch
+        let instruction = self.fetch_instruction()?;
+        
+        // Increase PC
+        self.reg_pc += 4;
+
+        // Execute
+        self.execute_program_line(instruction)?;
+
+        Ok(())
+    }
+
+    pub fn execute_program_line(&mut self, program_line: ProgramLine) -> Result<()> {
+        (program_line.instruction.operation)(self, &program_line.word)
+    }
+
+    pub fn execute_word(&mut self, word: Word) -> Result<()> {
+        let program_line = decode_program_line(word)?;
+        (program_line.instruction.operation)(self, &program_line.word)
+    }
+
+    fn fetch_instruction(&self) -> Result<ProgramLine> {
+        Ok(*self.program.get(self.read_pc_u32() as usize / 4).context("No instruction at index")?)
+    }
+
+
     pub fn execute_operation<I: InstructionType>(&mut self, operation: &impl Operation<I>) -> Result<()> {
-        self.skip_pc_increment = false;
+        // self.skip_pc_increment = false;
+        
+        self.reg_pc += 4;
 
         operation.execute(self)?;
 
-        if !self.skip_pc_increment {
-            self.reg_pc += 1;
-        }
+        // if !self.skip_pc_increment {
+            // self.reg_pc += 1;
+        // }
+        Ok(())
+    }
+
+    pub fn execute_instruction(&mut self, instruction: InstructionData) -> Result<()> {
+        // self.skip_pc_increment = false;
+        
+        self.reg_pc += 4;
+
+        let operation = match instruction {
+            InstructionData::R(ins) => {
+                
+            },
+            InstructionData::I(ins) => todo!(),
+            InstructionData::S(ins) => todo!(),
+            InstructionData::SB(ins) => todo!(),
+            InstructionData::U(ins) => todo!(),
+            InstructionData::UJ(ins) => todo!(),
+        };
+        // operation.execute(self)?;
+
+        // if !self.skip_pc_increment {
+            // self.reg_pc += 1;
+        // }
         Ok(())
     }
 
@@ -86,6 +142,5 @@ impl Cpu {
 pub trait Operation<I: InstructionType> {
     fn new(instruction: I) -> Self;
     fn instruction(&self) -> &I;
-
     fn execute(&self, cpu: &mut Cpu) -> Result<()>;
 }

@@ -5,10 +5,10 @@ use crate::utils::binary_utils::*;
 use anyhow::{Ok, Result};
 
 pub struct AddI {
-    instruction: IInstruction,
+    instruction: IInstructionData,
 }
 
-impl Operation<IInstruction> for AddI {
+impl Operation<IInstructionData> for AddI {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let imm = sign_extend_12bit_to_32bit(self.instruction.imm);
         let rs1 = cpu.read_x_i32(self.instruction.rs1)?;
@@ -17,21 +17,21 @@ impl Operation<IInstruction> for AddI {
         Ok(())
     }
 
-    fn new(instruction: IInstruction) -> Self {
+    fn new(instruction: IInstructionData) -> Self {
         AddI {
             instruction: instruction,
         }
     }
 
-    fn instruction(&self) -> &IInstruction {
+    fn instruction(&self) -> &IInstructionData {
         &self.instruction
     }
 }
 pub struct SLTI {
-    instruction: IInstruction,
+    instruction: IInstructionData,
 }
 
-impl Operation<IInstruction> for SLTI {
+impl Operation<IInstructionData> for SLTI {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let imm = sign_extend_12bit_to_32bit(self.instruction.imm);
         let rs1 = cpu.read_x_i32(self.instruction.rs1)?;
@@ -39,22 +39,22 @@ impl Operation<IInstruction> for SLTI {
         Ok(())
     }
 
-    fn new(instruction: IInstruction) -> Self {
+    fn new(instruction: IInstructionData) -> Self {
         SLTI {
             instruction: instruction,
         }
     }
 
-    fn instruction(&self) -> &IInstruction {
+    fn instruction(&self) -> &IInstructionData {
         &self.instruction
     }
 }
 
 pub struct ANDI {
-    instruction: IInstruction,
+    instruction: IInstructionData,
 }
 
-impl Operation<IInstruction> for ANDI {
+impl Operation<IInstructionData> for ANDI {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let imm = sign_extend_12bit_to_32bit(self.instruction.imm);
         let rs1 = cpu.read_x_i32(self.instruction.rs1)?;
@@ -62,22 +62,22 @@ impl Operation<IInstruction> for ANDI {
         Ok(())
     }
 
-    fn new(instruction: IInstruction) -> Self {
+    fn new(instruction: IInstructionData) -> Self {
         ANDI {
             instruction: instruction,
         }
     }
 
-    fn instruction(&self) -> &IInstruction {
+    fn instruction(&self) -> &IInstructionData {
         &self.instruction
     }
 }
 
 pub struct ORI {
-    instruction: IInstruction,
+    instruction: IInstructionData,
 }
 
-impl Operation<IInstruction> for ORI {
+impl Operation<IInstructionData> for ORI {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let imm = sign_extend_12bit_to_32bit(self.instruction.imm);
         let rs1 = cpu.read_x_i32(self.instruction.rs1)?;
@@ -85,21 +85,22 @@ impl Operation<IInstruction> for ORI {
         Ok(())
     }
 
-    fn new(instruction: IInstruction) -> Self {
+    fn new(instruction: IInstructionData) -> Self {
         ORI {
             instruction: instruction,
         }
     }
 
-    fn instruction(&self) -> &IInstruction {
+    fn instruction(&self) -> &IInstructionData {
         &self.instruction
     }
 }
+
 pub struct XORI {
-    instruction: IInstruction,
+    instruction: IInstructionData,
 }
 
-impl Operation<IInstruction> for XORI {
+impl Operation<IInstructionData> for XORI {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let imm = sign_extend_12bit_to_32bit(self.instruction.imm);
         let rs1 = cpu.read_x_i32(self.instruction.rs1)?;
@@ -107,22 +108,22 @@ impl Operation<IInstruction> for XORI {
         Ok(())
     }
 
-    fn new(instruction: IInstruction) -> Self {
+    fn new(instruction: IInstructionData) -> Self {
         XORI {
             instruction: instruction,
         }
     }
 
-    fn instruction(&self) -> &IInstruction {
+    fn instruction(&self) -> &IInstructionData {
         &self.instruction
     }
 }
 
 pub struct SLLI {
-    instruction: IInstruction,
+    instruction: IInstructionData,
 }
 
-impl Operation<IInstruction> for SLLI {
+impl Operation<IInstructionData> for SLLI {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let shamt = (self.instruction.imm & 0b11111) as u32;
         let res: u32 = cpu.read_x_u32(self.instruction.rs1)? << shamt;
@@ -130,22 +131,22 @@ impl Operation<IInstruction> for SLLI {
         Ok(())
     }
 
-    fn new(instruction: IInstruction) -> Self {
+    fn new(instruction: IInstructionData) -> Self {
         SLLI {
             instruction: instruction,
         }
     }
 
-    fn instruction(&self) -> &IInstruction {
+    fn instruction(&self) -> &IInstructionData {
         &self.instruction
     }
 }
 
 pub struct SRLI {
-    instruction: IInstruction,
+    instruction: IInstructionData,
 }
 
-impl Operation<IInstruction> for SRLI {
+impl Operation<IInstructionData> for SRLI {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let shamt = (self.instruction.imm & 0b11111) as u32;
         let res: u32 = cpu.read_x_u32(self.instruction.rs1)? >> shamt;
@@ -153,22 +154,22 @@ impl Operation<IInstruction> for SRLI {
         Ok(())
     }
 
-    fn new(instruction: IInstruction) -> Self {
+    fn new(instruction: IInstructionData) -> Self {
         SRLI {
             instruction: instruction,
         }
     }
 
-    fn instruction(&self) -> &IInstruction {
+    fn instruction(&self) -> &IInstructionData {
         &self.instruction
     }
 }
 
 pub struct SRAI {
-    instruction: IInstruction,
+    instruction: IInstructionData,
 }
 
-impl Operation<IInstruction> for SRAI {
+impl Operation<IInstructionData> for SRAI {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let shamt = (self.instruction.imm & 0b11111) as u32;
         let res: i32 = cpu.read_x_i32(self.instruction.rs1)? >> shamt;
@@ -176,44 +177,44 @@ impl Operation<IInstruction> for SRAI {
         Ok(())
     }
 
-    fn new(instruction: IInstruction) -> Self {
+    fn new(instruction: IInstructionData) -> Self {
         SRAI {
             instruction: instruction,
         }
     }
 
-    fn instruction(&self) -> &IInstruction {
+    fn instruction(&self) -> &IInstructionData {
         &self.instruction
     }
 }
 
 pub struct LUI {
-    instruction: UInstruction,
+    instruction: UInstructionData,
 }
 
-impl Operation<UInstruction> for LUI {
+impl Operation<UInstructionData> for LUI {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let shifted_imm = self.instruction.imm << 12;
         cpu.write_x_u32(self.instruction.rd, shifted_imm)?;
         Ok(())
     }
 
-    fn new(instruction: UInstruction) -> Self {
+    fn new(instruction: UInstructionData) -> Self {
         LUI {
             instruction: instruction,
         }
     }
 
-    fn instruction(&self) -> &UInstruction {
+    fn instruction(&self) -> &UInstructionData {
         &self.instruction
     }
 }
 
 pub struct AUIPC {
-    instruction: UInstruction,
+    instruction: UInstructionData,
 }
 
-impl Operation<UInstruction> for AUIPC {
+impl Operation<UInstructionData> for AUIPC {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let res: u32 = (self.instruction.imm << 12).wrapping_add(cpu.read_pc_u32());
 
@@ -224,13 +225,138 @@ impl Operation<UInstruction> for AUIPC {
         Ok(())
     }
 
-    fn new(instruction: UInstruction) -> Self {
+    fn new(instruction: UInstructionData) -> Self {
         AUIPC {
             instruction: instruction,
         }
     }
 
-    fn instruction(&self) -> &UInstruction {
+    fn instruction(&self) -> &UInstructionData {
         &self.instruction
     }
 }
+
+pub const RV32I_SET: [Instruction; 10] = [
+    Instruction{
+        mask: OPCODE_MASK | FUNC3_MASK,
+        bits: 0b0010011,
+        name: "ADDI",
+        operation: |cpu, word| {
+            let instruction = parse_instruction_i(word);
+            let imm = sign_extend_12bit_to_32bit(instruction.imm);
+            let rs1 = cpu.read_x_i32(instruction.rs1)?;
+            let (res, _) = imm.overflowing_add(rs1);
+            cpu.write_x_i32(instruction.rd, res)?;
+            Ok(())
+        }
+    },
+    Instruction{
+        mask: OPCODE_MASK | FUNC3_MASK,
+        bits: 0b010 << 12 | 0b0010011,
+        name: "SLTI",
+        operation: |cpu, word| {
+            let instruction = parse_instruction_i(word);
+            let imm = sign_extend_12bit_to_32bit(instruction.imm);
+            let rs1 = cpu.read_x_i32(instruction.rs1)?;
+            cpu.write_x_i32(instruction.rd, if rs1 < imm { 1 } else { 0 })?;
+            Ok(())
+        }
+    },
+    Instruction{
+        mask: OPCODE_MASK | FUNC3_MASK,
+        bits: 1,
+        name: "ANDI",
+        operation: |cpu, word| {
+            let instruction = parse_instruction_i(word);
+            let imm = sign_extend_12bit_to_32bit(instruction.imm);
+            let rs1 = cpu.read_x_i32(instruction.rs1)?;
+            cpu.write_x_i32(instruction.rd, rs1 & imm)?;
+            Ok(())
+        }
+    },
+    Instruction{
+        mask: OPCODE_MASK | FUNC3_MASK,
+        bits: 1,
+        name: "ORI",
+        operation: |cpu, word| {
+            let instruction = parse_instruction_i(word);
+            let imm = sign_extend_12bit_to_32bit(instruction.imm);
+            let rs1 = cpu.read_x_i32(instruction.rs1)?;
+            cpu.write_x_i32(instruction.rd, rs1 | imm)?;
+            Ok(())
+        }
+    },
+    Instruction{
+        mask: OPCODE_MASK | FUNC3_MASK,
+        bits: 1,
+        name: "XORI",
+        operation: |cpu, word| {
+            let instruction = parse_instruction_i(word);
+            let imm = sign_extend_12bit_to_32bit(instruction.imm);
+            let rs1 = cpu.read_x_i32(instruction.rs1)?;
+            cpu.write_x_i32(instruction.rd, rs1 ^ imm)?;
+            Ok(())
+        }
+    },
+    Instruction{
+        mask: OPCODE_MASK | FUNC3_MASK,
+        bits: 1,
+        name: "SLLI",
+        operation: |cpu, word| {
+            let instruction = parse_instruction_i(word);
+            let shamt = (instruction.imm & 0b11111) as u32;
+            let res: u32 = cpu.read_x_u32(instruction.rs1)? << shamt;
+            cpu.write_x_u32(instruction.rd, res)?;
+            Ok(())
+        }
+    },
+    Instruction{
+        mask: OPCODE_MASK | FUNC3_MASK,
+        bits: 1,
+        name: "SRLI",
+        operation: |cpu, word| {
+            let instruction = parse_instruction_i(word);
+            let shamt = (instruction.imm & 0b11111) as u32;
+            let res: u32 = cpu.read_x_u32(instruction.rs1)? >> shamt;
+            cpu.write_x_u32(instruction.rd, res)?;
+            Ok(())
+        }
+    },
+    Instruction{
+        mask: OPCODE_MASK | FUNC3_MASK,
+        bits: 1,
+        name: "SRAI",
+        operation: |cpu, word| {
+            let instruction = parse_instruction_i(word);
+            let shamt = (instruction.imm & 0b11111) as u32;
+            let res: i32 = cpu.read_x_i32(instruction.rs1)? >> shamt;
+            cpu.write_x_i32(instruction.rd, res)?;
+            Ok(())
+        }
+    },
+    Instruction{
+        mask: OPCODE_MASK | FUNC3_MASK,
+        bits: 1,
+        name: "LUI",
+        operation: |cpu, word| {
+            let instruction = parse_instruction_u(word);
+            cpu.write_x_u32(instruction.rd, instruction.imm)?;
+            Ok(())
+        }
+    },
+    Instruction{
+        mask: OPCODE_MASK | FUNC3_MASK,
+        bits: 1,
+        name: "AUIPC",
+        operation: |cpu, word| {
+            let instruction = parse_instruction_u(word);
+            let res: u32 = instruction.imm.wrapping_add(cpu.read_pc_u32());
+
+            cpu.write_pc_u32(res);
+            cpu.set_skip_pc_increment_flag(); // Disable default pc increment logic
+    
+            cpu.write_x_u32(instruction.rd, res)?;
+            Ok(())
+        }
+    }
+];

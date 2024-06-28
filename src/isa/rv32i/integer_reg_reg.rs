@@ -4,10 +4,10 @@ use crate::isa::types::*;
 use anyhow::{Ok, Result};
 
 pub struct Add {
-    instruction: RInstruction,
+    instruction: RInstructionData,
 }
 
-impl Operation<RInstruction> for Add {
+impl Operation<RInstructionData> for Add {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let rs1 = cpu.read_x_i32(self.instruction.rs1)?;
         let rs2 = cpu.read_x_i32(self.instruction.rs2)?;
@@ -16,22 +16,22 @@ impl Operation<RInstruction> for Add {
         Ok(())
     }
 
-    fn new(instruction: RInstruction) -> Self {
+    fn new(instruction: RInstructionData) -> Self {
         Add {
             instruction: instruction,
         }
     }
 
-    fn instruction(&self) -> &RInstruction {
+    fn instruction(&self) -> &RInstructionData {
         &self.instruction
     }
 }
 
 pub struct Sub {
-    instruction: RInstruction,
+    instruction: RInstructionData,
 }
 
-impl Operation<RInstruction> for Sub {
+impl Operation<RInstructionData> for Sub {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let rs1 = cpu.read_x_i32(self.instruction.rs1)?;
         let rs2 = cpu.read_x_i32(self.instruction.rs2)?;
@@ -40,22 +40,22 @@ impl Operation<RInstruction> for Sub {
         Ok(())
     }
 
-    fn new(instruction: RInstruction) -> Self {
+    fn new(instruction: RInstructionData) -> Self {
         Sub {
             instruction: instruction,
         }
     }
 
-    fn instruction(&self) -> &RInstruction {
+    fn instruction(&self) -> &RInstructionData {
         &self.instruction
     }
 }
 
 pub struct SLT {
-    instruction: RInstruction,
+    instruction: RInstructionData,
 }
 
-impl Operation<RInstruction> for SLT {
+impl Operation<RInstructionData> for SLT {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let rs1 = cpu.read_x_i32(self.instruction.rs1)?;
         let rs2 = cpu.read_x_i32(self.instruction.rs2)?;
@@ -63,22 +63,22 @@ impl Operation<RInstruction> for SLT {
         Ok(())
     }
 
-    fn new(instruction: RInstruction) -> Self {
+    fn new(instruction: RInstructionData) -> Self {
         SLT {
             instruction: instruction,
         }
     }
 
-    fn instruction(&self) -> &RInstruction {
+    fn instruction(&self) -> &RInstructionData {
         &self.instruction
     }
 }
 
 pub struct SLTU {
-    instruction: RInstruction,
+    instruction: RInstructionData,
 }
 
-impl Operation<RInstruction> for SLTU {
+impl Operation<RInstructionData> for SLTU {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let rs1 = cpu.read_x_u32(self.instruction.rs1)?;
         let rs2 = cpu.read_x_u32(self.instruction.rs2)?;
@@ -86,22 +86,22 @@ impl Operation<RInstruction> for SLTU {
         Ok(())
     }
 
-    fn new(instruction: RInstruction) -> Self {
+    fn new(instruction: RInstructionData) -> Self {
         SLTU {
             instruction: instruction,
         }
     }
 
-    fn instruction(&self) -> &RInstruction {
+    fn instruction(&self) -> &RInstructionData {
         &self.instruction
     }
 }
 
 pub struct AND {
-    instruction: RInstruction,
+    instruction: RInstructionData,
 }
 
-impl Operation<RInstruction> for AND {
+impl Operation<RInstructionData> for AND {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let rs1 = cpu.read_x_u32(self.instruction.rs1)?;
         let rs2 = cpu.read_x_u32(self.instruction.rs2)?;
@@ -109,22 +109,22 @@ impl Operation<RInstruction> for AND {
         Ok(())
     }
 
-    fn new(instruction: RInstruction) -> Self {
+    fn new(instruction: RInstructionData) -> Self {
         AND {
             instruction: instruction,
         }
     }
 
-    fn instruction(&self) -> &RInstruction {
+    fn instruction(&self) -> &RInstructionData {
         &self.instruction
     }
 }
 
 pub struct OR {
-    instruction: RInstruction,
+    instruction: RInstructionData,
 }
 
-impl Operation<RInstruction> for OR {
+impl Operation<RInstructionData> for OR {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let rs1 = cpu.read_x_u32(self.instruction.rs1)?;
         let rs2 = cpu.read_x_u32(self.instruction.rs2)?;
@@ -132,21 +132,21 @@ impl Operation<RInstruction> for OR {
         Ok(())
     }
 
-    fn new(instruction: RInstruction) -> Self {
+    fn new(instruction: RInstructionData) -> Self {
         OR {
             instruction: instruction,
         }
     }
 
-    fn instruction(&self) -> &RInstruction {
+    fn instruction(&self) -> &RInstructionData {
         &self.instruction
     }
 }
 pub struct XOR {
-    instruction: RInstruction,
+    instruction: RInstructionData,
 }
 
-impl Operation<RInstruction> for XOR {
+impl Operation<RInstructionData> for XOR {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let rs1 = cpu.read_x_u32(self.instruction.rs1)?;
         let rs2 = cpu.read_x_u32(self.instruction.rs2)?;
@@ -154,22 +154,22 @@ impl Operation<RInstruction> for XOR {
         Ok(())
     }
 
-    fn new(instruction: RInstruction) -> Self {
+    fn new(instruction: RInstructionData) -> Self {
         XOR {
             instruction: instruction,
         }
     }
 
-    fn instruction(&self) -> &RInstruction {
+    fn instruction(&self) -> &RInstructionData {
         &self.instruction
     }
 }
 
 pub struct SLL {
-    instruction: RInstruction,
+    instruction: RInstructionData,
 }
 
-impl Operation<RInstruction> for SLL {
+impl Operation<RInstructionData> for SLL {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let shamt = (cpu.read_x_u32(self.instruction.rs2)? & 0b11111) as u32;
         let res: u32 = cpu.read_x_u32(self.instruction.rs1)? << shamt;
@@ -177,22 +177,22 @@ impl Operation<RInstruction> for SLL {
         Ok(())
     }
 
-    fn new(instruction: RInstruction) -> Self {
+    fn new(instruction: RInstructionData) -> Self {
         SLL {
             instruction: instruction,
         }
     }
 
-    fn instruction(&self) -> &RInstruction {
+    fn instruction(&self) -> &RInstructionData {
         &self.instruction
     }
 }
 
 pub struct SRL {
-    instruction: RInstruction,
+    instruction: RInstructionData,
 }
 
-impl Operation<RInstruction> for SRL {
+impl Operation<RInstructionData> for SRL {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let shamt = (cpu.read_x_u32(self.instruction.rs2)? & 0b11111) as u32;
         let res: u32 = cpu.read_x_u32(self.instruction.rs1)? >> shamt;
@@ -200,22 +200,22 @@ impl Operation<RInstruction> for SRL {
         Ok(())
     }
 
-    fn new(instruction: RInstruction) -> Self {
+    fn new(instruction: RInstructionData) -> Self {
         SRL {
             instruction: instruction,
         }
     }
 
-    fn instruction(&self) -> &RInstruction {
+    fn instruction(&self) -> &RInstructionData {
         &self.instruction
     }
 }
 
 pub struct SRA {
-    instruction: RInstruction,
+    instruction: RInstructionData,
 }
 
-impl Operation<RInstruction> for SRA {
+impl Operation<RInstructionData> for SRA {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let shamt = (cpu.read_x_u32(self.instruction.rs2)? & 0b11111) as u32;
         let res: i32 = cpu.read_x_i32(self.instruction.rs1)? >> shamt;
@@ -223,13 +223,13 @@ impl Operation<RInstruction> for SRA {
         Ok(())
     }
 
-    fn new(instruction: RInstruction) -> Self {
+    fn new(instruction: RInstructionData) -> Self {
         SRA {
             instruction: instruction,
         }
     }
 
-    fn instruction(&self) -> &RInstruction {
+    fn instruction(&self) -> &RInstructionData {
         &self.instruction
     }
 }

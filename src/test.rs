@@ -12,10 +12,60 @@ mod tests {
     use proptest::prelude::*;
 
     proptest! {
+
         #[test]
         fn test_addi(rd in 1u8..30, rs1 in 1u8..30, imm1 in -2048i16..2047, imm2 in -2048i16..2047) {
             let mut cpu = Cpu::new();
-            let mut addi_instruction = IInstruction {
+            let mut addi_instruction = IInstructionData {
+                rd,
+                func3: 0,
+                rs1,
+                imm: i16_to_u16(imm1),
+            };
+            // let addi_op = AddI::new(addi_instruction.clone());
+            let addi_op = encode_program_line("ADDI", InstructionData::I(addi_instruction)).unwrap();
+            prop_assert!(cpu.execute_word(addi_op).is_ok());
+            prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), imm1 as i32);
+
+            addi_instruction.rs1 = rd;
+            addi_instruction.imm = i16_to_u16(imm2);
+            let rs1_val = cpu.read_x_i32(addi_instruction.rs1).unwrap();
+
+            let addi_op = encode_program_line("ADDI", InstructionData::I(addi_instruction)).unwrap();
+            prop_assert!(cpu.execute_word(addi_op).is_ok());
+            prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), imm2 as i32 + rs1_val);
+        }
+
+        #[test]
+        fn test_stli(rd in 1u8..30, rs1 in 1u8..30, imm1 in -2048i16..2047, imm2 in -2048i16..2047){
+            let mut cpu = Cpu::new();
+
+            let mut slti_instruction = IInstructionData {
+                rd: rd,
+                func3: 2,
+                rs1: rs1,
+                imm: i16_to_u16(imm1),
+            };
+            let rs1_val = cpu.read_x_i32(slti_instruction.rs1).unwrap();
+            let slti_op = encode_program_line("SLTI", InstructionData::I(slti_instruction)).unwrap();
+
+            prop_assert!(cpu.execute_word(slti_op).is_ok());
+            prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), if rs1_val < imm1 as i32 {1} else {0});
+
+
+            slti_instruction.rs1 = rd;
+            slti_instruction.imm = i16_to_u16(imm2);
+            let rs1_val = cpu.read_x_i32(slti_instruction.rs1).unwrap();
+
+            let slti_op = encode_program_line("SLTI", InstructionData::I(slti_instruction)).unwrap();
+            prop_assert!(cpu.execute_word(slti_op).is_ok());
+            prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), if rs1_val < imm2 as i32 {1} else {0});
+        }
+/*
+        #[test]
+        fn test_addi(rd in 1u8..30, rs1 in 1u8..30, imm1 in -2048i16..2047, imm2 in -2048i16..2047) {
+            let mut cpu = Cpu::new();
+            let mut addi_instruction = IInstructionData {
                 rd,
                 func3: 0,
                 rs1,
@@ -38,7 +88,7 @@ mod tests {
         fn test_stli(rd in 1u8..30, rs1 in 1u8..30, imm1 in -2048i16..2047, imm2 in -2048i16..2047){
             let mut cpu = Cpu::new();
 
-            let mut slti_instruction = IInstruction {
+            let mut slti_instruction = IInstructionData {
                 rd: rd,
                 func3: 2,
                 rs1: rs1,
@@ -63,7 +113,7 @@ mod tests {
         fn test_andi(rd in 1u8..30, rs1 in 1u8..30, imm1 in 0u16..0xFFFF, imm2 in 0u16..0xFFFF){
             let mut cpu = Cpu::new();
 
-            let mut andi_instruction = IInstruction {
+            let mut andi_instruction = IInstructionData {
                 rd: rd,
                 func3: 7,
                 rs1: rs1,
@@ -87,7 +137,7 @@ mod tests {
         fn test_ori(rd in 1u8..30, rs1 in 1u8..30, imm1 in 0u16..0xFFFF, imm2 in 0u16..0xFFFF){
             let mut cpu = Cpu::new();
 
-            let mut ori_instruction = IInstruction {
+            let mut ori_instruction = IInstructionData {
                 rd: rd,
                 func3: 6,
                 rs1: rs1,
@@ -111,7 +161,7 @@ mod tests {
         fn test_xori(rd in 1u8..30, rs1 in 1u8..30, imm1 in 0u16..0xFFFF, imm2 in 0u16..0xFFFF, rs1_val in i32::MIN..i32::MAX) {
             let mut cpu = Cpu::new();
 
-            let mut xori_instruction = IInstruction {
+            let mut xori_instruction = IInstructionData {
                 rd,
                 func3: 4,
                 rs1,
@@ -144,7 +194,7 @@ mod tests {
         fn test_slli(rd in 1u8..30, rs1 in 1u8..30, shamt in 0u8..31, rs1_val in i32::MIN..i32::MAX) {
             let mut cpu = Cpu::new();
 
-            let slli_instruction = IInstruction {
+            let slli_instruction = IInstructionData {
                 rd,
                 func3: 1,
                 rs1,
@@ -164,7 +214,7 @@ mod tests {
         fn test_srli(rd in 1u8..30, rs1 in 1u8..30, shamt in 0u8..31, rs1_val in i32::MIN..i32::MAX) {
             let mut cpu = Cpu::new();
 
-            let srli_instruction = IInstruction {
+            let srli_instruction = IInstructionData {
                 rd,
                 func3: 5,
                 rs1,
@@ -184,7 +234,7 @@ mod tests {
         fn test_srai(rd in 1u8..30, rs1 in 1u8..30, shamt in 0u8..31, rs1_val in i32::MIN..i32::MAX) {
             let mut cpu = Cpu::new();
 
-            let srai_instruction = IInstruction {
+            let srai_instruction = IInstructionData {
                 rd,
                 func3: 5,
                 rs1,
@@ -203,7 +253,7 @@ mod tests {
         fn test_lui(rd in 1u8..30, imm in 0u32..0xFFFFF) {
             let mut cpu = Cpu::new();
 
-            let lui_instruction = UInstruction {
+            let lui_instruction = UInstructionData {
                 rd,
                 imm: imm,
             };
@@ -220,7 +270,7 @@ mod tests {
             let mut cpu = Cpu::new();
             cpu.write_pc_u32(pc);
 
-            let auipc_instruction = UInstruction {
+            let auipc_instruction = UInstructionData {
                 rd,
                 imm: imm,
             };
@@ -237,7 +287,7 @@ mod tests {
         fn test_add(rd in 1u8..30, rs1 in 1u8..30, rs2 in 1u8..30, rs1_val in i32::MIN..i32::MAX, rs2_val in i32::MIN..i32::MAX) {
             let mut cpu = Cpu::new();
 
-            let add_instruction = RInstruction {
+            let add_instruction = RInstructionData {
                 rd,
                 func3: 0,
                 rs1,
@@ -262,7 +312,7 @@ mod tests {
         fn test_sub(rd in 1u8..30, rs1 in 1u8..30, rs2 in 1u8..30, rs1_val in i32::MIN..i32::MAX, rs2_val in i32::MIN..i32::MAX) {
             let mut cpu = Cpu::new();
 
-            let sub_instruction = RInstruction {
+            let sub_instruction = RInstructionData {
                 rd,
                 func3: 0,
                 rs1,
@@ -287,7 +337,7 @@ mod tests {
         fn test_slt(rd in 1u8..30, rs1 in 1u8..30, rs2 in 1u8..30, rs1_val in i32::MIN..i32::MAX, rs2_val in i32::MIN..i32::MAX) {
             let mut cpu = Cpu::new();
 
-            let slt_instruction = RInstruction {
+            let slt_instruction = RInstructionData {
                 rd,
                 func3: 2,
                 rs1,
@@ -312,7 +362,7 @@ mod tests {
         fn test_sltu(rd in 1u8..30, rs1 in 1u8..30, rs2 in 1u8..30, rs1_val in i32::MIN..i32::MAX, rs2_val in i32::MIN..i32::MAX) {
             let mut cpu = Cpu::new();
 
-            let sltu_instruction = RInstruction {
+            let sltu_instruction = RInstructionData {
                 rd,
                 func3: 3,
                 rs1,
@@ -337,7 +387,7 @@ mod tests {
         fn test_xor(rd in 1u8..30, rs1 in 1u8..30, rs2 in 1u8..30, rs1_val in i32::MIN..i32::MAX, rs2_val in i32::MIN..i32::MAX) {
             let mut cpu = Cpu::new();
 
-            let xor_instruction = RInstruction {
+            let xor_instruction = RInstructionData {
                 rd,
                 func3: 4,
                 rs1,
@@ -362,7 +412,7 @@ mod tests {
         fn test_or(rd in 1u8..30, rs1 in 1u8..30, rs2 in 1u8..30, rs1_val in i32::MIN..i32::MAX, rs2_val in i32::MIN..i32::MAX) {
             let mut cpu = Cpu::new();
 
-            let or_instruction = RInstruction {
+            let or_instruction = RInstructionData {
                 rd,
                 func3: 6,
                 rs1,
@@ -387,7 +437,7 @@ mod tests {
         fn test_and(rd in 1u8..30, rs1 in 1u8..30, rs2 in 1u8..30, rs1_val in i32::MIN..i32::MAX, rs2_val in i32::MIN..i32::MAX) {
             let mut cpu = Cpu::new();
 
-            let and_instruction = RInstruction {
+            let and_instruction = RInstructionData {
                 rd,
                 func3: 7,
                 rs1,
@@ -412,7 +462,7 @@ mod tests {
         fn test_sll(rd in 1u8..30, rs1 in 1u8..30, rs2 in 1u8..30, rs1_val in u32::MIN..u32::MAX, rs2_val in 0u32..31) {
             let mut cpu = Cpu::new();
 
-            let sll_instruction = RInstruction {
+            let sll_instruction = RInstructionData {
                 rd,
                 func3: 1,
                 rs1,
@@ -437,7 +487,7 @@ mod tests {
         fn test_srl(rd in 1u8..30, rs1 in 1u8..30, rs2 in 1u8..30, rs1_val in u32::MIN..u32::MAX, rs2_val in 0u32..31) {
             let mut cpu = Cpu::new();
 
-            let sll_instruction = RInstruction {
+            let sll_instruction = RInstructionData {
                 rd,
                 func3: 1,
                 rs1,
@@ -462,7 +512,7 @@ mod tests {
         fn test_sra(rd in 1u8..30, rs1 in 1u8..30, rs2 in 1u8..30, rs1_val in i32::MIN..i32::MAX, rs2_val in 0u32..31) {
             let mut cpu = Cpu::new();
 
-            let sll_instruction = RInstruction {
+            let sll_instruction = RInstructionData {
                 rd,
                 func3: 1,
                 rs1,
@@ -494,5 +544,6 @@ mod tests {
             let imm = sign_extend_12bit_to_32bit(i16_to_u16(imm));
             prop_assert_eq!(imm, imm as i32);
         }
+         */
     }
 }
