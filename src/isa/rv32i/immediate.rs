@@ -239,7 +239,7 @@ impl Operation<UInstructionData> for AUIPC {
 pub const RV32I_SET: [Instruction; 10] = [
     Instruction{
         mask: OPCODE_MASK | FUNC3_MASK,
-        bits: 0b0010011,
+        bits: 0b000 << FUNC3_POS | 0b0010011,
         name: "ADDI",
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
@@ -252,7 +252,7 @@ pub const RV32I_SET: [Instruction; 10] = [
     },
     Instruction{
         mask: OPCODE_MASK | FUNC3_MASK,
-        bits: 0b010 << 12 | 0b0010011,
+        bits: 0b010 << FUNC3_POS | 0b0010011,
         name: "SLTI",
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
@@ -264,7 +264,7 @@ pub const RV32I_SET: [Instruction; 10] = [
     },
     Instruction{
         mask: OPCODE_MASK | FUNC3_MASK,
-        bits: 1,
+        bits: 0b111 << FUNC3_POS | 0b0010011,
         name: "ANDI",
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
@@ -276,7 +276,7 @@ pub const RV32I_SET: [Instruction; 10] = [
     },
     Instruction{
         mask: OPCODE_MASK | FUNC3_MASK,
-        bits: 1,
+        bits: (FUNC3_ORI as u32) << FUNC3_POS | 0b0010011,
         name: "ORI",
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
@@ -288,7 +288,7 @@ pub const RV32I_SET: [Instruction; 10] = [
     },
     Instruction{
         mask: OPCODE_MASK | FUNC3_MASK,
-        bits: 1,
+        bits: (FUNC3_XORI as u32) << FUNC3_POS | 0b0010011,
         name: "XORI",
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
@@ -299,8 +299,8 @@ pub const RV32I_SET: [Instruction; 10] = [
         }
     },
     Instruction{
-        mask: OPCODE_MASK | FUNC3_MASK,
-        bits: 1,
+        mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
+        bits: 0b0000000 << FUNC7_POS | 0b001 << FUNC3_POS | 0b0010011,
         name: "SLLI",
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
@@ -311,8 +311,8 @@ pub const RV32I_SET: [Instruction; 10] = [
         }
     },
     Instruction{
-        mask: OPCODE_MASK | FUNC3_MASK,
-        bits: 1,
+        mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
+        bits: 0b0000000 << FUNC7_POS | 0b101 << FUNC3_POS | 0b0010011,
         name: "SRLI",
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
@@ -323,8 +323,8 @@ pub const RV32I_SET: [Instruction; 10] = [
         }
     },
     Instruction{
-        mask: OPCODE_MASK | FUNC3_MASK,
-        bits: 1,
+        mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
+        bits: 0b0100000 << FUNC7_POS | 0b101 << FUNC3_POS | 0b0010011,
         name: "SRAI",
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
@@ -335,8 +335,8 @@ pub const RV32I_SET: [Instruction; 10] = [
         }
     },
     Instruction{
-        mask: OPCODE_MASK | FUNC3_MASK,
-        bits: 1,
+        mask: OPCODE_MASK,
+        bits: 0b0110111,
         name: "LUI",
         operation: |cpu, word| {
             let instruction = parse_instruction_u(word);
@@ -345,8 +345,8 @@ pub const RV32I_SET: [Instruction; 10] = [
         }
     },
     Instruction{
-        mask: OPCODE_MASK | FUNC3_MASK,
-        bits: 1,
+        mask: OPCODE_MASK,
+        bits: 0b0010111,
         name: "AUIPC",
         operation: |cpu, word| {
             let instruction = parse_instruction_u(word);

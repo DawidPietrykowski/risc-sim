@@ -3,7 +3,6 @@ mod tests {
     use crate::*;
 
     use isa::cpu::*;
-    use isa::rv32i::immediate::*;
     use isa::rv32i::integer_reg_reg::*;
     use isa::types::*;
     use utils::binary_utils::*;
@@ -12,6 +11,37 @@ mod tests {
     use proptest::prelude::*;
 
     proptest! {
+        #[test]
+        fn test_encode_decode_i16(rd in 1u8..30, rs1 in 1u8..30, imm in -2048i16..2047){
+            println!();
+            let addi_instruction = IInstructionData {
+                rd,
+                func3: 0,
+                rs1,
+                imm: i16_to_u16(imm) & 0xFFF,
+            };
+            let op = encode_program_line("ADDI", InstructionData::I(addi_instruction)).unwrap();
+            let decoded = decode_program_line(op).unwrap();
+            // println!("{:#034b}", -2048 as i16);
+            // println!("{:#034b}", i16_to_u16(-2048));
+            // println!("{:#034b}", (-2048 as i32) << 20);
+            // println!("{:#034b}", (i16_to_u16(-2048) as u32) << 20);
+            // println!("{:#034b}", parse_instruction_i(&decoded.word).imm); 
+            prop_assert_eq!(parse_instruction_i(&decoded.word), addi_instruction);
+        }
+
+        #[test]
+        fn test_encode_decode(rd in 1u8..30, rs1 in 1u8..30, imm1 in 0u16..4095){
+            let addi_instruction = IInstructionData {
+                rd,
+                func3: 0,
+                rs1,
+                imm: imm1,
+            };
+            let op = encode_program_line("ADDI", InstructionData::I(addi_instruction)).unwrap();
+            let decoded = decode_program_line(op).unwrap();
+            prop_assert_eq!(parse_instruction_i(&decoded.word), addi_instruction);
+        }
 
         #[test]
         fn test_addi(rd in 1u8..30, rs1 in 1u8..30, imm1 in -2048i16..2047, imm2 in -2048i16..2047) {
@@ -22,17 +52,16 @@ mod tests {
                 rs1,
                 imm: i16_to_u16(imm1),
             };
-            // let addi_op = AddI::new(addi_instruction.clone());
-            let addi_op = encode_program_line("ADDI", InstructionData::I(addi_instruction)).unwrap();
-            prop_assert!(cpu.execute_word(addi_op).is_ok());
+            let op = encode_program_line("ADDI", InstructionData::I(addi_instruction)).unwrap();
+            prop_assert!(cpu.execute_word(op).is_ok());
             prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), imm1 as i32);
 
             addi_instruction.rs1 = rd;
             addi_instruction.imm = i16_to_u16(imm2);
             let rs1_val = cpu.read_x_i32(addi_instruction.rs1).unwrap();
 
-            let addi_op = encode_program_line("ADDI", InstructionData::I(addi_instruction)).unwrap();
-            prop_assert!(cpu.execute_word(addi_op).is_ok());
+            let op = encode_program_line("ADDI", InstructionData::I(addi_instruction)).unwrap();
+            prop_assert!(cpu.execute_word(op).is_ok());
             prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), imm2 as i32 + rs1_val);
         }
 
@@ -59,53 +88,6 @@ mod tests {
 
             let slti_op = encode_program_line("SLTI", InstructionData::I(slti_instruction)).unwrap();
             prop_assert!(cpu.execute_word(slti_op).is_ok());
-            prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), if rs1_val < imm2 as i32 {1} else {0});
-        }
-/*
-        #[test]
-        fn test_addi(rd in 1u8..30, rs1 in 1u8..30, imm1 in -2048i16..2047, imm2 in -2048i16..2047) {
-            let mut cpu = Cpu::new();
-            let mut addi_instruction = IInstructionData {
-                rd,
-                func3: 0,
-                rs1,
-                imm: i16_to_u16(imm1),
-            };
-            let addi_op = AddI::new(addi_instruction.clone());
-            prop_assert!(cpu.execute_operation(&addi_op).is_ok());
-            prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), imm1 as i32);
-
-            addi_instruction.rs1 = rd;
-            addi_instruction.imm = i16_to_u16(imm2);
-            let rs1_val = cpu.read_x_i32(addi_instruction.rs1).unwrap();
-
-            let addi_op = AddI::new(addi_instruction);
-            prop_assert!(cpu.execute_operation(&addi_op).is_ok());
-            prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), imm2 as i32 + rs1_val);
-        }
-
-        #[test]
-        fn test_stli(rd in 1u8..30, rs1 in 1u8..30, imm1 in -2048i16..2047, imm2 in -2048i16..2047){
-            let mut cpu = Cpu::new();
-
-            let mut slti_instruction = IInstructionData {
-                rd: rd,
-                func3: 2,
-                rs1: rs1,
-                imm: i16_to_u16(imm1),
-            };
-            let rs1_val = cpu.read_x_i32(slti_instruction.rs1).unwrap();
-            let slti_op = SLTI::new(slti_instruction.clone());
-            prop_assert!(cpu.execute_operation(&slti_op).is_ok());
-            prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), if rs1_val < imm1 as i32 {1} else {0});
-
-
-            slti_instruction.rs1 = rd;
-            slti_instruction.imm = i16_to_u16(imm2);
-            let rs1_val = cpu.read_x_i32(slti_instruction.rs1).unwrap();
-
-            let slti_op = SLTI::new(slti_instruction);
-            prop_assert!(cpu.execute_operation(&slti_op).is_ok());
             prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), if rs1_val < imm2 as i32 {1} else {0});
         }
 
@@ -120,58 +102,58 @@ mod tests {
                 imm: imm1,
             };
             let rs1_val = cpu.read_x_u32(andi_instruction.rs1).unwrap();
-            let andi_op = ANDI::new(andi_instruction.clone());
-            prop_assert!(cpu.execute_operation(&andi_op).is_ok());
+            let op = encode_program_line("ANDI", InstructionData::I(andi_instruction)).unwrap();
+            prop_assert!(cpu.execute_word(op).is_ok());
             prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), rs1_val & i32_to_u32(sign_extend_12bit_to_32bit(imm1)));
 
             andi_instruction.rs1 = rd;
             andi_instruction.imm = imm2;
             let rs1_val = cpu.read_x_u32(andi_instruction.rs1).unwrap();
 
-            let andi_op = ANDI::new(andi_instruction);
-            prop_assert!(cpu.execute_operation(&andi_op).is_ok());
+            let op = encode_program_line("ANDI", InstructionData::I(andi_instruction)).unwrap();
+            prop_assert!(cpu.execute_word(op).is_ok());
             prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), rs1_val & i32_to_u32(sign_extend_12bit_to_32bit(imm2)));
         }
 
         #[test]
-        fn test_ori(rd in 1u8..30, rs1 in 1u8..30, imm1 in 0u16..0xFFFF, imm2 in 0u16..0xFFFF){
+        fn test_ori(rd in 1u8..30, rs1 in 1u8..30, imm1 in 0u16..0x0FFF, imm2 in 0u16..0x0FFF){
             let mut cpu = Cpu::new();
 
             let mut ori_instruction = IInstructionData {
                 rd: rd,
-                func3: 6,
+                func3: FUNC3_ORI,
                 rs1: rs1,
                 imm: imm1,
             };
             let rs1_val = cpu.read_x_u32(ori_instruction.rs1).unwrap();
-            let ori_op = ORI::new(ori_instruction.clone());
-            prop_assert!(cpu.execute_operation(&ori_op).is_ok());
+            let op = encode_program_line("ORI", InstructionData::I(ori_instruction)).unwrap();
+            prop_assert!(cpu.execute_word(op).is_ok());
             prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), rs1_val | i32_to_u32(sign_extend_12bit_to_32bit(imm1)));
 
             ori_instruction.rs1 = rd;
             ori_instruction.imm = imm2;
             let rs1_val = cpu.read_x_u32(ori_instruction.rs1).unwrap();
 
-            let ori_op = ORI::new(ori_instruction);
-            prop_assert!(cpu.execute_operation(&ori_op).is_ok());
+            let op = encode_program_line("ORI", InstructionData::I(ori_instruction)).unwrap();
+            prop_assert!(cpu.execute_word(op).is_ok());
             prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), rs1_val | i32_to_u32(sign_extend_12bit_to_32bit(imm2)));
         }
 
         #[test]
-        fn test_xori(rd in 1u8..30, rs1 in 1u8..30, imm1 in 0u16..0xFFFF, imm2 in 0u16..0xFFFF, rs1_val in i32::MIN..i32::MAX) {
+        fn test_xori(rd in 1u8..30, rs1 in 1u8..30, imm1 in 0u16..0x0FFF, imm2 in 0u16..0x0FFF, rs1_val in i32::MIN..i32::MAX) {
             let mut cpu = Cpu::new();
 
-            let mut xori_instruction = IInstructionData {
+            let mut xori_instruction = IInstructionData{
                 rd,
-                func3: 4,
+                func3: FUNC3_XORI,
                 rs1,
                 imm: imm1,
             };
 
             cpu.write_x_i32(rs1, rs1_val).unwrap();
 
-            let xori_op = XORI::new(xori_instruction.clone());
-            prop_assert!(cpu.execute_operation(&xori_op).is_ok());
+            let op = encode_program_line("XORI", InstructionData::I(xori_instruction)).unwrap();
+            prop_assert!(cpu.execute_word(op).is_ok());
             prop_assert_eq!(
                 cpu.read_x_i32(rd).unwrap(),
                 rs1_val ^ sign_extend_12bit_to_32bit(imm1)
@@ -181,8 +163,8 @@ mod tests {
             xori_instruction.imm = imm2;
             let rs1_val = cpu.read_x_i32(xori_instruction.rs1).unwrap();
 
-            let xori_op = XORI::new(xori_instruction);
-            prop_assert!(cpu.execute_operation(&xori_op).is_ok());
+            let op = encode_program_line("XORI", InstructionData::I(xori_instruction)).unwrap();
+            prop_assert!(cpu.execute_word(op).is_ok());
             prop_assert_eq!(
                 cpu.read_x_i32(rd).unwrap(),
                 rs1_val ^ sign_extend_12bit_to_32bit(imm2)
@@ -203,8 +185,9 @@ mod tests {
 
             cpu.write_x_i32(rs1, rs1_val).unwrap();
 
-            let slli_op = SLLI::new(slli_instruction);
-            prop_assert!(cpu.execute_operation(&slli_op).is_ok());
+            let op = encode_program_line("SLLI", InstructionData::I(slli_instruction)).unwrap();
+
+            prop_assert!(cpu.execute_word(op).is_ok());
 
             let expected = (rs1_val as u32).wrapping_shl(shamt as u32) as i32;
             prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
@@ -223,8 +206,9 @@ mod tests {
 
             cpu.write_x_u32(rs1, rs1_val as u32).unwrap();
 
-            let srli_op = SRLI::new(srli_instruction);
-            prop_assert!(cpu.execute_operation(&srli_op).is_ok());
+            let op = encode_program_line("SRLI", InstructionData::I(srli_instruction)).unwrap();
+
+            prop_assert!(cpu.execute_word(op).is_ok());
 
             let expected = ((rs1_val as u32) >> shamt) as i32;
             prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
@@ -243,8 +227,9 @@ mod tests {
 
             cpu.write_x_i32(rs1, rs1_val).unwrap();
 
-            let srai_op = SRAI::new(srai_instruction);
-            prop_assert!(cpu.execute_operation(&srai_op).is_ok());
+            let op = encode_program_line("SRAI", InstructionData::I(srai_instruction)).unwrap();
+
+            prop_assert!(cpu.execute_word(op).is_ok());
 
             let expected = rs1_val >> shamt;
             prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
@@ -258,8 +243,9 @@ mod tests {
                 imm: imm,
             };
 
-            let lui_op = LUI::new(lui_instruction);
-            prop_assert!(cpu.execute_operation(&lui_op).is_ok());
+            let op = encode_program_line("LUI", InstructionData::U(lui_instruction)).unwrap();
+
+            prop_assert!(cpu.execute_word(op).is_ok());
 
             let expected = (imm << 12) as u32;
             prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), expected);
@@ -275,8 +261,9 @@ mod tests {
                 imm: imm,
             };
 
-            let auipc_op = AUIPC::new(auipc_instruction);
-            prop_assert!(cpu.execute_operation(&auipc_op).is_ok());
+            let op = encode_program_line("AUIPC", InstructionData::U(auipc_instruction)).unwrap();
+
+            prop_assert!(cpu.execute_word(op).is_ok());
 
             let expected = (imm << 12).wrapping_add(pc);
             prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), expected);
@@ -544,6 +531,6 @@ mod tests {
             let imm = sign_extend_12bit_to_32bit(i16_to_u16(imm));
             prop_assert_eq!(imm, imm as i32);
         }
-         */
+        //  */
     }
 }

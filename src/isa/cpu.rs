@@ -3,12 +3,13 @@ use crate::isa::types::InstructionType;
 
 use anyhow::{Context, Ok, Result};
 
-use super::types::{decode_program_line, Instruction, InstructionData, ProgramLine, Word};
+use super::types::{decode_program_line, InstructionData, ProgramLine, Word};
 
 pub struct Cpu {
     reg_x32: [u32; 31],
     reg_pc: u32,
     skip_pc_increment: bool,
+    #[allow(dead_code)]
     program: Vec<ProgramLine>
 }
 
