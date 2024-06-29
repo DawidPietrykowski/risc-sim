@@ -9,64 +9,64 @@ pub struct ProgramLine{
 }
 
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, Default)]
 pub struct RInstructionData {
-    pub rd: u8,
-    pub func3: u8,
-    pub rs1: u8,
-    pub rs2: u8,
-    pub func7: u8,
+    pub rd: U5,
+    pub func3: U3,
+    pub rs1: U5,
+    pub rs2: U5,
+    pub func7: U7,
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, Default)]
 pub struct IInstructionData {
-    pub rd: u8,
-    pub func3: u8,
-    pub rs1: u8,
+    pub rd: U5,
+    pub func3: U3,
+    pub rs1: U5,
     pub imm: u16,
 }
 
-impl IInstructionData {
-    pub fn new(rd: u8, func3: u8, rs1: u8, imm: u16) -> IInstructionData {
-        assert_eq!(rd & 0b11100000, 0);
-        assert_eq!(func3 & 0b11111000, 0);
-        assert_eq!(rs1 & 0b11100000, 0);
-        assert_eq!(imm & 0xF000, 0);
-        IInstructionData { rd, func3, rs1, imm }
-    }
-}
+// impl IInstructionData {
+//     pub fn new(rd: u8, func3: U3, rs1: u8, imm: u16) -> IInstructionData {
+//         assert_eq!(rd & 0b11100000, 0);
+//         assert_eq!(func3 & 0b11111000, 0);
+//         assert_eq!(rs1 & 0b11100000, 0);
+//         assert_eq!(imm & 0xF000, 0);
+//         IInstructionData { rd, func3, rs1, imm }
+//     }
+// }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, Default)]
 pub struct SInstructionData {
     pub imm1: u8,
-    pub func3: u8,
-    pub rs1: u8,
-    pub rs2: u8,
+    pub func3: U3,
+    pub rs1: U5,
+    pub rs2: U5,
     pub imm2: u8,
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, Default)]
 pub struct SBInstructionData {
     pub imm1: u8,
-    pub func3: u8,
-    pub rs1: u8,
-    pub rs2: u8,
+    pub func3: U3,
+    pub rs1: U5,
+    pub rs2: U5,
     pub imm2: u8,
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, Default)]
 pub struct UInstructionData {
-    pub rd: u8,
+    pub rd: U5,
     pub imm: u32,
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, Default)]
 pub struct UJInstructionData {
-    pub rd: u8,
+    pub rd: U5,
     pub imm: UJImmediate,
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, Default)]
 pub struct UJImmediate (u32);
 
 impl UJImmediate {
@@ -124,9 +124,9 @@ pub struct Instruction{
 
 pub fn parse_instruction_i(word: &Word) -> IInstructionData {
     let data = IInstructionData {
-        rd: (word.0 >> 7) as u8 & 0b00011111,
-        func3: (word.0 >> 12) as u8 & 0b00000111,
-        rs1: (word.0 >> 15) as u8 & 0b00011111,
+        rd: U5((word.0 >> 7) as u8 & 0b11111),
+        func3: U3((word.0 >> 12) as u8 & 0b111),
+        rs1: U5((word.0 >> 15) as u8 & 0b11111),
         imm: (word.0 >> 20) as u16 & 0xFFF
     };
     println!("{:#034b} {:?}", word.0, data);
@@ -135,7 +135,7 @@ pub fn parse_instruction_i(word: &Word) -> IInstructionData {
 
 pub fn parse_instruction_u(word: &Word) -> UInstructionData {
     UInstructionData {
-        rd: (word.0 >> 7) as u8 & 0b00011111,
+        rd: U5((word.0 >> 7) as u8 & 0b00011111),
         imm: word.0 & (0xFFFFFFFF << 12)
     }
 }
@@ -155,22 +155,22 @@ pub fn encode_program_line(name: &str, instruction_data: InstructionData) -> Res
     let mut word = Word(0);
     word.0 |= match instruction_data {
         InstructionData::R(data) => {
-            (data.rd as u32) << 7 | 
-            (data.func3 as u32) << 12 | 
-            (data.rs1 as u32) << 15 | 
-            (data.rs2 as u32) << 20 | 
-            (data.func7 as u32) << 25
+            (data.rd.value() as u32) << 7 | 
+            (data.func3.value() as u32) << 12 | 
+            (data.rs1.value() as u32) << 15 | 
+            (data.rs2.value() as u32) << 20 | 
+            (data.func7.value() as u32) << 25
         },
         InstructionData::I(data) => {
-            (data.rd as u32) << 7 | 
-            (data.func3 as u32) << 12 | 
-            (data.rs1 as u32) << 15 | 
+            (data.rd.value() as u32) << 7 | 
+            (data.func3.value() as u32) << 12 | 
+            (data.rs1.value() as u32) << 15 | 
             (data.imm as u32) << 20
         },
         InstructionData::S(_) => todo!(),
         InstructionData::SB(_) => todo!(),
         InstructionData::U(data) => {
-            (data.rd as u32) << 7 | 
+            (data.rd.value() as u32) << 7 | 
             (data.imm as u32) << 12
         },
         InstructionData::UJ(_) => todo!(),
@@ -189,6 +189,97 @@ pub const FUNC7_POS: u32 = 25;
 pub const FUNC3_ORI: u8 = 0b110;
 pub const FUNC3_XORI: u8 = 0b100;
 
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct U3 (pub u8);
+
+impl BitValue<u8, U3> for U3 {
+    fn new(value: u8) -> U3 {
+        assert_eq!(value & (0b11111 << 3), 0);
+        U3(value & 0b111)
+    }
+
+    fn value(&self) -> u8 {
+        self.0
+    }
+
+    fn max_value() -> U3 {
+        U3(0b111)
+    }
+
+    fn min_value() -> U3 {
+        U3(0)
+    }
+}
+
+impl Default for U3 {
+    fn default() -> Self {
+        U3(0)
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct U5 (pub u8);
+
+impl BitValue<u8, U5> for U5 {
+    fn new(value: u8) -> U5 {
+        assert_eq!(value & (0b111 << 5), 0);
+        U5(value & !(0b111 << 5))
+    }
+
+    fn value(&self) -> u8 {
+        self.0
+    }
+
+    fn max_value() -> U5 {
+        U5(0b11111)
+    }
+
+    fn min_value() -> U5 {
+        U5(0)
+    }
+}
+
+impl Default for U5 {
+    fn default() -> Self {
+        U5(0)
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct U7 (pub u8);
+
+impl BitValue<u8, U7> for U7 {
+    fn new(value: u8) -> U7 {
+        assert_eq!(value & (0b1 << 7), 0);
+        U7(value & !(0b1 << 7))
+    }
+
+    fn value(&self) -> u8 {
+        self.0
+    }
+
+    fn max_value() -> U7 {
+        U7(!(0b1 << 7))
+    }
+
+    fn min_value() -> U7 {
+        U7(0)
+    }
+}
+
+impl Default for U7 {
+    fn default() -> Self {
+        U7(0)
+    }
+}
+
+
+pub trait BitValue<S, T> {
+    fn new(value: S) -> T;
+    fn value(&self) -> S;
+    fn max_value() -> T;
+    fn min_value() -> T;
+}
 
 pub fn find_instruction_by_name(name: &str) -> Result<Instruction> {
     Ok(*RV32I_SET.iter().find(|ins| {ins.name == name}).context("Function not found")?)

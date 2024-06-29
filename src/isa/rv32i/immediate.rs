@@ -11,9 +11,9 @@ pub struct AddI {
 impl Operation<IInstructionData> for AddI {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let imm = sign_extend_12bit_to_32bit(self.instruction.imm);
-        let rs1 = cpu.read_x_i32(self.instruction.rs1)?;
+        let rs1 = cpu.read_x_i32(self.instruction.rs1.value())?;
         let (res, _) = imm.overflowing_add(rs1);
-        cpu.write_x_i32(self.instruction.rd, res)?;
+        cpu.write_x_i32(self.instruction.rd.value(), res)?;
         Ok(())
     }
 
@@ -34,8 +34,8 @@ pub struct SLTI {
 impl Operation<IInstructionData> for SLTI {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let imm = sign_extend_12bit_to_32bit(self.instruction.imm);
-        let rs1 = cpu.read_x_i32(self.instruction.rs1)?;
-        cpu.write_x_i32(self.instruction.rd, if rs1 < imm { 1 } else { 0 })?;
+        let rs1 = cpu.read_x_i32(self.instruction.rs1.value())?;
+        cpu.write_x_i32(self.instruction.rd.value(), if rs1 < imm { 1 } else { 0 })?;
         Ok(())
     }
 
@@ -57,8 +57,8 @@ pub struct ANDI {
 impl Operation<IInstructionData> for ANDI {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let imm = sign_extend_12bit_to_32bit(self.instruction.imm);
-        let rs1 = cpu.read_x_i32(self.instruction.rs1)?;
-        cpu.write_x_i32(self.instruction.rd, rs1 & imm)?;
+        let rs1 = cpu.read_x_i32(self.instruction.rs1.value())?;
+        cpu.write_x_i32(self.instruction.rd.value(), rs1 & imm)?;
         Ok(())
     }
 
@@ -80,8 +80,8 @@ pub struct ORI {
 impl Operation<IInstructionData> for ORI {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let imm = sign_extend_12bit_to_32bit(self.instruction.imm);
-        let rs1 = cpu.read_x_i32(self.instruction.rs1)?;
-        cpu.write_x_i32(self.instruction.rd, rs1 | imm)?;
+        let rs1 = cpu.read_x_i32(self.instruction.rs1.value())?;
+        cpu.write_x_i32(self.instruction.rd.value(), rs1 | imm)?;
         Ok(())
     }
 
@@ -103,8 +103,8 @@ pub struct XORI {
 impl Operation<IInstructionData> for XORI {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let imm = sign_extend_12bit_to_32bit(self.instruction.imm);
-        let rs1 = cpu.read_x_i32(self.instruction.rs1)?;
-        cpu.write_x_i32(self.instruction.rd, rs1 ^ imm)?;
+        let rs1 = cpu.read_x_i32(self.instruction.rs1.value())?;
+        cpu.write_x_i32(self.instruction.rd.value(), rs1 ^ imm)?;
         Ok(())
     }
 
@@ -126,8 +126,8 @@ pub struct SLLI {
 impl Operation<IInstructionData> for SLLI {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let shamt = (self.instruction.imm & 0b11111) as u32;
-        let res: u32 = cpu.read_x_u32(self.instruction.rs1)? << shamt;
-        cpu.write_x_u32(self.instruction.rd, res)?;
+        let res: u32 = cpu.read_x_u32(self.instruction.rs1.value())? << shamt;
+        cpu.write_x_u32(self.instruction.rd.value(), res)?;
         Ok(())
     }
 
@@ -149,8 +149,8 @@ pub struct SRLI {
 impl Operation<IInstructionData> for SRLI {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let shamt = (self.instruction.imm & 0b11111) as u32;
-        let res: u32 = cpu.read_x_u32(self.instruction.rs1)? >> shamt;
-        cpu.write_x_u32(self.instruction.rd, res)?;
+        let res: u32 = cpu.read_x_u32(self.instruction.rs1.value())? >> shamt;
+        cpu.write_x_u32(self.instruction.rd.value(), res)?;
         Ok(())
     }
 
@@ -172,8 +172,8 @@ pub struct SRAI {
 impl Operation<IInstructionData> for SRAI {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let shamt = (self.instruction.imm & 0b11111) as u32;
-        let res: i32 = cpu.read_x_i32(self.instruction.rs1)? >> shamt;
-        cpu.write_x_i32(self.instruction.rd, res)?;
+        let res: i32 = cpu.read_x_i32(self.instruction.rs1.value())? >> shamt;
+        cpu.write_x_i32(self.instruction.rd.value(), res)?;
         Ok(())
     }
 
@@ -195,7 +195,7 @@ pub struct LUI {
 impl Operation<UInstructionData> for LUI {
     fn execute(&self, cpu: &mut Cpu) -> Result<()> {
         let shifted_imm = self.instruction.imm << 12;
-        cpu.write_x_u32(self.instruction.rd, shifted_imm)?;
+        cpu.write_x_u32(self.instruction.rd.value(), shifted_imm)?;
         Ok(())
     }
 
@@ -221,7 +221,7 @@ impl Operation<UInstructionData> for AUIPC {
         cpu.write_pc_u32(res);
         cpu.set_skip_pc_increment_flag(); // Disable default pc increment logic
 
-        cpu.write_x_u32(self.instruction.rd, res)?;
+        cpu.write_x_u32(self.instruction.rd.value(), res)?;
         Ok(())
     }
 
@@ -244,9 +244,9 @@ pub const RV32I_SET: [Instruction; 10] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let imm = sign_extend_12bit_to_32bit(instruction.imm);
-            let rs1 = cpu.read_x_i32(instruction.rs1)?;
+            let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
             let (res, _) = imm.overflowing_add(rs1);
-            cpu.write_x_i32(instruction.rd, res)?;
+            cpu.write_x_i32(instruction.rd.value(), res)?;
             Ok(())
         }
     },
@@ -257,8 +257,8 @@ pub const RV32I_SET: [Instruction; 10] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let imm = sign_extend_12bit_to_32bit(instruction.imm);
-            let rs1 = cpu.read_x_i32(instruction.rs1)?;
-            cpu.write_x_i32(instruction.rd, if rs1 < imm { 1 } else { 0 })?;
+            let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
+            cpu.write_x_i32(instruction.rd.value(), if rs1 < imm { 1 } else { 0 })?;
             Ok(())
         }
     },
@@ -269,8 +269,8 @@ pub const RV32I_SET: [Instruction; 10] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let imm = sign_extend_12bit_to_32bit(instruction.imm);
-            let rs1 = cpu.read_x_i32(instruction.rs1)?;
-            cpu.write_x_i32(instruction.rd, rs1 & imm)?;
+            let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
+            cpu.write_x_i32(instruction.rd.value(), rs1 & imm)?;
             Ok(())
         }
     },
@@ -281,8 +281,8 @@ pub const RV32I_SET: [Instruction; 10] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let imm = sign_extend_12bit_to_32bit(instruction.imm);
-            let rs1 = cpu.read_x_i32(instruction.rs1)?;
-            cpu.write_x_i32(instruction.rd, rs1 | imm)?;
+            let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
+            cpu.write_x_i32(instruction.rd.value(), rs1 | imm)?;
             Ok(())
         }
     },
@@ -293,8 +293,8 @@ pub const RV32I_SET: [Instruction; 10] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let imm = sign_extend_12bit_to_32bit(instruction.imm);
-            let rs1 = cpu.read_x_i32(instruction.rs1)?;
-            cpu.write_x_i32(instruction.rd, rs1 ^ imm)?;
+            let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
+            cpu.write_x_i32(instruction.rd.value(), rs1 ^ imm)?;
             Ok(())
         }
     },
@@ -305,8 +305,8 @@ pub const RV32I_SET: [Instruction; 10] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let shamt = (instruction.imm & 0b11111) as u32;
-            let res: u32 = cpu.read_x_u32(instruction.rs1)? << shamt;
-            cpu.write_x_u32(instruction.rd, res)?;
+            let res: u32 = cpu.read_x_u32(instruction.rs1.value())? << shamt;
+            cpu.write_x_u32(instruction.rd.value(), res)?;
             Ok(())
         }
     },
@@ -317,8 +317,8 @@ pub const RV32I_SET: [Instruction; 10] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let shamt = (instruction.imm & 0b11111) as u32;
-            let res: u32 = cpu.read_x_u32(instruction.rs1)? >> shamt;
-            cpu.write_x_u32(instruction.rd, res)?;
+            let res: u32 = cpu.read_x_u32(instruction.rs1.value())? >> shamt;
+            cpu.write_x_u32(instruction.rd.value(), res)?;
             Ok(())
         }
     },
@@ -329,8 +329,8 @@ pub const RV32I_SET: [Instruction; 10] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let shamt = (instruction.imm & 0b11111) as u32;
-            let res: i32 = cpu.read_x_i32(instruction.rs1)? >> shamt;
-            cpu.write_x_i32(instruction.rd, res)?;
+            let res: i32 = cpu.read_x_i32(instruction.rs1.value())? >> shamt;
+            cpu.write_x_i32(instruction.rd.value(), res)?;
             Ok(())
         }
     },
@@ -340,7 +340,7 @@ pub const RV32I_SET: [Instruction; 10] = [
         name: "LUI",
         operation: |cpu, word| {
             let instruction = parse_instruction_u(word);
-            cpu.write_x_u32(instruction.rd, instruction.imm)?;
+            cpu.write_x_u32(instruction.rd.value(), instruction.imm)?;
             Ok(())
         }
     },
@@ -355,7 +355,7 @@ pub const RV32I_SET: [Instruction; 10] = [
             cpu.write_pc_u32(res);
             cpu.set_skip_pc_increment_flag(); // Disable default pc increment logic
     
-            cpu.write_x_u32(instruction.rd, res)?;
+            cpu.write_x_u32(instruction.rd.value(), res)?;
             Ok(())
         }
     }

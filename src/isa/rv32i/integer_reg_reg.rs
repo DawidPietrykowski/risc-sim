@@ -2,7 +2,7 @@ use crate::isa::cpu::{Cpu, Operation};
 use crate::isa::types::*;
 
 use anyhow::{Ok, Result};
-
+/*
 pub struct Add {
     instruction: RInstructionData,
 }
@@ -233,3 +233,4 @@ impl Operation<RInstructionData> for SRA {
         &self.instruction
     }
 }
+ */
