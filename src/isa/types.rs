@@ -1,4 +1,4 @@
-use super::{cpu::{self, Cpu, Operation}, rv32i::immediate::{AddI, RV32I_SET}};
+use super::{cpu::Cpu, rv32i::immediate::RV32I_SET};
 use anyhow::{Context, Ok, Result};
 
 
@@ -23,7 +23,7 @@ pub struct IInstructionData {
     pub rd: U5,
     pub func3: U3,
     pub rs1: U5,
-    pub imm: u16,
+    pub imm: U12,
 }
 
 // impl IInstructionData {
@@ -38,20 +38,18 @@ pub struct IInstructionData {
 
 #[derive(Clone, Copy, PartialEq, Debug, Default)]
 pub struct SInstructionData {
-    pub imm1: u8,
     pub func3: U3,
     pub rs1: U5,
     pub rs2: U5,
-    pub imm2: u8,
+    pub imm: u32,
 }
 
 #[derive(Clone, Copy, PartialEq, Debug, Default)]
 pub struct SBInstructionData {
-    pub imm1: u8,
     pub func3: U3,
     pub rs1: U5,
     pub rs2: U5,
-    pub imm2: u8,
+    pub imm: u32,
 }
 
 #[derive(Clone, Copy, PartialEq, Debug, Default)]
@@ -127,7 +125,7 @@ pub fn parse_instruction_i(word: &Word) -> IInstructionData {
         rd: U5((word.0 >> 7) as u8 & 0b11111),
         func3: U3((word.0 >> 12) as u8 & 0b111),
         rs1: U5((word.0 >> 15) as u8 & 0b11111),
-        imm: (word.0 >> 20) as u16 & 0xFFF
+        imm: U12((word.0 >> 20) as u16 & 0xFFF)
     };
     println!("{:#034b} {:?}", word.0, data);
     data
@@ -138,6 +136,18 @@ pub fn parse_instruction_u(word: &Word) -> UInstructionData {
         rd: U5((word.0 >> 7) as u8 & 0b00011111),
         imm: word.0 & (0xFFFFFFFF << 12)
     }
+}
+
+pub fn parse_instruction_r(word: &Word) -> RInstructionData {
+    let data = RInstructionData {
+        rd: U5((word.0 >> 7) as u8 & 0b11111),
+        func3: U3((word.0 >> 12) as u8 & 0b111),
+        rs1: U5((word.0 >> 15) as u8 & 0b11111),
+        rs2: U5((word.0 >> 20) as u8 & 0b11111),
+        func7: U7((word.0 >> 25) as u8 & 0x7F)
+    };
+    println!("{:#034b} {:?}", word.0, data);
+    data
 }
 
 pub fn decode_program_line(word: Word) -> Result<ProgramLine> {
@@ -165,7 +175,7 @@ pub fn encode_program_line(name: &str, instruction_data: InstructionData) -> Res
             (data.rd.value() as u32) << 7 | 
             (data.func3.value() as u32) << 12 | 
             (data.rs1.value() as u32) << 15 | 
-            (data.imm as u32) << 20
+            (data.imm.value() as u32) << 20
         },
         InstructionData::S(_) => todo!(),
         InstructionData::SB(_) => todo!(),
@@ -175,8 +185,8 @@ pub fn encode_program_line(name: &str, instruction_data: InstructionData) -> Res
         },
         InstructionData::UJ(_) => todo!(),
     };
-    println!("{:#034b} {:?}", word.0, instruction_data);
     word.0 |= instruction.mask & instruction.bits;
+    println!("{:#034b} {:?} {}", word.0, instruction_data, instruction.name);
     Ok(word)
 }
 
@@ -273,6 +283,33 @@ impl Default for U7 {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct U12 (pub u16);
+
+impl BitValue<u16, U12> for U12 {
+    fn new(value: u16) -> U12 {
+        assert_eq!(value & (0b1111 << 12), 0);
+        U12(value & !(0b1111 << 12))
+    }
+
+    fn value(&self) -> u16 {
+        self.0
+    }
+
+    fn max_value() -> U12 {
+        U12(!(0b1111 << 12))
+    }
+
+    fn min_value() -> U12 {
+        U12(0)
+    }
+}
+
+impl Default for U12 {
+    fn default() -> Self {
+        U12(0)
+    }
+}
 
 pub trait BitValue<S, T> {
     fn new(value: S) -> T;

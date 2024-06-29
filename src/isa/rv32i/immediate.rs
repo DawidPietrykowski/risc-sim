@@ -3,7 +3,7 @@ use crate::isa::types::*;
 use crate::utils::binary_utils::*;
 
 use anyhow::{Ok, Result};
-
+/*x
 pub struct AddI {
     instruction: IInstructionData,
 }
@@ -236,14 +236,16 @@ impl Operation<UInstructionData> for AUIPC {
     }
 }
 
-pub const RV32I_SET: [Instruction; 10] = [
+*/
+
+pub const RV32I_SET: [Instruction; 11] = [
     Instruction{
         mask: OPCODE_MASK | FUNC3_MASK,
         bits: 0b000 << FUNC3_POS | 0b0010011,
         name: "ADDI",
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
-            let imm = sign_extend_12bit_to_32bit(instruction.imm);
+            let imm = sign_extend_12bit_to_32bit(instruction.imm.value());
             let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
             let (res, _) = imm.overflowing_add(rs1);
             cpu.write_x_i32(instruction.rd.value(), res)?;
@@ -256,7 +258,7 @@ pub const RV32I_SET: [Instruction; 10] = [
         name: "SLTI",
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
-            let imm = sign_extend_12bit_to_32bit(instruction.imm);
+            let imm = sign_extend_12bit_to_32bit(instruction.imm.value());
             let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
             cpu.write_x_i32(instruction.rd.value(), if rs1 < imm { 1 } else { 0 })?;
             Ok(())
@@ -268,7 +270,7 @@ pub const RV32I_SET: [Instruction; 10] = [
         name: "ANDI",
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
-            let imm = sign_extend_12bit_to_32bit(instruction.imm);
+            let imm = sign_extend_12bit_to_32bit(instruction.imm.value());
             let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
             cpu.write_x_i32(instruction.rd.value(), rs1 & imm)?;
             Ok(())
@@ -280,7 +282,7 @@ pub const RV32I_SET: [Instruction; 10] = [
         name: "ORI",
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
-            let imm = sign_extend_12bit_to_32bit(instruction.imm);
+            let imm = sign_extend_12bit_to_32bit(instruction.imm.value());
             let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
             cpu.write_x_i32(instruction.rd.value(), rs1 | imm)?;
             Ok(())
@@ -292,7 +294,7 @@ pub const RV32I_SET: [Instruction; 10] = [
         name: "XORI",
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
-            let imm = sign_extend_12bit_to_32bit(instruction.imm);
+            let imm = sign_extend_12bit_to_32bit(instruction.imm.value());
             let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
             cpu.write_x_i32(instruction.rd.value(), rs1 ^ imm)?;
             Ok(())
@@ -304,7 +306,7 @@ pub const RV32I_SET: [Instruction; 10] = [
         name: "SLLI",
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
-            let shamt = (instruction.imm & 0b11111) as u32;
+            let shamt = (instruction.imm.value() & 0b11111) as u32;
             let res: u32 = cpu.read_x_u32(instruction.rs1.value())? << shamt;
             cpu.write_x_u32(instruction.rd.value(), res)?;
             Ok(())
@@ -316,7 +318,7 @@ pub const RV32I_SET: [Instruction; 10] = [
         name: "SRLI",
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
-            let shamt = (instruction.imm & 0b11111) as u32;
+            let shamt = (instruction.imm.value() & 0b11111) as u32;
             let res: u32 = cpu.read_x_u32(instruction.rs1.value())? >> shamt;
             cpu.write_x_u32(instruction.rd.value(), res)?;
             Ok(())
@@ -328,7 +330,7 @@ pub const RV32I_SET: [Instruction; 10] = [
         name: "SRAI",
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
-            let shamt = (instruction.imm & 0b11111) as u32;
+            let shamt = (instruction.imm.value() & 0b11111) as u32;
             let res: i32 = cpu.read_x_i32(instruction.rs1.value())? >> shamt;
             cpu.write_x_i32(instruction.rd.value(), res)?;
             Ok(())
@@ -356,6 +358,19 @@ pub const RV32I_SET: [Instruction; 10] = [
             cpu.set_skip_pc_increment_flag(); // Disable default pc increment logic
     
             cpu.write_x_u32(instruction.rd.value(), res)?;
+            Ok(())
+        }
+    },
+    Instruction{
+        mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
+        bits: 0b0110011,
+        name: "ADD",
+        operation: |cpu, word| {
+            let instruction = parse_instruction_r(word);
+            let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
+            let rs2 = cpu.read_x_i32(instruction.rs2.value())?;
+            let (res, _) = rs1.overflowing_add(rs2);
+            cpu.write_x_i32(instruction.rd.value(), res)?;
             Ok(())
         }
     }
