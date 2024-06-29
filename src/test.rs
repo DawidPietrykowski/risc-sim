@@ -71,7 +71,7 @@ mod tests {
 
             let mut slti_instruction = IInstructionData {
                 rd: rd,
-                func3: 2,
+                func3: 0,
                 rs1: rs1,
                 imm: i16_to_u16(imm1),
             };
@@ -97,7 +97,7 @@ mod tests {
 
             let mut andi_instruction = IInstructionData {
                 rd: rd,
-                func3: 7,
+                func3: 0,
                 rs1: rs1,
                 imm: imm1,
             };
@@ -121,7 +121,7 @@ mod tests {
 
             let mut ori_instruction = IInstructionData {
                 rd: rd,
-                func3: FUNC3_ORI,
+                func3: 0,
                 rs1: rs1,
                 imm: imm1,
             };
@@ -145,7 +145,7 @@ mod tests {
 
             let mut xori_instruction = IInstructionData{
                 rd,
-                func3: FUNC3_XORI,
+                func3: 0,
                 rs1,
                 imm: imm1,
             };
@@ -178,7 +178,7 @@ mod tests {
 
             let slli_instruction = IInstructionData {
                 rd,
-                func3: 1,
+                func3: 0,
                 rs1,
                 imm: shamt as u16,
             };
@@ -199,7 +199,7 @@ mod tests {
 
             let srli_instruction = IInstructionData {
                 rd,
-                func3: 5,
+                func3: 0,
                 rs1,
                 imm: shamt as u16,
             };
@@ -220,7 +220,7 @@ mod tests {
 
             let srai_instruction = IInstructionData {
                 rd,
-                func3: 5,
+                func3: 0,
                 rs1,
                 imm: (0x400 | (shamt as u16)), // Set the 10th bit to differentiate from SRLI
             };
@@ -304,7 +304,7 @@ mod tests {
                 func3: 0,
                 rs1,
                 rs2,
-                func7: 32,
+                func7: 0,
             };
 
             cpu.write_x_i32(rs1, rs1_val).unwrap();
@@ -326,7 +326,7 @@ mod tests {
 
             let slt_instruction = RInstructionData {
                 rd,
-                func3: 2,
+                func3: 0,
                 rs1,
                 rs2,
                 func7: 0,
@@ -351,7 +351,7 @@ mod tests {
 
             let sltu_instruction = RInstructionData {
                 rd,
-                func3: 3,
+                func3: 0,
                 rs1,
                 rs2,
                 func7: 0,
@@ -376,7 +376,7 @@ mod tests {
 
             let xor_instruction = RInstructionData {
                 rd,
-                func3: 4,
+                func3: 0,
                 rs1,
                 rs2,
                 func7: 0,
@@ -401,7 +401,7 @@ mod tests {
 
             let or_instruction = RInstructionData {
                 rd,
-                func3: 6,
+                func3: 0,
                 rs1,
                 rs2,
                 func7: 0,
@@ -426,7 +426,7 @@ mod tests {
 
             let and_instruction = RInstructionData {
                 rd,
-                func3: 7,
+                func3: 0,
                 rs1,
                 rs2,
                 func7: 0,
@@ -451,7 +451,7 @@ mod tests {
 
             let sll_instruction = RInstructionData {
                 rd,
-                func3: 1,
+                func3: 0,
                 rs1,
                 rs2,
                 func7: 0,
@@ -476,7 +476,7 @@ mod tests {
 
             let sll_instruction = RInstructionData {
                 rd,
-                func3: 1,
+                func3: 0,
                 rs1,
                 rs2,
                 func7: 0,
@@ -501,7 +501,7 @@ mod tests {
 
             let sll_instruction = RInstructionData {
                 rd,
-                func3: 1,
+                func3: 0,
                 rs1,
                 rs2,
                 func7: 0,
