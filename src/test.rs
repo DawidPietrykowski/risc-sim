@@ -2,13 +2,13 @@
 mod tests {
     use crate::*;
 
+    use anyhow::Result;
     use isa::cpu::*;
     use isa::rv32i::integer_reg_reg::*;
     use isa::types::*;
-    use utils::binary_utils::*;
-    use std::result::Result::Ok;
-    use anyhow::{Result};
     use proptest::prelude::*;
+    use std::result::Result::Ok;
+    use utils::binary_utils::*;
 
     fn setup_cpu() -> Cpu {
         Cpu::new()
@@ -23,9 +23,8 @@ mod tests {
         };
         let op = encode_program_line(opcode, InstructionData::I(instruction))?;
         cpu.execute_word(op)?;
-        Ok(())     
+        Ok(())
     }
-
 
     fn execute_u_instruction(cpu: &mut Cpu, opcode: &str, rd: u8, imm: u32) -> Result<()> {
         let instruction = UInstructionData {
@@ -35,7 +34,7 @@ mod tests {
         };
         let op = encode_program_line(opcode, InstructionData::U(instruction))?;
         cpu.execute_word(op)?;
-        Ok(())     
+        Ok(())
     }
 
     macro_rules! test_instruction_i {
@@ -57,7 +56,7 @@ mod tests {
                 #[test]
                 fn $name(rd in 1u8..30, imm in 0u32..0xFFFFFFFF){
                     let mut cpu = setup_cpu();
-                    prop_assert!(execute_u_instruction(&mut cpu, $opcode, rd, imm).is_ok()); 
+                    prop_assert!(execute_u_instruction(&mut cpu, $opcode, rd, imm).is_ok());
                     $test_logic(&mut cpu, rd, imm).unwrap();
                 }
             }
@@ -77,16 +76,16 @@ mod tests {
                         rs2: U5(rs2),
                         ..Default::default()
                     };
-        
+
                     cpu.write_x_i32(rs1, rs1_val).unwrap();
                     cpu.write_x_i32(rs2, rs2_val).unwrap();
-        
+
                     let rs1_read_val = cpu.read_x_i32(rs1).unwrap();
                     let rs2_read_val = cpu.read_x_i32(rs2).unwrap();
-        
+
                     let op = encode_program_line($opcode, InstructionData::R(instruction)).unwrap();
                     prop_assert!(cpu.execute_word(op).is_ok());
-        
+
                     $test_logic(&mut cpu, rd, rs1, rs2, rs1_read_val, rs2_read_val).unwrap();
                 }
             }
@@ -104,67 +103,109 @@ mod tests {
         Ok(())
     });
 
+    test_instruction_r!(
+        test_add2,
+        "ADD",
+        |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
+            let (expected, _) = rs1_read_val.overflowing_add(rs2_read_val);
+            prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
+            Ok(())
+        }
+    );
 
-    test_instruction_r!(test_add2, "ADD", |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
-        let (expected, _) = rs1_read_val.overflowing_add(rs2_read_val);
-        prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
-        Ok(())
-    });
-    
+    test_instruction_r!(
+        test_sub,
+        "SUB",
+        |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
+            let (expected, _) = rs1_read_val.overflowing_sub(rs2_read_val);
+            prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
+            Ok(())
+        }
+    );
 
-    test_instruction_r!(test_sub, "SUB", |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
-        let (expected, _) = rs1_read_val.overflowing_sub(rs2_read_val);
-        prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
-        Ok(())
-    });
+    test_instruction_r!(
+        test_slt,
+        "SLT",
+        |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
+            let expected = if rs1_read_val < rs2_read_val { 1 } else { 0 };
+            prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
+            Ok(())
+        }
+    );
 
-    test_instruction_r!(test_slt, "SLT", |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
-        let expected = if rs1_read_val < rs2_read_val {1} else {0};
-        prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
-        Ok(())
-    });
+    test_instruction_r!(
+        test_sltu,
+        "SLTU",
+        |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
+            let expected = if i32_to_u32(rs1_read_val) < i32_to_u32(rs2_read_val) {
+                1
+            } else {
+                0
+            };
+            prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
+            Ok(())
+        }
+    );
 
-    test_instruction_r!(test_sltu, "SLTU", |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
-        let expected = if i32_to_u32(rs1_read_val) < i32_to_u32(rs2_read_val) {1} else {0};
-        prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
-        Ok(())
-    });
+    test_instruction_r!(
+        test_xor,
+        "XOR",
+        |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
+            let expected = rs1_read_val ^ rs2_read_val;
+            prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
+            Ok(())
+        }
+    );
 
-    test_instruction_r!(test_xor, "XOR", |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
-        let expected = rs1_read_val ^ rs2_read_val;
-        prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
-        Ok(())
-    });
+    test_instruction_r!(
+        test_or,
+        "OR",
+        |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
+            let expected = rs1_read_val | rs2_read_val;
+            prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
+            Ok(())
+        }
+    );
 
-    test_instruction_r!(test_or, "OR", |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
-        let expected = rs1_read_val | rs2_read_val;
-        prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
-        Ok(())
-    });
+    test_instruction_r!(
+        test_and,
+        "AND",
+        |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
+            let expected = rs1_read_val & rs2_read_val;
+            prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
+            Ok(())
+        }
+    );
 
-    test_instruction_r!(test_and, "AND", |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
-        let expected = rs1_read_val & rs2_read_val;
-        prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
-        Ok(())
-    });
+    test_instruction_r!(
+        test_sll,
+        "SLL",
+        |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
+            let expected = (i32_to_u32(rs1_read_val)) << (i32_to_u32(rs2_read_val) & 0b11111);
+            prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), expected);
+            Ok(())
+        }
+    );
 
-    test_instruction_r!(test_sll, "SLL", |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
-        let expected = (i32_to_u32(rs1_read_val)) << (i32_to_u32(rs2_read_val) & 0b11111);
-        prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), expected);
-        Ok(())
-    });
+    test_instruction_r!(
+        test_srl,
+        "SRL",
+        |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
+            let expected = (i32_to_u32(rs1_read_val)) >> (i32_to_u32(rs2_read_val) & 0b11111);
+            prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), expected);
+            Ok(())
+        }
+    );
 
-    test_instruction_r!(test_srl, "SRL", |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
-        let expected = (i32_to_u32(rs1_read_val)) >> (i32_to_u32(rs2_read_val) & 0b11111);
-        prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), expected);
-        Ok(())
-    });
-
-    test_instruction_r!(test_sra, "SRA", |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
-        let expected = (rs1_read_val) >> (i32_to_u32(rs2_read_val) & 0b11111);
-        prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
-        Ok(())
-    });
+    test_instruction_r!(
+        test_sra,
+        "SRA",
+        |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
+            let expected = (rs1_read_val) >> (i32_to_u32(rs2_read_val) & 0b11111);
+            prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
+            Ok(())
+        }
+    );
 
     proptest! {
         #[test]
@@ -183,7 +224,7 @@ mod tests {
             // println!("{:#034b}", i16_to_u16(-2048));
             // println!("{:#034b}", (-2048 as i32) << 20);
             // println!("{:#034b}", (i16_to_u16(-2048) as u32) << 20);
-            // println!("{:#034b}", parse_instruction_i(&decoded.word).imm); 
+            // println!("{:#034b}", parse_instruction_i(&decoded.word).imm);
             prop_assert_eq!(parse_instruction_i(&decoded.word), addi_instruction);
         }
 
@@ -446,247 +487,6 @@ mod tests {
             prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
         }
 
-/*
-        #[test]
-        fn test_add(rd in 1u8..30, rs1 in 1u8..30, rs2 in 1u8..30, rs1_val in i32::MIN..i32::MAX, rs2_val in i32::MIN..i32::MAX) {
-            let mut cpu = Cpu::new();
-
-            let add_instruction = RInstructionData {
-                rd: U5(rd),
-                rs1: U5(rs1),
-                rs2: U5(rs2),
-                ..Default::default()
-            };
-
-            cpu.write_x_i32(rs1, rs1_val).unwrap();
-            cpu.write_x_i32(rs2, rs2_val).unwrap();
-
-            let rs1_read_val = cpu.read_x_i32(rs1).unwrap();
-            let rs2_read_val = cpu.read_x_i32(rs2).unwrap();
-
-            let add_op = Add::new(add_instruction);
-            prop_assert!(cpu.execute_operation(&add_op).is_ok());
-
-            let (expected, _) = rs1_read_val.overflowing_add(rs2_read_val);
-            prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
-        }
-
-        #[test]
-        fn test_sub(rd in 1u8..30, rs1 in 1u8..30, rs2 in 1u8..30, rs1_val in i32::MIN..i32::MAX, rs2_val in i32::MIN..i32::MAX) {
-            let mut cpu = Cpu::new();
-
-            let sub_instruction = RInstructionData {
-                rd: U5(rd),
-                rs1: U5(rs1),
-                rs2: U5(rs2),
-                ..Default::default()
-            };
-
-            cpu.write_x_i32(rs1, rs1_val).unwrap();
-            cpu.write_x_i32(rs2, rs2_val).unwrap();
-
-            let rs1_read_val = cpu.read_x_i32(rs1).unwrap();
-            let rs2_read_val = cpu.read_x_i32(rs2).unwrap();
-
-            let sub_op = Sub::new(sub_instruction);
-            prop_assert!(cpu.execute_operation(&sub_op).is_ok());
-
-            let (expected, _) = rs1_read_val.overflowing_sub(rs2_read_val);
-            prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
-        }
-
-        #[test]
-        fn test_slt(rd in 1u8..30, rs1 in 1u8..30, rs2 in 1u8..30, rs1_val in i32::MIN..i32::MAX, rs2_val in i32::MIN..i32::MAX) {
-            let mut cpu = Cpu::new();
-
-            let slt_instruction = RInstructionData {
-                rd: U5(rd),
-                rs1: U5(rs1),
-                rs2: U5(rs2),
-                ..Default::default()
-            };
-
-            cpu.write_x_i32(rs1, rs1_val).unwrap();
-            cpu.write_x_i32(rs2, rs2_val).unwrap();
-
-            let rs1_read_val = cpu.read_x_i32(rs1).unwrap();
-            let rs2_read_val = cpu.read_x_i32(rs2).unwrap();
-
-            let slt_op = SLT::new(slt_instruction);
-            prop_assert!(cpu.execute_operation(&slt_op).is_ok());
-
-            let expected = if rs1_read_val < rs2_read_val {1} else {0};
-            prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
-        }
-
-        #[test]
-        fn test_sltu(rd in 1u8..30, rs1 in 1u8..30, rs2 in 1u8..30, rs1_val in i32::MIN..i32::MAX, rs2_val in i32::MIN..i32::MAX) {
-            let mut cpu = Cpu::new();
-
-            let sltu_instruction = RInstructionData {
-                rd: U5(rd),
-                rs1: U5(rs1),
-                rs2: U5(rs2),
-                ..Default::default()
-            };
-
-            cpu.write_x_u32(rs1, rs1_val as u32).unwrap();
-            cpu.write_x_u32(rs2, rs2_val as u32).unwrap();
-
-            let rs1_read_val = cpu.read_x_u32(rs1).unwrap();
-            let rs2_read_val = cpu.read_x_u32(rs2).unwrap();
-
-            let sltu_op = SLTU::new(sltu_instruction);
-            prop_assert!(cpu.execute_operation(&sltu_op).is_ok());
-
-            let expected = if rs1_read_val < rs2_read_val {1} else {0};
-            prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), expected);
-        }
-
-        #[test]
-        fn test_xor(rd in 1u8..30, rs1 in 1u8..30, rs2 in 1u8..30, rs1_val in i32::MIN..i32::MAX, rs2_val in i32::MIN..i32::MAX) {
-            let mut cpu = Cpu::new();
-
-            let xor_instruction = RInstructionData {
-                rd: U5(rd),
-                rs1: U5(rs1),
-                rs2: U5(rs2),
-                ..Default::default()
-            };
-
-            cpu.write_x_i32(rs1, rs1_val).unwrap();
-            cpu.write_x_i32(rs2, rs2_val).unwrap();
-
-            let rs1_read_val = cpu.read_x_i32(rs1).unwrap();
-            let rs2_read_val = cpu.read_x_i32(rs2).unwrap();
-
-            let xor_op = XOR::new(xor_instruction);
-            prop_assert!(cpu.execute_operation(&xor_op).is_ok());
-
-            let expected = rs1_read_val ^ rs2_read_val;
-            prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
-        }
-
-        #[test]
-        fn test_or(rd in 1u8..30, rs1 in 1u8..30, rs2 in 1u8..30, rs1_val in i32::MIN..i32::MAX, rs2_val in i32::MIN..i32::MAX) {
-            let mut cpu = Cpu::new();
-
-            let or_instruction = RInstructionData {
-                rd: U5(rd),
-                rs1: U5(rs1),
-                rs2: U5(rs2),
-                ..Default::default()
-            };
-
-            cpu.write_x_i32(rs1, rs1_val).unwrap();
-            cpu.write_x_i32(rs2, rs2_val).unwrap();
-
-            let rs1_read_val = cpu.read_x_i32(rs1).unwrap();
-            let rs2_read_val = cpu.read_x_i32(rs2).unwrap();
-
-            let or_op = OR::new(or_instruction);
-            prop_assert!(cpu.execute_operation(&or_op).is_ok());
-
-            let expected = rs1_read_val | rs2_read_val;
-            prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
-        }
-
-        #[test]
-        fn test_and(rd in 1u8..30, rs1 in 1u8..30, rs2 in 1u8..30, rs1_val in i32::MIN..i32::MAX, rs2_val in i32::MIN..i32::MAX) {
-            let mut cpu = Cpu::new();
-
-            let and_instruction = RInstructionData {
-                rd: U5(rd),
-                rs1: U5(rs1),
-                rs2: U5(rs2),
-                ..Default::default()
-            };
-
-            cpu.write_x_i32(rs1, rs1_val).unwrap();
-            cpu.write_x_i32(rs2, rs2_val).unwrap();
-
-            let rs1_read_val = cpu.read_x_i32(rs1).unwrap();
-            let rs2_read_val = cpu.read_x_i32(rs2).unwrap();
-
-            let and_op = AND::new(and_instruction);
-            prop_assert!(cpu.execute_operation(&and_op).is_ok());
-
-            let expected = rs1_read_val & rs2_read_val;
-            prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
-        }
-
-        #[test]
-        fn test_sll(rd in 1u8..30, rs1 in 1u8..30, rs2 in 1u8..30, rs1_val in u32::MIN..u32::MAX, rs2_val in 0u32..31) {
-            let mut cpu = Cpu::new();
-
-            let sll_instruction = RInstructionData {
-                rd: U5(rd),
-                rs1: U5(rs1),
-                rs2: U5(rs2),
-                ..Default::default()
-            };
-
-            cpu.write_x_u32(rs1, rs1_val).unwrap();
-            cpu.write_x_u32(rs2, rs2_val).unwrap();
-
-            let rs1_read_val = cpu.read_x_u32(rs1).unwrap();
-            let rs2_read_val = cpu.read_x_u32(rs2).unwrap();
-
-            let sll_op = SLL::new(sll_instruction);
-            prop_assert!(cpu.execute_operation(&sll_op).is_ok());
-
-            let expected = rs1_read_val << (rs2_read_val & 0b11111);
-            prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), expected);
-        }
-
-        #[test]
-        fn test_srl(rd in 1u8..30, rs1 in 1u8..30, rs2 in 1u8..30, rs1_val in u32::MIN..u32::MAX, rs2_val in 0u32..31) {
-            let mut cpu = Cpu::new();
-
-            let sll_instruction = RInstructionData {
-                rd: U5(rd),
-                rs1: U5(rs1),
-                rs2: U5(rs2),
-                ..Default::default()
-            };
-
-            cpu.write_x_u32(rs1, rs1_val).unwrap();
-            cpu.write_x_u32(rs2, rs2_val).unwrap();
-
-            let rs1_read_val = cpu.read_x_u32(rs1).unwrap();
-            let rs2_read_val = cpu.read_x_u32(rs2).unwrap();
-
-            let sll_op = SRL::new(sll_instruction);
-            prop_assert!(cpu.execute_operation(&sll_op).is_ok());
-
-            let expected = rs1_read_val >> (rs2_read_val & 0b11111);
-            prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), expected);
-        }
-
-        #[test]
-        fn test_sra(rd in 1u8..30, rs1 in 1u8..30, rs2 in 1u8..30, rs1_val in i32::MIN..i32::MAX, rs2_val in 0u32..31) {
-            let mut cpu = Cpu::new();
-
-            let sll_instruction = RInstructionData {
-                rd: U5(rd),
-                rs1: U5(rs1),
-                rs2: U5(rs2),
-                ..Default::default()
-            };
-
-            cpu.write_x_i32(rs1, rs1_val).unwrap();
-            cpu.write_x_u32(rs2, rs2_val).unwrap();
-
-            let rs1_read_val = cpu.read_x_i32(rs1).unwrap();
-            let rs2_read_val = cpu.read_x_u32(rs2).unwrap();
-
-            let sll_op = SRA::new(sll_instruction);
-            prop_assert!(cpu.execute_operation(&sll_op).is_ok());
-
-            let expected = rs1_read_val >> (rs2_read_val & 0b11111);
-            prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
-        }
- */
         #[test]
         fn test_12bit_sign_extend_to_16bit(imm in -2048i16..2047){
             let imm = sign_extend_12bit_to_16bit(i16_to_u16(imm));

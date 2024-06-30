@@ -1,245 +1,10 @@
-use crate::isa::cpu::{Cpu, Operation};
 use crate::isa::types::*;
 use crate::utils::binary_utils::*;
 
-use anyhow::{Ok, Result};
-/*x
-pub struct AddI {
-    instruction: IInstructionData,
-}
+use anyhow::Ok;
 
-impl Operation<IInstructionData> for AddI {
-    fn execute(&self, cpu: &mut Cpu) -> Result<()> {
-        let imm = sign_extend_12bit_to_32bit(self.instruction.imm);
-        let rs1 = cpu.read_x_i32(self.instruction.rs1.value())?;
-        let (res, _) = imm.overflowing_add(rs1);
-        cpu.write_x_i32(self.instruction.rd.value(), res)?;
-        Ok(())
-    }
-
-    fn new(instruction: IInstructionData) -> Self {
-        AddI {
-            instruction: instruction,
-        }
-    }
-
-    fn instruction(&self) -> &IInstructionData {
-        &self.instruction
-    }
-}
-pub struct SLTI {
-    instruction: IInstructionData,
-}
-
-impl Operation<IInstructionData> for SLTI {
-    fn execute(&self, cpu: &mut Cpu) -> Result<()> {
-        let imm = sign_extend_12bit_to_32bit(self.instruction.imm);
-        let rs1 = cpu.read_x_i32(self.instruction.rs1.value())?;
-        cpu.write_x_i32(self.instruction.rd.value(), if rs1 < imm { 1 } else { 0 })?;
-        Ok(())
-    }
-
-    fn new(instruction: IInstructionData) -> Self {
-        SLTI {
-            instruction: instruction,
-        }
-    }
-
-    fn instruction(&self) -> &IInstructionData {
-        &self.instruction
-    }
-}
-
-pub struct ANDI {
-    instruction: IInstructionData,
-}
-
-impl Operation<IInstructionData> for ANDI {
-    fn execute(&self, cpu: &mut Cpu) -> Result<()> {
-        let imm = sign_extend_12bit_to_32bit(self.instruction.imm);
-        let rs1 = cpu.read_x_i32(self.instruction.rs1.value())?;
-        cpu.write_x_i32(self.instruction.rd.value(), rs1 & imm)?;
-        Ok(())
-    }
-
-    fn new(instruction: IInstructionData) -> Self {
-        ANDI {
-            instruction: instruction,
-        }
-    }
-
-    fn instruction(&self) -> &IInstructionData {
-        &self.instruction
-    }
-}
-
-pub struct ORI {
-    instruction: IInstructionData,
-}
-
-impl Operation<IInstructionData> for ORI {
-    fn execute(&self, cpu: &mut Cpu) -> Result<()> {
-        let imm = sign_extend_12bit_to_32bit(self.instruction.imm);
-        let rs1 = cpu.read_x_i32(self.instruction.rs1.value())?;
-        cpu.write_x_i32(self.instruction.rd.value(), rs1 | imm)?;
-        Ok(())
-    }
-
-    fn new(instruction: IInstructionData) -> Self {
-        ORI {
-            instruction: instruction,
-        }
-    }
-
-    fn instruction(&self) -> &IInstructionData {
-        &self.instruction
-    }
-}
-
-pub struct XORI {
-    instruction: IInstructionData,
-}
-
-impl Operation<IInstructionData> for XORI {
-    fn execute(&self, cpu: &mut Cpu) -> Result<()> {
-        let imm = sign_extend_12bit_to_32bit(self.instruction.imm);
-        let rs1 = cpu.read_x_i32(self.instruction.rs1.value())?;
-        cpu.write_x_i32(self.instruction.rd.value(), rs1 ^ imm)?;
-        Ok(())
-    }
-
-    fn new(instruction: IInstructionData) -> Self {
-        XORI {
-            instruction: instruction,
-        }
-    }
-
-    fn instruction(&self) -> &IInstructionData {
-        &self.instruction
-    }
-}
-
-pub struct SLLI {
-    instruction: IInstructionData,
-}
-
-impl Operation<IInstructionData> for SLLI {
-    fn execute(&self, cpu: &mut Cpu) -> Result<()> {
-        let shamt = (self.instruction.imm & 0b11111) as u32;
-        let res: u32 = cpu.read_x_u32(self.instruction.rs1.value())? << shamt;
-        cpu.write_x_u32(self.instruction.rd.value(), res)?;
-        Ok(())
-    }
-
-    fn new(instruction: IInstructionData) -> Self {
-        SLLI {
-            instruction: instruction,
-        }
-    }
-
-    fn instruction(&self) -> &IInstructionData {
-        &self.instruction
-    }
-}
-
-pub struct SRLI {
-    instruction: IInstructionData,
-}
-
-impl Operation<IInstructionData> for SRLI {
-    fn execute(&self, cpu: &mut Cpu) -> Result<()> {
-        let shamt = (self.instruction.imm & 0b11111) as u32;
-        let res: u32 = cpu.read_x_u32(self.instruction.rs1.value())? >> shamt;
-        cpu.write_x_u32(self.instruction.rd.value(), res)?;
-        Ok(())
-    }
-
-    fn new(instruction: IInstructionData) -> Self {
-        SRLI {
-            instruction: instruction,
-        }
-    }
-
-    fn instruction(&self) -> &IInstructionData {
-        &self.instruction
-    }
-}
-
-pub struct SRAI {
-    instruction: IInstructionData,
-}
-
-impl Operation<IInstructionData> for SRAI {
-    fn execute(&self, cpu: &mut Cpu) -> Result<()> {
-        let shamt = (self.instruction.imm & 0b11111) as u32;
-        let res: i32 = cpu.read_x_i32(self.instruction.rs1.value())? >> shamt;
-        cpu.write_x_i32(self.instruction.rd.value(), res)?;
-        Ok(())
-    }
-
-    fn new(instruction: IInstructionData) -> Self {
-        SRAI {
-            instruction: instruction,
-        }
-    }
-
-    fn instruction(&self) -> &IInstructionData {
-        &self.instruction
-    }
-}
-
-pub struct LUI {
-    instruction: UInstructionData,
-}
-
-impl Operation<UInstructionData> for LUI {
-    fn execute(&self, cpu: &mut Cpu) -> Result<()> {
-        let shifted_imm = self.instruction.imm << 12;
-        cpu.write_x_u32(self.instruction.rd.value(), shifted_imm)?;
-        Ok(())
-    }
-
-    fn new(instruction: UInstructionData) -> Self {
-        LUI {
-            instruction: instruction,
-        }
-    }
-
-    fn instruction(&self) -> &UInstructionData {
-        &self.instruction
-    }
-}
-
-pub struct AUIPC {
-    instruction: UInstructionData,
-}
-
-impl Operation<UInstructionData> for AUIPC {
-    fn execute(&self, cpu: &mut Cpu) -> Result<()> {
-        let res: u32 = (self.instruction.imm << 12).wrapping_add(cpu.read_pc_u32());
-
-        cpu.write_pc_u32(res);
-        cpu.set_skip_pc_increment_flag(); // Disable default pc increment logic
-
-        cpu.write_x_u32(self.instruction.rd.value(), res)?;
-        Ok(())
-    }
-
-    fn new(instruction: UInstructionData) -> Self {
-        AUIPC {
-            instruction: instruction,
-        }
-    }
-
-    fn instruction(&self) -> &UInstructionData {
-        &self.instruction
-    }
-}
-
-*/
-
-pub const RV32I_SET: [Instruction; 20] = [
-    Instruction{
+pub const RV32I_SET_I: [Instruction; 10] = [
+    Instruction {
         mask: OPCODE_MASK | FUNC3_MASK,
         bits: 0b000 << FUNC3_POS | 0b0010011,
         name: "ADDI",
@@ -250,9 +15,9 @@ pub const RV32I_SET: [Instruction; 20] = [
             let (res, _) = imm.overflowing_add(rs1);
             cpu.write_x_i32(instruction.rd.value(), res)?;
             Ok(())
-        }
+        },
     },
-    Instruction{
+    Instruction {
         mask: OPCODE_MASK | FUNC3_MASK,
         bits: 0b010 << FUNC3_POS | 0b0010011,
         name: "SLTI",
@@ -262,9 +27,9 @@ pub const RV32I_SET: [Instruction; 20] = [
             let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
             cpu.write_x_i32(instruction.rd.value(), if rs1 < imm { 1 } else { 0 })?;
             Ok(())
-        }
+        },
     },
-    Instruction{
+    Instruction {
         mask: OPCODE_MASK | FUNC3_MASK,
         bits: 0b111 << FUNC3_POS | 0b0010011,
         name: "ANDI",
@@ -274,9 +39,9 @@ pub const RV32I_SET: [Instruction; 20] = [
             let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
             cpu.write_x_i32(instruction.rd.value(), rs1 & imm)?;
             Ok(())
-        }
+        },
     },
-    Instruction{
+    Instruction {
         mask: OPCODE_MASK | FUNC3_MASK,
         bits: (FUNC3_ORI as u32) << FUNC3_POS | 0b0010011,
         name: "ORI",
@@ -286,9 +51,9 @@ pub const RV32I_SET: [Instruction; 20] = [
             let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
             cpu.write_x_i32(instruction.rd.value(), rs1 | imm)?;
             Ok(())
-        }
+        },
     },
-    Instruction{
+    Instruction {
         mask: OPCODE_MASK | FUNC3_MASK,
         bits: (FUNC3_XORI as u32) << FUNC3_POS | 0b0010011,
         name: "XORI",
@@ -298,9 +63,9 @@ pub const RV32I_SET: [Instruction; 20] = [
             let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
             cpu.write_x_i32(instruction.rd.value(), rs1 ^ imm)?;
             Ok(())
-        }
+        },
     },
-    Instruction{
+    Instruction {
         mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
         bits: 0b0000000 << FUNC7_POS | 0b001 << FUNC3_POS | 0b0010011,
         name: "SLLI",
@@ -310,9 +75,9 @@ pub const RV32I_SET: [Instruction; 20] = [
             let res: u32 = cpu.read_x_u32(instruction.rs1.value())? << shamt;
             cpu.write_x_u32(instruction.rd.value(), res)?;
             Ok(())
-        }
+        },
     },
-    Instruction{
+    Instruction {
         mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
         bits: 0b0000000 << FUNC7_POS | 0b101 << FUNC3_POS | 0b0010011,
         name: "SRLI",
@@ -322,9 +87,9 @@ pub const RV32I_SET: [Instruction; 20] = [
             let res: u32 = cpu.read_x_u32(instruction.rs1.value())? >> shamt;
             cpu.write_x_u32(instruction.rd.value(), res)?;
             Ok(())
-        }
+        },
     },
-    Instruction{
+    Instruction {
         mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
         bits: 0b0100000 << FUNC7_POS | 0b101 << FUNC3_POS | 0b0010011,
         name: "SRAI",
@@ -334,9 +99,9 @@ pub const RV32I_SET: [Instruction; 20] = [
             let res: i32 = cpu.read_x_i32(instruction.rs1.value())? >> shamt;
             cpu.write_x_i32(instruction.rd.value(), res)?;
             Ok(())
-        }
+        },
     },
-    Instruction{
+    Instruction {
         mask: OPCODE_MASK,
         bits: 0b0110111,
         name: "LUI",
@@ -344,9 +109,9 @@ pub const RV32I_SET: [Instruction; 20] = [
             let instruction = parse_instruction_u(word);
             cpu.write_x_u32(instruction.rd.value(), instruction.imm)?;
             Ok(())
-        }
+        },
     },
-    Instruction{
+    Instruction {
         mask: OPCODE_MASK,
         bits: 0b0010111,
         name: "AUIPC",
@@ -356,131 +121,9 @@ pub const RV32I_SET: [Instruction; 20] = [
 
             cpu.write_pc_u32(res);
             cpu.set_skip_pc_increment_flag(); // Disable default pc increment logic
-    
+
             cpu.write_x_u32(instruction.rd.value(), res)?;
             Ok(())
-        }
+        },
     },
-    Instruction{
-        mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
-        bits: 0b0110011,
-        name: "ADD",
-        operation: |cpu, word| {
-            let instruction = parse_instruction_r(word);
-            let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
-            let rs2 = cpu.read_x_i32(instruction.rs2.value())?;
-            let (res, _) = rs1.overflowing_add(rs2);
-            cpu.write_x_i32(instruction.rd.value(), res)?;
-            Ok(())
-        }
-    },
-    Instruction{
-        mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
-        bits: 0b0110011 | 0b0100000 << FUNC7_POS,
-        name: "SUB",
-        operation: |cpu, word| {
-            let instruction = parse_instruction_r(word);
-            let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
-            let rs2 = cpu.read_x_i32(instruction.rs2.value())?;
-            let (res, _) = rs1.overflowing_sub(rs2);
-            cpu.write_x_i32(instruction.rd.value(), res)?;
-            Ok(())
-        }
-    },
-    Instruction{
-        mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
-        bits: 0b0110011 | 0b001 << FUNC3_POS | 0b0000000 << FUNC7_POS,
-        name: "SLL",
-        operation: |cpu, word| {
-            let instruction = parse_instruction_r(word);
-            let shamt = (cpu.read_x_u32(instruction.rs2.value())? & 0b11111) as u32;
-            let res: u32 = cpu.read_x_u32(instruction.rs1.value())? << shamt;
-            cpu.write_x_u32(instruction.rd.value(), res)?;
-            Ok(())
-        }
-    },
-    Instruction{
-        mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
-        bits: 0b0110011 | 0b010 << FUNC3_POS | 0b0000000 << FUNC7_POS,
-        name: "SLT",
-        operation: |cpu, word| {
-            let instruction = parse_instruction_r(word);
-            let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
-            let rs2 = cpu.read_x_i32(instruction.rs2.value())?;
-            cpu.write_x_i32(instruction.rd.value(), if rs1 < rs2 { 1 } else { 0 })?;
-            Ok(())
-        }
-    },
-    Instruction{
-        mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
-        bits: 0b0110011 | 0b011 << FUNC3_POS | 0b0000000 << FUNC7_POS,
-        name: "SLTU",
-        operation: |cpu, word| {
-            let instruction = parse_instruction_r(word);
-            let rs1 = cpu.read_x_u32(instruction.rs1.value())?;
-            let rs2 = cpu.read_x_u32(instruction.rs2.value())?;
-            cpu.write_x_i32(instruction.rd.value(), if rs1 < rs2 { 1 } else { 0 })?;
-            Ok(())
-        }
-    },
-    Instruction{
-        mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
-        bits: 0b0110011 | 0b100 << FUNC3_POS | 0b0000000 << FUNC7_POS,
-        name: "XOR",
-        operation: |cpu, word| {
-            let instruction = parse_instruction_r(word);
-            let rs1 = cpu.read_x_u32(instruction.rs1.value())?;
-            let rs2 = cpu.read_x_u32(instruction.rs2.value())?;
-            cpu.write_x_u32(instruction.rd.value(), rs1 ^ rs2)?;
-            Ok(())
-        }
-    },
-    Instruction{
-        mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
-        bits: 0b0110011 | 0b101 << FUNC3_POS | 0b0000000 << FUNC7_POS,
-        name: "SRL",
-        operation: |cpu, word| {
-            let instruction = parse_instruction_r(word);
-            let shamt = (cpu.read_x_u32(instruction.rs2.value())? & 0b11111) as u32;
-            let res: u32 = cpu.read_x_u32(instruction.rs1.value())? >> shamt;
-            cpu.write_x_u32(instruction.rd.value(), res)?;
-            Ok(())
-        }
-    },
-    Instruction{
-        mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
-        bits: 0b0110011 | 0b101 << FUNC3_POS | 0b0100000 << FUNC7_POS,
-        name: "SRA",
-        operation: |cpu, word| {
-            let instruction = parse_instruction_r(word);
-            let shamt = (cpu.read_x_u32(instruction.rs2.value())? & 0b11111) as u32;
-            let res: i32 = cpu.read_x_i32(instruction.rs1.value())? >> shamt;
-            cpu.write_x_i32(instruction.rd.value(), res)?;
-            Ok(())
-        }
-    },
-    Instruction{
-        mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
-        bits: 0b0110011 | 0b110 << FUNC3_POS | 0b0000000 << FUNC7_POS,
-        name: "OR",
-        operation: |cpu, word| {
-            let instruction = parse_instruction_r(word);
-            let rs1 = cpu.read_x_u32(instruction.rs1.value())?;
-            let rs2 = cpu.read_x_u32(instruction.rs2.value())?;
-            cpu.write_x_u32(instruction.rd.value(), rs1 | rs2)?;
-            Ok(())
-        }
-    },
-    Instruction{
-        mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
-        bits: 0b0110011 | 0b111 << FUNC3_POS | 0b0000000 << FUNC7_POS,
-        name: "AND",
-        operation: |cpu, word| {
-            let instruction = parse_instruction_r(word);
-            let rs1 = cpu.read_x_u32(instruction.rs1.value())?;
-            let rs2 = cpu.read_x_u32(instruction.rs2.value())?;
-            cpu.write_x_u32(instruction.rd.value(), rs1 & rs2)?;
-            Ok(())
-        }
-    }
 ];

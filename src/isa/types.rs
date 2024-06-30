@@ -1,13 +1,11 @@
-use super::{cpu::Cpu, rv32i::immediate::RV32I_SET};
+use super::{cpu::Cpu, rv32i::immediate::RV32I_SET_I};
 use anyhow::{Context, Ok, Result};
 
-
 #[derive(Clone, Copy, PartialEq, Debug)]
-pub struct ProgramLine{
+pub struct ProgramLine {
     pub instruction: Instruction,
-    pub word: Word
+    pub word: Word,
 }
-
 
 #[derive(Clone, Copy, PartialEq, Debug, Default)]
 pub struct RInstructionData {
@@ -26,22 +24,12 @@ pub struct IInstructionData {
     pub imm: U12,
 }
 
-// impl IInstructionData {
-//     pub fn new(rd: u8, func3: U3, rs1: u8, imm: u16) -> IInstructionData {
-//         assert_eq!(rd & 0b11100000, 0);
-//         assert_eq!(func3 & 0b11111000, 0);
-//         assert_eq!(rs1 & 0b11100000, 0);
-//         assert_eq!(imm & 0xF000, 0);
-//         IInstructionData { rd, func3, rs1, imm }
-//     }
-// }
-
 #[derive(Clone, Copy, PartialEq, Debug, Default)]
 pub struct SInstructionData {
     pub func3: U3,
     pub rs1: U5,
     pub rs2: U5,
-    pub imm: u32,
+    pub imm: SImmediate,
 }
 
 #[derive(Clone, Copy, PartialEq, Debug, Default)]
@@ -49,7 +37,7 @@ pub struct SBInstructionData {
     pub func3: U3,
     pub rs1: U5,
     pub rs2: U5,
-    pub imm: u32,
+    pub imm: SBImmediate,
 }
 
 #[derive(Clone, Copy, PartialEq, Debug, Default)]
@@ -65,7 +53,7 @@ pub struct UJInstructionData {
 }
 
 #[derive(Clone, Copy, PartialEq, Debug, Default)]
-pub struct UJImmediate (u32);
+pub struct UJImmediate(u32);
 
 impl UJImmediate {
     pub fn from(raw_operation: u32) -> UJImmediate {
@@ -89,6 +77,56 @@ impl UJImmediate {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Debug, Default)]
+pub struct SImmediate(u32);
+
+impl SImmediate {
+    pub fn from(raw_operation: u32) -> SImmediate {
+        let mut filled: u32 = 0;
+
+        let imm_11_5: u32 = (raw_operation >> 25) & 0x7F;
+        let imm_4_0: u32 = (raw_operation >> 7) & 0x1F;
+
+        filled |= imm_11_5 << 5;
+        filled |= imm_4_0;
+
+        SImmediate(filled & 0xFFF)
+    }
+
+    pub fn as_i32(&self) -> i32 {
+        ((self.0 << 11) as i32) >> 11
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Debug, Default)]
+pub struct SBImmediate(u32);
+
+impl SBImmediate {
+    pub fn from(raw_operation: u32) -> SBImmediate {
+        let mut filled: u32 = 0;
+
+        let imm_12: bool = (raw_operation >> 31) == 1;
+        let imm_4_1: u32 = (raw_operation >> 8) & 0xF;
+        let imm_11: bool = (raw_operation >> 7) == 1;
+        let imm_10_5: u32 = (raw_operation >> 25) & 0x3F;
+
+        filled |= (imm_12 as u32) << 12;
+        filled |= imm_4_1 << 1;
+        filled |= (imm_11 as u32) << 11;
+        filled |= imm_10_5 << 5;
+
+        SBImmediate(filled & !(0b1111 << 12 | 0b1))
+    }
+
+    pub fn as_i32(&self) -> i32 {
+        ((self.0 << 11) as i32) >> 11
+    }
+
+    pub fn as_u32(&self) -> u32 {
+        self.0
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub enum InstructionData {
     R(RInstructionData),
@@ -108,16 +146,15 @@ impl InstructionType for SBInstructionData {}
 impl InstructionType for UInstructionData {}
 impl InstructionType for UJInstructionData {}
 
-
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Word(pub u32);
 
 #[derive(Clone, Copy, PartialEq, Debug)]
-pub struct Instruction{
+pub struct Instruction {
     pub mask: u32,
     pub bits: u32,
     pub name: &'static str,
-    pub operation: fn(cpu: &mut Cpu, word: &Word) -> Result<()>
+    pub operation: fn(cpu: &mut Cpu, word: &Word) -> Result<()>,
 }
 
 pub fn parse_instruction_i(word: &Word) -> IInstructionData {
@@ -125,7 +162,7 @@ pub fn parse_instruction_i(word: &Word) -> IInstructionData {
         rd: U5((word.0 >> 7) as u8 & 0b11111),
         func3: U3((word.0 >> 12) as u8 & 0b111),
         rs1: U5((word.0 >> 15) as u8 & 0b11111),
-        imm: U12((word.0 >> 20) as u16 & 0xFFF)
+        imm: U12((word.0 >> 20) as u16 & 0xFFF),
     };
     println!("{:#034b} {:?}", word.0, data);
     data
@@ -134,7 +171,32 @@ pub fn parse_instruction_i(word: &Word) -> IInstructionData {
 pub fn parse_instruction_u(word: &Word) -> UInstructionData {
     UInstructionData {
         rd: U5((word.0 >> 7) as u8 & 0b00011111),
-        imm: word.0 & (0xFFFFFFFF << 12)
+        imm: word.0 & (0xFFFFFFFF << 12),
+    }
+}
+
+pub fn parse_instruction_uj(word: &Word) -> UJInstructionData {
+    UJInstructionData {
+        rd: U5((word.0 >> 7) as u8 & 0b00011111),
+        imm: UJImmediate::from(word.0),
+    }
+}
+
+pub fn parse_instruction_s(word: &Word) -> SInstructionData {
+    SInstructionData {
+        func3: U3((word.0 >> 12) as u8 & 0b111),
+        rs1: U5((word.0 >> 15) as u8 & 0b11111),
+        rs2: U5((word.0 >> 20) as u8 & 0b11111),
+        imm: SImmediate::from(word.0 as u32),
+    }
+}
+
+pub fn parse_instruction_sb(word: &Word) -> SBInstructionData {
+    SBInstructionData {
+        func3: U3((word.0 >> 12) as u8 & 0b111),
+        rs1: U5((word.0 >> 15) as u8 & 0b11111),
+        rs2: U5((word.0 >> 20) as u8 & 0b11111),
+        imm: SBImmediate::from(word.0 as u32),
     }
 }
 
@@ -144,20 +206,18 @@ pub fn parse_instruction_r(word: &Word) -> RInstructionData {
         func3: U3((word.0 >> 12) as u8 & 0b111),
         rs1: U5((word.0 >> 15) as u8 & 0b11111),
         rs2: U5((word.0 >> 20) as u8 & 0b11111),
-        func7: U7((word.0 >> 25) as u8 & 0x7F)
+        func7: U7((word.0 >> 25) as u8 & 0x7F),
     };
     println!("{:#034b} {:?}", word.0, data);
     data
 }
 
 pub fn decode_program_line(word: Word) -> Result<ProgramLine> {
-    let instruction = *RV32I_SET.iter().find(|ins| {
-        (word.0 & ins.mask) == ins.bits
-    }).context("Instruction not found")?;
-    Ok(ProgramLine {
-        instruction,
-        word
-    })
+    let instruction = *RV32I_SET_I
+        .iter()
+        .find(|ins| (word.0 & ins.mask) == ins.bits)
+        .context("Instruction not found")?;
+    Ok(ProgramLine { instruction, word })
 }
 
 pub fn encode_program_line(name: &str, instruction_data: InstructionData) -> Result<Word> {
@@ -165,28 +225,28 @@ pub fn encode_program_line(name: &str, instruction_data: InstructionData) -> Res
     let mut word = Word(0);
     word.0 |= match instruction_data {
         InstructionData::R(data) => {
-            (data.rd.value() as u32) << 7 | 
-            (data.func3.value() as u32) << 12 | 
-            (data.rs1.value() as u32) << 15 | 
-            (data.rs2.value() as u32) << 20 | 
-            (data.func7.value() as u32) << 25
-        },
+            (data.rd.value() as u32) << 7
+                | (data.func3.value() as u32) << 12
+                | (data.rs1.value() as u32) << 15
+                | (data.rs2.value() as u32) << 20
+                | (data.func7.value() as u32) << 25
+        }
         InstructionData::I(data) => {
-            (data.rd.value() as u32) << 7 | 
-            (data.func3.value() as u32) << 12 | 
-            (data.rs1.value() as u32) << 15 | 
-            (data.imm.value() as u32) << 20
-        },
+            (data.rd.value() as u32) << 7
+                | (data.func3.value() as u32) << 12
+                | (data.rs1.value() as u32) << 15
+                | (data.imm.value() as u32) << 20
+        }
         InstructionData::S(_) => todo!(),
         InstructionData::SB(_) => todo!(),
-        InstructionData::U(data) => {
-            (data.rd.value() as u32) << 7 | 
-            (data.imm as u32) << 12
-        },
+        InstructionData::U(data) => (data.rd.value() as u32) << 7 | (data.imm as u32) << 12,
         InstructionData::UJ(_) => todo!(),
     };
     word.0 |= instruction.mask & instruction.bits;
-    println!("{:#034b} {:?} {}", word.0, instruction_data, instruction.name);
+    println!(
+        "{:#034b} {:?} {}",
+        word.0, instruction_data, instruction.name
+    );
     Ok(word)
 }
 
@@ -200,7 +260,7 @@ pub const FUNC3_ORI: u8 = 0b110;
 pub const FUNC3_XORI: u8 = 0b100;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
-pub struct U3 (pub u8);
+pub struct U3(pub u8);
 
 impl BitValue<u8, U3> for U3 {
     fn new(value: u8) -> U3 {
@@ -228,7 +288,7 @@ impl Default for U3 {
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
-pub struct U5 (pub u8);
+pub struct U5(pub u8);
 
 impl BitValue<u8, U5> for U5 {
     fn new(value: u8) -> U5 {
@@ -256,7 +316,7 @@ impl Default for U5 {
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
-pub struct U7 (pub u8);
+pub struct U7(pub u8);
 
 impl BitValue<u8, U7> for U7 {
     fn new(value: u8) -> U7 {
@@ -284,7 +344,7 @@ impl Default for U7 {
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
-pub struct U12 (pub u16);
+pub struct U12(pub u16);
 
 impl BitValue<u16, U12> for U12 {
     fn new(value: u16) -> U12 {
@@ -305,6 +365,12 @@ impl BitValue<u16, U12> for U12 {
     }
 }
 
+impl U12 {
+    pub fn as_i32(&self) -> i32 {
+        (((self.0 << 4) as i16) >> 4) as i32
+    }
+}
+
 impl Default for U12 {
     fn default() -> Self {
         U12(0)
@@ -319,5 +385,8 @@ pub trait BitValue<S, T> {
 }
 
 pub fn find_instruction_by_name(name: &str) -> Result<Instruction> {
-    Ok(*RV32I_SET.iter().find(|ins| {ins.name == name}).context("Function not found")?)
+    Ok(*RV32I_SET_I
+        .iter()
+        .find(|ins| ins.name == name)
+        .context("Function not found")?)
 }
