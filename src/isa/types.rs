@@ -90,8 +90,8 @@ impl SImmediate {
     pub fn from(raw_operation: u32) -> SImmediate {
         let mut filled: u32 = 0;
 
-        let imm_11_5: u32 = (raw_operation >> 25) & 0x7F;
-        let imm_4_0: u32 = (raw_operation >> 7) & 0x1F;
+        let imm_11_5: u32 = (raw_operation >> 25) & (U7_MASK as u32);
+        let imm_4_0: u32 = (raw_operation >> 7) & (U5_MASK as u32);
 
         filled |= imm_11_5 << 5;
         filled |= imm_4_0;
@@ -165,9 +165,9 @@ pub struct Instruction {
 
 pub fn parse_instruction_i(word: &Word) -> IInstructionData {
     let data = IInstructionData {
-        rd: U5((word.0 >> 7) as u8 & 0b11111),
-        func3: U3((word.0 >> 12) as u8 & 0b111),
-        rs1: U5((word.0 >> 15) as u8 & 0b11111),
+        rd: U5((word.0 >> 7) as u8 & U5_MASK),
+        func3: U3((word.0 >> 12) as u8 & U3_MASK),
+        rs1: U5((word.0 >> 15) as u8 & U5_MASK),
         imm: U12((word.0 >> 20) as u16 & 0xFFF),
     };
     println!("{:#034b} {:?}", word.0, data);
@@ -176,43 +176,43 @@ pub fn parse_instruction_i(word: &Word) -> IInstructionData {
 
 pub fn parse_instruction_u(word: &Word) -> UInstructionData {
     UInstructionData {
-        rd: U5((word.0 >> 7) as u8 & 0b00011111),
+        rd: U5((word.0 >> 7) as u8 & U5_MASK),
         imm: word.0 & (0xFFFFFFFF << 12),
     }
 }
 
 pub fn parse_instruction_uj(word: &Word) -> UJInstructionData {
     UJInstructionData {
-        rd: U5((word.0 >> 7) as u8 & 0b00011111),
+        rd: U5((word.0 >> 7) as u8 & U5_MASK),
         imm: UJImmediate::from(word.0),
     }
 }
 
 pub fn parse_instruction_s(word: &Word) -> SInstructionData {
     SInstructionData {
-        func3: U3((word.0 >> 12) as u8 & 0b111),
-        rs1: U5((word.0 >> 15) as u8 & 0b11111),
-        rs2: U5((word.0 >> 20) as u8 & 0b11111),
+        func3: U3((word.0 >> 12) as u8 & U3_MASK),
+        rs1: U5((word.0 >> 15) as u8 & U5_MASK),
+        rs2: U5((word.0 >> 20) as u8 & U5_MASK),
         imm: SImmediate::from(word.0 as u32),
     }
 }
 
 pub fn parse_instruction_sb(word: &Word) -> SBInstructionData {
     SBInstructionData {
-        func3: U3((word.0 >> 12) as u8 & 0b111),
-        rs1: U5((word.0 >> 15) as u8 & 0b11111),
-        rs2: U5((word.0 >> 20) as u8 & 0b11111),
+        func3: U3((word.0 >> 12) as u8 & U3_MASK),
+        rs1: U5((word.0 >> 15) as u8 & U5_MASK),
+        rs2: U5((word.0 >> 20) as u8 & U5_MASK),
         imm: SBImmediate::from(word.0 as u32),
     }
 }
 
 pub fn parse_instruction_r(word: &Word) -> RInstructionData {
     let data = RInstructionData {
-        rd: U5((word.0 >> 7) as u8 & 0b11111),
-        func3: U3((word.0 >> 12) as u8 & 0b111),
-        rs1: U5((word.0 >> 15) as u8 & 0b11111),
-        rs2: U5((word.0 >> 20) as u8 & 0b11111),
-        func7: U7((word.0 >> 25) as u8 & 0x7F),
+        rd: U5((word.0 >> 7) as u8 & U5_MASK),
+        func3: U3((word.0 >> 12) as u8 & U3_MASK),
+        rs1: U5((word.0 >> 15) as u8 & U5_MASK),
+        rs2: U5((word.0 >> 20) as u8 & U5_MASK),
+        func7: U7((word.0 >> 25) as u8 & U7_MASK),
     };
     println!("{:#034b} {:?}", word.0, data);
     data
@@ -256,11 +256,20 @@ pub fn encode_program_line(name: &str, instruction_data: InstructionData) -> Res
     Ok(word)
 }
 
-pub const OPCODE_MASK: u32 = 0b01111111;
-pub const FUNC3_MASK: u32 = (0b111 as u32) << FUNC3_POS;
+pub const OPCODE_MASK: u32 = U7_MASK as u32;
+pub const FUNC3_MASK: u32 = (U3_MASK as u32) << FUNC3_POS;
 pub const FUNC3_POS: u32 = 12;
-pub const FUNC7_MASK: u32 = (0b111111 as u32) << FUNC7_POS;
+pub const FUNC7_MASK: u32 = (U7_MASK as u32) << FUNC7_POS;
 pub const FUNC7_POS: u32 = 25;
+
+const U7_MASK: u8 = 0b1111111;
+const U7_SHIFT: u8 = 7;
+
+const U5_MASK: u8 = 0b11111;
+const U5_SHIFT: u8 = 5;
+
+const U3_MASK: u8 = 0b111;
+const U3_SHIFT: u8 = 3;
 
 pub const FUNC3_ORI: u8 = 0b110;
 pub const FUNC3_XORI: u8 = 0b100;
@@ -270,8 +279,8 @@ pub struct U3(pub u8);
 
 impl BitValue<u8, U3> for U3 {
     fn new(value: u8) -> U3 {
-        assert_eq!(value & (0b11111 << 3), 0);
-        U3(value & 0b111)
+        assert_eq!(value & !U3_MASK, 0);
+        U3(value & U3_MASK)
     }
 
     fn value(&self) -> u8 {
@@ -279,7 +288,7 @@ impl BitValue<u8, U3> for U3 {
     }
 
     fn max_value() -> U3 {
-        U3(0b111)
+        U3(U3_MASK)
     }
 
     fn min_value() -> U3 {
@@ -298,8 +307,8 @@ pub struct U5(pub u8);
 
 impl BitValue<u8, U5> for U5 {
     fn new(value: u8) -> U5 {
-        assert_eq!(value & (0b111 << 5), 0);
-        U5(value & !(0b111 << 5))
+        assert_eq!(value & !U5_MASK, 0);
+        U5(value & U5_MASK)
     }
 
     fn value(&self) -> u8 {
@@ -307,7 +316,7 @@ impl BitValue<u8, U5> for U5 {
     }
 
     fn max_value() -> U5 {
-        U5(0b11111)
+        U5(U5_MASK)
     }
 
     fn min_value() -> U5 {
@@ -326,8 +335,8 @@ pub struct U7(pub u8);
 
 impl BitValue<u8, U7> for U7 {
     fn new(value: u8) -> U7 {
-        assert_eq!(value & (0b1 << 7), 0);
-        U7(value & !(0b1 << 7))
+        assert_eq!(value & !U7_MASK, 0);
+        U7(value & U7_MASK)
     }
 
     fn value(&self) -> u8 {
@@ -335,7 +344,7 @@ impl BitValue<u8, U7> for U7 {
     }
 
     fn max_value() -> U7 {
-        U7(!(0b1 << 7))
+        U7(U7_MASK)
     }
 
     fn min_value() -> U7 {
