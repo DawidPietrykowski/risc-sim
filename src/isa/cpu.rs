@@ -1,11 +1,9 @@
-use std::collections::HashMap;
-
 use crate::isa::types::InstructionType;
 use crate::utils::binary_utils::*;
 
-use anyhow::{Context, Ok, Result};
+use anyhow::{bail, Context, Ok, Result};
 
-use super::types::{decode_program_line, InstructionData, ProgramLine, Word};
+use super::types::{decode_program_line, ProgramLine, Word};
 
 pub struct Cpu {
     reg_x32: [u32; 31],
@@ -13,7 +11,7 @@ pub struct Cpu {
     skip_pc_increment: bool,
     #[allow(dead_code)]
     program: Vec<ProgramLine>,
-    mem_map: HashMap<u32, u32>,
+    mem_map: Vec<u8>,
 }
 
 impl Cpu {
@@ -23,7 +21,7 @@ impl Cpu {
             reg_pc: 0x0,
             skip_pc_increment: false,
             program: vec![],
-            mem_map: HashMap::new(),
+            mem_map: vec![0; 1024 * 1024],
         }
     }
 
@@ -56,47 +54,39 @@ impl Cpu {
             .context("No instruction at index")?)
     }
 
-    pub fn execute_operation<I: InstructionType>(
-        &mut self,
-        operation: &impl Operation<I>,
-    ) -> Result<()> {
-        // self.skip_pc_increment = false;
-
-        self.reg_pc += 4;
-
-        operation.execute(self)?;
-
-        // if !self.skip_pc_increment {
-        // self.reg_pc += 1;
-        // }
-        Ok(())
-    }
-
-    pub fn execute_instruction(&mut self, instruction: InstructionData) -> Result<()> {
-        self.reg_pc += 4;
-
-        let operation = match instruction {
-            InstructionData::R(ins) => {}
-            InstructionData::I(ins) => todo!(),
-            InstructionData::S(ins) => todo!(),
-            InstructionData::SB(ins) => todo!(),
-            InstructionData::U(ins) => todo!(),
-            InstructionData::UJ(ins) => todo!(),
-        };
-
-        Ok(())
-    }
-
     pub fn read_mem_u32(&mut self, addr: u32) -> Result<u32> {
-        // TODO: optimize
-        Ok(*self.mem_map.clone().get(&addr).unwrap_or_else(|| {
-            self.mem_map.insert(addr, 0);
-            &0
-        }))
+        Ok((self.read_mem_u16(addr)? as u32) | (self.read_mem_u16(addr + 2)? as u32) << 8)
     }
 
-    pub fn write_mem_u32(&mut self, addr: u32, value: u32) {
-        self.mem_map.insert(addr, value);
+    pub fn read_mem_u16(&mut self, addr: u32) -> Result<u16> {
+        Ok((self.read_mem_u8(addr)? as u16) | (self.read_mem_u8(addr + 1)? as u16) << 8)
+    }
+
+    pub fn read_mem_u8(&mut self, addr: u32) -> Result<u8> {
+        Ok(*self
+            .mem_map
+            .get(addr as usize)
+            .context("Out of bounds memory access")?)
+    }
+
+    pub fn write_mem_u8(&mut self, addr: u32, value: u8) -> Result<()> {
+        if addr as usize >= self.mem_map.len() {
+            bail!("Out of bounds memory access")
+        }
+        self.mem_map[addr as usize] = value;
+        Ok(())
+    }
+
+    pub fn write_mem_u16(&mut self, addr: u32, value: u16) -> Result<()> {
+        self.write_mem_u8(addr, value as u8)?;
+        self.write_mem_u8(addr, (value >> 8) as u8)?;
+        Ok(())
+    }
+
+    pub fn write_mem_u32(&mut self, addr: u32, value: u32) -> Result<()> {
+        self.write_mem_u16(addr, value as u16)?;
+        self.write_mem_u16(addr, (value >> 16) as u16)?;
+        Ok(())
     }
 
     pub fn read_x_u32(&self, id: u8) -> Result<u32> {

@@ -4,7 +4,6 @@ mod tests {
 
     use anyhow::Result;
     use isa::cpu::*;
-    use isa::rv32i::integer_reg_reg::*;
     use isa::types::*;
     use proptest::prelude::*;
     use std::result::Result::Ok;

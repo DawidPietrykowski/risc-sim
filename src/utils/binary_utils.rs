@@ -1,3 +1,11 @@
+pub fn u8_to_i8(value: u8) -> i8 {
+    i8::from_ne_bytes(value.to_ne_bytes())
+}
+
+pub fn i8_to_u8(value: i8) -> u8 {
+    u8::from_ne_bytes(value.to_ne_bytes())
+}
+
 pub fn u16_to_i16(value: u16) -> i16 {
     i16::from_ne_bytes(value.to_ne_bytes())
 }

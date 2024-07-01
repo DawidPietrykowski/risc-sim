@@ -1,4 +1,10 @@
-use super::{cpu::Cpu, rv32i::immediate::RV32I_SET_I};
+use super::{
+    cpu::Cpu,
+    rv32i::{
+        control_transfer::RV32I_SET_UJ, immediate::RV32I_SET_I, integer_reg_reg::RV32I_SET_R,
+        load_store::RV32I_SET_LS,
+    },
+};
 use anyhow::{Context, Ok, Result};
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -213,7 +219,7 @@ pub fn parse_instruction_r(word: &Word) -> RInstructionData {
 }
 
 pub fn decode_program_line(word: Word) -> Result<ProgramLine> {
-    let instruction = *RV32I_SET_I
+    let instruction = *ALL_INSTRUCTIONS
         .iter()
         .find(|ins| (word.0 & ins.mask) == ins.bits)
         .context("Instruction not found")?;
@@ -385,8 +391,20 @@ pub trait BitValue<S, T> {
 }
 
 pub fn find_instruction_by_name(name: &str) -> Result<Instruction> {
-    Ok(*RV32I_SET_I
+    Ok(*ALL_INSTRUCTIONS
         .iter()
         .find(|ins| ins.name == name)
         .context("Function not found")?)
+}
+use lazy_static::lazy_static;
+
+lazy_static! {
+    static ref ALL_INSTRUCTIONS: Vec<Instruction> = {
+        let mut all = Vec::new();
+        all.extend_from_slice(&RV32I_SET_I);
+        all.extend_from_slice(&RV32I_SET_R);
+        all.extend_from_slice(&RV32I_SET_UJ);
+        all.extend_from_slice(&RV32I_SET_LS);
+        all
+    };
 }
