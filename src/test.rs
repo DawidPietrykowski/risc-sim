@@ -13,6 +13,154 @@ mod tests {
         Cpu::new()
     }
 
+    // fn execute_i_instruction(cpu: &mut Cpu, opcode: &str, rd: u8, rs1: u8, imm: u16) -> Result<()> {
+    //     let instruction = IInstructionData {
+    //         rd: U5(rd),
+    //         rs1: U5(rs1),
+    //         imm: U12(imm),
+    //         ..Default::default()
+    //     };
+    //     let op = encode_program_line(opcode, InstructionData::I(instruction))?;
+    //     cpu.execute_word(op)?;
+    //     Ok(())
+    // }
+
+    fn execute_s_instruction(cpu: &mut Cpu, opcode: &str, rs1: u8, rs2: u8, imm: u16) -> Result<()> {
+        let instruction = SInstructionData {
+            rs1: U5(rs1),
+            rs2: U5(rs2),
+            imm: SImmediate(imm as u32),
+            ..Default::default()
+        };
+        let op = encode_program_line(opcode, InstructionData::S(instruction))?;
+        cpu.execute_word(op)?;
+        Ok(())
+    }
+
+    proptest! {
+        #[test]
+        fn test_lb(rd in 1u8..31, rs1 in 1u8..31, imm in 0u16..0xF, value in i8::MIN..i8::MAX) {
+            if rs1 == rd {
+                return Ok(());
+            }
+            let mut cpu = setup_cpu();
+            let addr = 1000u32;
+            cpu.write_x_u32(rs1, addr).unwrap();
+            cpu.write_mem_u8(addr.wrapping_add_signed(imm as i16 as i32), value as u8).unwrap();
+
+            execute_i_instruction(&mut cpu, "LB", rd, rs1, imm).unwrap();
+
+            prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), value as i32);
+        }
+
+        #[test]
+        fn test_lh(rd in 1u8..31, rs1 in 1u8..31, imm in 0u16..0xF, value in i16::MIN..i16::MAX) {
+            if rs1 == rd {
+                return Ok(());
+            }
+            let mut cpu = setup_cpu();
+            let addr = 1000u32;
+            cpu.write_x_u32(rs1, addr).unwrap();
+            cpu.write_mem_u16(addr.wrapping_add_signed(imm as i16 as i32), value as u16).unwrap();
+
+            execute_i_instruction(&mut cpu, "LH", rd, rs1, imm).unwrap();
+
+            prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), value as i32);
+        }
+
+        #[test]
+        fn test_lw(rd in 1u8..31, rs1 in 1u8..31, imm in 0u16..0xF, value in i32::MIN..i32::MAX) {
+            if rs1 == rd {
+                return Ok(());
+            }
+            let mut cpu = setup_cpu();
+            let addr = 1000u32;
+            cpu.write_x_u32(rs1, addr).unwrap();
+            cpu.write_mem_u32(addr.wrapping_add_signed(0), value as u32).unwrap();
+
+            execute_i_instruction(&mut cpu, "LW", rd, rs1, 0).unwrap();
+
+            prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), value);
+        }
+
+        #[test]
+        fn test_lbu(rd in 1u8..31, rs1 in 1u8..31, imm in 0u16..0xF, value in u8::MIN..u8::MAX) {
+            if rs1 == rd {
+                return Ok(());
+            }
+            let mut cpu = setup_cpu();
+            let addr = 1000u32;
+            cpu.write_x_u32(rs1, addr).unwrap();
+            cpu.write_mem_u8(addr.wrapping_add_signed(imm as i16 as i32), value).unwrap();
+
+            execute_i_instruction(&mut cpu, "LBU", rd, rs1, imm).unwrap();
+
+            prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), value as u32);
+        }
+
+        #[test]
+        fn test_lhu(rd in 1u8..31, rs1 in 1u8..31, imm in 0u16..0xF, value in 10u16..u16::MAX) {
+            if rs1 == rd {
+                return Ok(());
+            }
+            let mut cpu = setup_cpu();
+            let addr = 1000u32;
+            
+            cpu.write_x_u32(rs1, addr).unwrap();
+            cpu.write_mem_u16(addr.wrapping_add_signed(imm as i16 as i32), value).unwrap();
+
+            execute_i_instruction(&mut cpu, "LHU", rd, rs1, imm).unwrap();
+
+            prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), value as u32);
+        }
+
+        #[test]
+        fn test_sb(rs1 in 1u8..31, rs2 in 1u8..31, imm in 0u16..0xF, value in i8::MIN..i8::MAX) {
+            if rs1 == rs2 {
+                return Ok(());
+            }
+            let mut cpu = setup_cpu();
+            let addr = 1000u32;
+            cpu.write_x_u32(rs1, addr).unwrap();
+            cpu.write_x_i32(rs2, value as i32).unwrap();
+
+            execute_s_instruction(&mut cpu, "SB", rs1, rs2, imm).unwrap();
+
+            prop_assert_eq!(cpu.read_mem_u8(addr.wrapping_add_signed(imm as i16 as i32)).unwrap(), value as u8);
+        }
+
+        #[test]
+        fn test_sh(rs1 in 1u8..31, rs2 in 1u8..31, imm in 0u16..0xF, value in i16::MIN..i16::MAX) {
+            if rs1 == rs2 {
+                return Ok(());
+            }
+            let mut cpu = setup_cpu();
+            let addr = 1000u32;
+            cpu.write_x_u32(rs1, addr).unwrap();
+            cpu.write_x_i32(rs2, value as i32).unwrap();
+
+            execute_s_instruction(&mut cpu, "SH", rs1, rs2, imm).unwrap();
+
+            prop_assert_eq!(cpu.read_mem_u16(addr.wrapping_add_signed(imm as i16 as i32)).unwrap(), value as u16);
+        }
+
+        #[test]
+        fn test_sw(rs1 in 1u8..31, rs2 in 1u8..31, imm in 0u16..0xF, value in i32::MIN..i32::MAX) {
+            if rs1 == rs2 {
+                return Ok(());
+            }
+            let mut cpu = setup_cpu();
+            let addr = 1000u32;
+            cpu.write_x_u32(rs1, addr).unwrap();
+            cpu.write_x_i32(rs2, value).unwrap();
+
+            execute_s_instruction(&mut cpu, "SW", rs1, rs2, imm).unwrap();
+
+            prop_assert_eq!(cpu.read_mem_u32(addr.wrapping_add_signed(imm as i16 as i32)).unwrap(), value as u32);
+        }
+    }
+
+
     fn execute_i_instruction(cpu: &mut Cpu, opcode: &str, rd: u8, rs1: u8, imm: u16) -> Result<()> {
         let instruction = IInstructionData {
             rd: U5(rd),
