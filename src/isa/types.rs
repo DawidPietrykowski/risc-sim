@@ -84,7 +84,7 @@ impl UJImmediate {
 }
 
 #[derive(Clone, Copy, PartialEq, Debug, Default)]
-pub struct SImmediate(u32);
+pub struct SImmediate(pub u32);
 
 impl SImmediate {
     pub fn from(raw_operation: u32) -> SImmediate {
@@ -243,16 +243,22 @@ pub fn encode_program_line(name: &str, instruction_data: InstructionData) -> Res
                 | (data.rs1.value() as u32) << 15
                 | (data.imm.value() as u32) << 20
         }
-        InstructionData::S(_) => todo!(),
+        InstructionData::S(data) => {
+            (data.func3.value() as u32) << 12
+                | (data.rs1.value() as u32) << 15
+                | (data.rs2.value() as u32) << 20
+                | ((data.imm.0) & U5_MASK as u32) << 7
+                | ((data.imm.0) & (((U12_MASK as u32) & !(U5_MASK as u32)))) << 20
+        },
         InstructionData::SB(_) => todo!(),
         InstructionData::U(data) => (data.rd.value() as u32) << 7 | (data.imm as u32) << 12,
         InstructionData::UJ(_) => todo!(),
     };
     word.0 |= instruction.mask & instruction.bits;
-    println!(
-        "{:#034b} {:?} {}",
-        word.0, instruction_data, instruction.name
-    );
+    // println!(
+    //     "{:#034b} {:?} {}",
+    //     word.0, instruction_data, instruction.name
+    // );
     Ok(word)
 }
 
@@ -270,6 +276,9 @@ const U5_SHIFT: u8 = 5;
 
 const U3_MASK: u8 = 0b111;
 const U3_SHIFT: u8 = 3;
+
+const U12_MASK: u16 = 0b111111111111;
+const U12_SHIFT: u8 = 12;
 
 pub const FUNC3_ORI: u8 = 0b110;
 pub const FUNC3_XORI: u8 = 0b100;

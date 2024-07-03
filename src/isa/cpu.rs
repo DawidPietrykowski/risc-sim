@@ -11,7 +11,7 @@ pub struct Cpu {
     skip_pc_increment: bool,
     #[allow(dead_code)]
     program: Vec<ProgramLine>,
-    mem_map: Vec<u8>,
+    pub mem_map: Vec<u8>,
 }
 
 impl Cpu {
@@ -21,7 +21,7 @@ impl Cpu {
             reg_pc: 0x0,
             skip_pc_increment: false,
             program: vec![],
-            mem_map: vec![0; 1024 * 1024],
+            mem_map: vec![0; 1024 * 1024 * 1024],
         }
     }
 
@@ -55,7 +55,7 @@ impl Cpu {
     }
 
     pub fn read_mem_u32(&mut self, addr: u32) -> Result<u32> {
-        Ok((self.read_mem_u16(addr)? as u32) | (self.read_mem_u16(addr + 2)? as u32) << 8)
+        Ok((self.read_mem_u16(addr)? as u32) | (self.read_mem_u16(addr + 2)? as u32) << 16)
     }
 
     pub fn read_mem_u16(&mut self, addr: u32) -> Result<u16> {
@@ -66,12 +66,12 @@ impl Cpu {
         Ok(*self
             .mem_map
             .get(addr as usize)
-            .context("Out of bounds memory access")?)
+            .context(format!("Out of bounds memory access at {}", addr))?)
     }
 
     pub fn write_mem_u8(&mut self, addr: u32, value: u8) -> Result<()> {
         if addr as usize >= self.mem_map.len() {
-            bail!("Out of bounds memory access")
+            bail!(format!("Out of bounds memory access at {}", addr))
         }
         self.mem_map[addr as usize] = value;
         Ok(())
@@ -79,13 +79,13 @@ impl Cpu {
 
     pub fn write_mem_u16(&mut self, addr: u32, value: u16) -> Result<()> {
         self.write_mem_u8(addr, value as u8)?;
-        self.write_mem_u8(addr, (value >> 8) as u8)?;
+        self.write_mem_u8(addr + 1, (value >> 8) as u8)?;
         Ok(())
     }
 
     pub fn write_mem_u32(&mut self, addr: u32, value: u32) -> Result<()> {
         self.write_mem_u16(addr, value as u16)?;
-        self.write_mem_u16(addr, (value >> 16) as u16)?;
+        self.write_mem_u16(addr + 2, (value >> 16) as u16)?;
         Ok(())
     }
 
