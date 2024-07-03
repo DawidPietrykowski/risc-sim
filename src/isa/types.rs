@@ -2,7 +2,7 @@ use super::{
     cpu::Cpu,
     rv32i::{
         control_transfer::RV32I_SET_UJ, immediate::RV32I_SET_I, integer_reg_reg::RV32I_SET_R,
-        load_store::RV32I_SET_LS,
+        load_store::RV32I_SET_LS, environment::RV32I_SET_E,
     },
 };
 use anyhow::{Context, Ok, Result};
@@ -267,6 +267,8 @@ pub const FUNC3_MASK: u32 = (U3_MASK as u32) << FUNC3_POS;
 pub const FUNC3_POS: u32 = 12;
 pub const FUNC7_MASK: u32 = (U7_MASK as u32) << FUNC7_POS;
 pub const FUNC7_POS: u32 = 25;
+pub const FUNC12_MASK: u32 = (U12_MASK as u32) << 20;
+pub const FUNC12_POS: u32 = 20;
 
 const U7_MASK: u8 = 0b1111111;
 const U7_SHIFT: u8 = 7;
@@ -423,6 +425,7 @@ lazy_static! {
         all.extend_from_slice(&RV32I_SET_R);
         all.extend_from_slice(&RV32I_SET_UJ);
         all.extend_from_slice(&RV32I_SET_LS);
+        all.extend_from_slice(&RV32I_SET_E);
         all
     };
 }

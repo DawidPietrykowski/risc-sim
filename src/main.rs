@@ -1,10 +1,12 @@
 #![allow(dead_code)]
 
 use anyhow::{Ok, Result};
+use crate::asm::assembler::decode_file;
 
 mod isa;
 mod test;
 mod utils;
+mod asm;
 
 fn main() -> Result<()> {
     // let mut cpu = Cpu::new();
@@ -102,6 +104,7 @@ fn main() -> Result<()> {
     // assert_eq!(cpu.read_x_u32(5)?, 0b0101);
 
     // println!("All tests passed successfully!");
+    decode_file();
 
     Ok(())
 }
