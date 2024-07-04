@@ -1,7 +1,4 @@
 use crate::isa::types::*;
-use crate::utils::binary_utils::*;
-
-use anyhow::Ok;
 
 pub const RV32I_SET_E: [Instruction; 2] = [
     Instruction {
@@ -9,10 +6,8 @@ pub const RV32I_SET_E: [Instruction; 2] = [
         bits: 0b0 << FUNC12_POS | 0b1110011,
         name: "ECALL",
         instruction_type: InstructionType::I,
-        operation: |cpu, word| {
-            let instruction = parse_instruction_i(word);
+        operation: |_cpu, _word| {
             todo!();
-            Ok(())
         },
     },
     Instruction {
@@ -20,10 +15,8 @@ pub const RV32I_SET_E: [Instruction; 2] = [
         bits: 0b1 << FUNC12_POS | 0b1110011,
         name: "EBREAK",
         instruction_type: InstructionType::I,
-        operation: |cpu, word| {
-            let instruction = parse_instruction_i(word);
+        operation: |_cpu, _word| {
             todo!();
-            Ok(())
         },
     },
 ];

@@ -75,7 +75,7 @@ mod tests {
         }
 
         #[test]
-        fn test_lw(rd in 1u8..31, rs1 in 1u8..31, imm in 0u16..0xF, value in i32::MIN..i32::MAX) {
+        fn test_lw(rd in 1u8..31, rs1 in 1u8..31, _imm in 0u16..0xF, value in i32::MIN..i32::MAX) {
             if rs1 == rd {
                 return Ok(());
             }
@@ -244,7 +244,7 @@ mod tests {
         };
     }
 
-    test_instruction_i!(test_addi2, "ADDI", |cpu: &mut Cpu, rd, rs1, imm| {
+    test_instruction_i!(test_addi2, "ADDI", |cpu: &mut Cpu, rd, _rs1, imm| {
         prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), imm as i32);
         Ok(())
     });
@@ -258,7 +258,7 @@ mod tests {
     test_instruction_r!(
         test_add2,
         "ADD",
-        |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
+        |cpu: &mut Cpu, rd, _rs1, _rs2, rs1_read_val: i32, rs2_read_val: i32| {
             let (expected, _) = rs1_read_val.overflowing_add(rs2_read_val);
             prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
             Ok(())
@@ -268,7 +268,7 @@ mod tests {
     test_instruction_r!(
         test_sub,
         "SUB",
-        |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
+        |cpu: &mut Cpu, rd, _rs1, _rs2, rs1_read_val: i32, rs2_read_val: i32| {
             let (expected, _) = rs1_read_val.overflowing_sub(rs2_read_val);
             prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
             Ok(())
@@ -278,7 +278,7 @@ mod tests {
     test_instruction_r!(
         test_slt,
         "SLT",
-        |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
+        |cpu: &mut Cpu, rd, _rs1, _rs2, rs1_read_val: i32, rs2_read_val: i32| {
             let expected = if rs1_read_val < rs2_read_val { 1 } else { 0 };
             prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
             Ok(())
@@ -288,7 +288,7 @@ mod tests {
     test_instruction_r!(
         test_sltu,
         "SLTU",
-        |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
+        |cpu: &mut Cpu, rd, _rs1, _rs2, rs1_read_val: i32, rs2_read_val: i32| {
             let expected = if i32_to_u32(rs1_read_val) < i32_to_u32(rs2_read_val) {
                 1
             } else {
@@ -302,7 +302,7 @@ mod tests {
     test_instruction_r!(
         test_xor,
         "XOR",
-        |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
+        |cpu: &mut Cpu, rd, _rs1, _rs2, rs1_read_val: i32, rs2_read_val: i32| {
             let expected = rs1_read_val ^ rs2_read_val;
             prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
             Ok(())
@@ -312,7 +312,7 @@ mod tests {
     test_instruction_r!(
         test_or,
         "OR",
-        |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
+        |cpu: &mut Cpu, rd, _rs1, _rs2, rs1_read_val: i32, rs2_read_val: i32| {
             let expected = rs1_read_val | rs2_read_val;
             prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
             Ok(())
@@ -322,7 +322,7 @@ mod tests {
     test_instruction_r!(
         test_and,
         "AND",
-        |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
+        |cpu: &mut Cpu, rd, _rs1, _rs2, rs1_read_val: i32, rs2_read_val: i32| {
             let expected = rs1_read_val & rs2_read_val;
             prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
             Ok(())
@@ -332,7 +332,7 @@ mod tests {
     test_instruction_r!(
         test_sll,
         "SLL",
-        |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
+        |cpu: &mut Cpu, rd, _rs1, _rs2, rs1_read_val: i32, rs2_read_val: i32| {
             let expected = (i32_to_u32(rs1_read_val)) << (i32_to_u32(rs2_read_val) & 0b11111);
             prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), expected);
             Ok(())
@@ -342,7 +342,7 @@ mod tests {
     test_instruction_r!(
         test_srl,
         "SRL",
-        |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
+        |cpu: &mut Cpu, rd, _rs1, _rs2, rs1_read_val: i32, rs2_read_val: i32| {
             let expected = (i32_to_u32(rs1_read_val)) >> (i32_to_u32(rs2_read_val) & 0b11111);
             prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), expected);
             Ok(())
@@ -352,7 +352,7 @@ mod tests {
     test_instruction_r!(
         test_sra,
         "SRA",
-        |cpu: &mut Cpu, rd, rs1, rs2, rs1_read_val: i32, rs2_read_val: i32| {
+        |cpu: &mut Cpu, rd, _rs1, _rs2, rs1_read_val: i32, rs2_read_val: i32| {
             let expected = (rs1_read_val) >> (i32_to_u32(rs2_read_val) & 0b11111);
             prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), expected);
             Ok(())

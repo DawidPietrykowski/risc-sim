@@ -162,7 +162,6 @@ impl Display for ProgramHeader {
 
 pub fn decode_file() {
     let file = fs::read("notes/test").unwrap();
-    let start = 0;
 
     let magic_value = u32::from_be_bytes(
         file.iter()

@@ -1,4 +1,3 @@
-use crate::isa::types::InstructionType;
 use crate::utils::binary_utils::*;
 
 use anyhow::{bail, Context, Ok, Result};
