@@ -25,7 +25,13 @@ mod tests {
     //     Ok(())
     // }
 
-    fn execute_s_instruction(cpu: &mut Cpu, opcode: &str, rs1: u8, rs2: u8, imm: u16) -> Result<()> {
+    fn execute_s_instruction(
+        cpu: &mut Cpu,
+        opcode: &str,
+        rs1: u8,
+        rs2: u8,
+        imm: u16,
+    ) -> Result<()> {
         let instruction = SInstructionData {
             rs1: U5(rs1),
             rs2: U5(rs2),
@@ -105,7 +111,7 @@ mod tests {
             }
             let mut cpu = setup_cpu();
             let addr = 1000u32;
-            
+
             cpu.write_x_u32(rs1, addr).unwrap();
             cpu.write_mem_u16(addr.wrapping_add_signed(imm as i16 as i32), value).unwrap();
 
@@ -159,7 +165,6 @@ mod tests {
             prop_assert_eq!(cpu.read_mem_u32(addr.wrapping_add_signed(imm as i16 as i32)).unwrap(), value as u32);
         }
     }
-
 
     fn execute_i_instruction(cpu: &mut Cpu, opcode: &str, rd: u8, rs1: u8, imm: u16) -> Result<()> {
         let instruction = IInstructionData {

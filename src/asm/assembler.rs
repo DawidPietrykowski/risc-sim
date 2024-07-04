@@ -1,10 +1,8 @@
+use crate::isa::types::{decode_program_line, Word};
 use std::fmt::{Display, Formatter};
 use std::{fmt, fs};
-use crate::isa::types::{decode_program_line, Word};
 
-struct ELF {
-
-}
+struct ELF {}
 
 #[derive(Debug, Clone)]
 enum WordSize {
@@ -41,7 +39,7 @@ enum ISA {
     MIPS,
     PPC,
     SPARC,
-    OTHER
+    OTHER,
 }
 
 #[derive(Debug)]
@@ -73,14 +71,26 @@ impl Display for ELFHeader {
         write!(f, "  ELF Type: {:?}\n", self.elf_type)?;
         write!(f, "  ISA: {:?}\n", self.isa)?;
         write!(f, "  Entry Point: {:#x}\n", self.entry_point)?;
-        write!(f, "  Program Header Table Offset: {:#x}\n", self.program_header_table_offset)?;
-        write!(f, "  Section Header Table Offset: {:#x}\n", self.section_header_table_offset)?;
+        write!(
+            f,
+            "  Program Header Table Offset: {:#x}\n",
+            self.program_header_table_offset
+        )?;
+        write!(
+            f,
+            "  Section Header Table Offset: {:#x}\n",
+            self.section_header_table_offset
+        )?;
         write!(f, "  Header Size: {}\n", self.header_size)?;
         write!(f, "  Program Header Size: {}\n", self.program_header_size)?;
         write!(f, "  Program Header Count: {}\n", self.program_header_count)?;
         write!(f, "  Section Header Size: {}\n", self.section_header_size)?;
         write!(f, "  Section Header Count: {}\n", self.section_header_count)?;
-        write!(f, "  Section Header String Table Index: {}\n", self.section_header_string_table_index)
+        write!(
+            f,
+            "  Section Header String Table Index: {}\n",
+            self.section_header_string_table_index
+        )
     }
 }
 
@@ -150,19 +160,20 @@ impl Display for ProgramHeader {
     }
 }
 
-
 pub fn decode_file() {
     let file = fs::read("notes/test").unwrap();
     let start = 0;
 
-    let magic_value = u32::from_be_bytes(file.iter().take(4).cloned().collect::<Vec<u8>>().try_into().unwrap());
+    let magic_value = u32::from_be_bytes(
+        file.iter()
+            .take(4)
+            .cloned()
+            .collect::<Vec<u8>>()
+            .try_into()
+            .unwrap(),
+    );
 
-    let expected_magic_value = u32::from_be_bytes([
-        0x7F,
-        'E' as u8,
-        'L' as u8,
-        'F' as u8,
-    ]);
+    let expected_magic_value = u32::from_be_bytes([0x7F, 'E' as u8, 'L' as u8, 'F' as u8]);
 
     assert_eq!(magic_value, expected_magic_value);
 
@@ -195,7 +206,13 @@ pub fn decode_file() {
         2 => ELFType::Executable,
         3 => ELFType::Shared,
         4 => ELFType::Core,
-        _ => panic!("{}", format!("Invalid ELF type: {:#x}", u16::from_le_bytes(file[0x10..0x12].try_into().unwrap()))),
+        _ => panic!(
+            "{}",
+            format!(
+                "Invalid ELF type: {:#x}",
+                u16::from_le_bytes(file[0x10..0x12].try_into().unwrap())
+            )
+        ),
     };
 
     let isa = match u16::from_le_bytes(file[0x12..0x14].try_into().unwrap()) {
@@ -278,57 +295,118 @@ pub fn decode_file() {
     println!("{}", elf_header);
 
     for i in 0..elf_header.program_header_count {
-        let offset = (elf_header.program_header_table_offset + i as u64 * elf_header.program_header_size as u64) as usize;
+        let offset = (elf_header.program_header_table_offset
+            + i as u64 * elf_header.program_header_size as u64) as usize;
 
-        let program_header_type = match u32::from_le_bytes(file[offset..(offset + 4)].try_into().unwrap()) {
-            0 => ProgramHeaderType::Load,
-            1 => ProgramHeaderType::Dynamic,
-            2 => ProgramHeaderType::Interp,
-            3 => ProgramHeaderType::Note,
-            4 => ProgramHeaderType::Shlib,
-            5 => ProgramHeaderType::Phdr,
-            6 => ProgramHeaderType::Tls,
-            0x60000000 => ProgramHeaderType::Loos,
-            0x6FFFFFFF => ProgramHeaderType::Hios,
-            0x70000000 => ProgramHeaderType::Loproc,
-            0x7FFFFFFF => ProgramHeaderType::Hiproc,
-            0x70000003 => ProgramHeaderType::Unknown,
-            _ => panic!("Invalid program header type {:#x}", u32::from_le_bytes(file[offset..(offset + 4)].try_into().unwrap())),
-        };
+        let program_header_type =
+            match u32::from_le_bytes(file[offset..(offset + 4)].try_into().unwrap()) {
+                0 => ProgramHeaderType::Load,
+                1 => ProgramHeaderType::Dynamic,
+                2 => ProgramHeaderType::Interp,
+                3 => ProgramHeaderType::Note,
+                4 => ProgramHeaderType::Shlib,
+                5 => ProgramHeaderType::Phdr,
+                6 => ProgramHeaderType::Tls,
+                0x60000000 => ProgramHeaderType::Loos,
+                0x6FFFFFFF => ProgramHeaderType::Hios,
+                0x70000000 => ProgramHeaderType::Loproc,
+                0x7FFFFFFF => ProgramHeaderType::Hiproc,
+                0x70000003 => ProgramHeaderType::Unknown,
+                _ => panic!(
+                    "Invalid program header type {:#x}",
+                    u32::from_le_bytes(file[offset..(offset + 4)].try_into().unwrap())
+                ),
+            };
 
         let flags = match word_size {
-            WordSize::W32 => u32::from_le_bytes(file[(offset + 0x18)..(offset + 0x18 + 0x4)].try_into().unwrap()),
-            WordSize::W64 => u32::from_le_bytes(file[(offset + 0x4)..(offset + 0x4 + 0x8)].try_into().unwrap()),
+            WordSize::W32 => u32::from_le_bytes(
+                file[(offset + 0x18)..(offset + 0x18 + 0x4)]
+                    .try_into()
+                    .unwrap(),
+            ),
+            WordSize::W64 => u32::from_le_bytes(
+                file[(offset + 0x4)..(offset + 0x4 + 0x8)]
+                    .try_into()
+                    .unwrap(),
+            ),
         };
 
         let segment_offset = match word_size {
-            WordSize::W32 => u32::from_le_bytes(file[(offset + 0x4)..(offset + 0x4 + 0x4)].try_into().unwrap()) as u64,
-            WordSize::W64 => u64::from_le_bytes(file[(offset + 0x8)..(offset + 0x8 + 0x8)].try_into().unwrap()),
+            WordSize::W32 => u32::from_le_bytes(
+                file[(offset + 0x4)..(offset + 0x4 + 0x4)]
+                    .try_into()
+                    .unwrap(),
+            ) as u64,
+            WordSize::W64 => u64::from_le_bytes(
+                file[(offset + 0x8)..(offset + 0x8 + 0x8)]
+                    .try_into()
+                    .unwrap(),
+            ),
         };
 
         let virtual_address = match word_size {
-            WordSize::W32 => u32::from_le_bytes(file[(offset + 0x8)..(offset + 0x8 + 0x4)].try_into().unwrap()) as u64,
-            WordSize::W64 => u64::from_le_bytes(file[(offset + 0x10)..(offset + 0x10 + 0x8)].try_into().unwrap()),
+            WordSize::W32 => u32::from_le_bytes(
+                file[(offset + 0x8)..(offset + 0x8 + 0x4)]
+                    .try_into()
+                    .unwrap(),
+            ) as u64,
+            WordSize::W64 => u64::from_le_bytes(
+                file[(offset + 0x10)..(offset + 0x10 + 0x8)]
+                    .try_into()
+                    .unwrap(),
+            ),
         };
 
         let physical_address = match word_size {
-            WordSize::W32 => u32::from_le_bytes(file[(offset + 0xC)..(offset + 0xC + 0x4)].try_into().unwrap()) as u64,
-            WordSize::W64 => u64::from_le_bytes(file[(offset + 0x18)..(offset + 0x18 + 0x8)].try_into().unwrap()),
+            WordSize::W32 => u32::from_le_bytes(
+                file[(offset + 0xC)..(offset + 0xC + 0x4)]
+                    .try_into()
+                    .unwrap(),
+            ) as u64,
+            WordSize::W64 => u64::from_le_bytes(
+                file[(offset + 0x18)..(offset + 0x18 + 0x8)]
+                    .try_into()
+                    .unwrap(),
+            ),
         };
 
         let file_size = match word_size {
-            WordSize::W32 => u32::from_le_bytes(file[(offset + 0x10)..(offset + 0x10 + 0x4)].try_into().unwrap()) as u64,
-            WordSize::W64 => u64::from_le_bytes(file[(offset + 0x20)..(offset + 0x20 + 0x8)].try_into().unwrap()),
+            WordSize::W32 => u32::from_le_bytes(
+                file[(offset + 0x10)..(offset + 0x10 + 0x4)]
+                    .try_into()
+                    .unwrap(),
+            ) as u64,
+            WordSize::W64 => u64::from_le_bytes(
+                file[(offset + 0x20)..(offset + 0x20 + 0x8)]
+                    .try_into()
+                    .unwrap(),
+            ),
         };
 
         let memory_size = match word_size {
-            WordSize::W32 => u32::from_le_bytes(file[(offset + 0x14)..(offset + 0x14 + 0x4)].try_into().unwrap()) as u64,
-            WordSize::W64 => u64::from_le_bytes(file[(offset + 0x28)..(offset + 0x28 + 0x8)].try_into().unwrap()),
+            WordSize::W32 => u32::from_le_bytes(
+                file[(offset + 0x14)..(offset + 0x14 + 0x4)]
+                    .try_into()
+                    .unwrap(),
+            ) as u64,
+            WordSize::W64 => u64::from_le_bytes(
+                file[(offset + 0x28)..(offset + 0x28 + 0x8)]
+                    .try_into()
+                    .unwrap(),
+            ),
         };
 
         let alignment = match word_size {
-            WordSize::W32 => u32::from_le_bytes(file[(offset + 0x1C)..(offset + 0x1C + 0x4)].try_into().unwrap()) as u64,
-            WordSize::W64 => u64::from_le_bytes(file[(offset + 0x30)..(offset + 0x30 + 0x8)].try_into().unwrap()),
+            WordSize::W32 => u32::from_le_bytes(
+                file[(offset + 0x1C)..(offset + 0x1C + 0x4)]
+                    .try_into()
+                    .unwrap(),
+            ) as u64,
+            WordSize::W64 => u64::from_le_bytes(
+                file[(offset + 0x30)..(offset + 0x30 + 0x8)]
+                    .try_into()
+                    .unwrap(),
+            ),
         };
 
         let program_header = ProgramHeader::new(
@@ -339,7 +417,7 @@ pub fn decode_file() {
             physical_address,
             file_size,
             memory_size,
-            alignment
+            alignment,
         );
 
         println!("{}", program_header);
@@ -347,19 +425,31 @@ pub fn decode_file() {
 
     // Name string table
 
-    let offset = (elf_header.section_header_table_offset + elf_header.section_header_string_table_index as u64 * elf_header.section_header_size as u64) as usize;
+    let offset = (elf_header.section_header_table_offset
+        + elf_header.section_header_string_table_index as u64
+            * elf_header.section_header_size as u64) as usize;
 
     let shstrtab_offset = match word_size {
-        WordSize::W32 => u32::from_le_bytes(file[(offset + 0x10)..(offset + 0x10 + 0x4)].try_into().unwrap()) as u64,
-        WordSize::W64 => u64::from_le_bytes(file[(offset + 0x18)..(offset + 0x18 + 0x8)].try_into().unwrap()),
+        WordSize::W32 => u32::from_le_bytes(
+            file[(offset + 0x10)..(offset + 0x10 + 0x4)]
+                .try_into()
+                .unwrap(),
+        ) as u64,
+        WordSize::W64 => u64::from_le_bytes(
+            file[(offset + 0x18)..(offset + 0x18 + 0x8)]
+                .try_into()
+                .unwrap(),
+        ),
     } as usize;
 
     println!("Section Header String Table Offset: {:#x}", shstrtab_offset);
 
     for i in 0..elf_header.section_header_count {
-        let offset = (elf_header.section_header_table_offset + i as u64 * elf_header.section_header_size as u64) as usize;
+        let offset = (elf_header.section_header_table_offset
+            + i as u64 * elf_header.section_header_size as u64) as usize;
 
-        let section_header_name_offset = u32::from_le_bytes(file[(offset)..(offset + 0x4)].try_into().unwrap()) as usize;
+        let section_header_name_offset =
+            u32::from_le_bytes(file[(offset)..(offset + 0x4)].try_into().unwrap()) as usize;
 
         let string_start = shstrtab_offset + section_header_name_offset;
 
@@ -379,13 +469,29 @@ pub fn decode_file() {
 
         if section_header_name == ".text" {
             let section_offset = match word_size {
-                WordSize::W32 => u32::from_le_bytes(file[(offset + 0x10)..(offset + 0x10 + 0x4)].try_into().unwrap()) as u64,
-                WordSize::W64 => u64::from_le_bytes(file[(offset + 0x18)..(offset + 0x18 + 0x8)].try_into().unwrap()),
+                WordSize::W32 => u32::from_le_bytes(
+                    file[(offset + 0x10)..(offset + 0x10 + 0x4)]
+                        .try_into()
+                        .unwrap(),
+                ) as u64,
+                WordSize::W64 => u64::from_le_bytes(
+                    file[(offset + 0x18)..(offset + 0x18 + 0x8)]
+                        .try_into()
+                        .unwrap(),
+                ),
             } as usize;
 
             let section_size = match word_size {
-                WordSize::W32 => u32::from_le_bytes(file[(offset + 0x14)..(offset + 0x14 + 0x4)].try_into().unwrap()) as u64,
-                WordSize::W64 => u64::from_le_bytes(file[(offset + 0x20)..(offset + 0x20 + 0x8)].try_into().unwrap()),
+                WordSize::W32 => u32::from_le_bytes(
+                    file[(offset + 0x14)..(offset + 0x14 + 0x4)]
+                        .try_into()
+                        .unwrap(),
+                ) as u64,
+                WordSize::W64 => u64::from_le_bytes(
+                    file[(offset + 0x20)..(offset + 0x20 + 0x8)]
+                        .try_into()
+                        .unwrap(),
+                ),
             } as usize;
 
             let section = &file[section_offset..(section_offset + section_size)];

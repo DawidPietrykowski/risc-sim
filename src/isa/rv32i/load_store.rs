@@ -10,6 +10,7 @@ pub const RV32I_SET_LS: [Instruction; 8] = [
         mask: OPCODE_MASK | FUNC3_MASK,
         bits: 0b0000011 | 0b000 << FUNC3_POS,
         name: "LB",
+        instruction_type: InstructionType::I,
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
 
@@ -28,6 +29,7 @@ pub const RV32I_SET_LS: [Instruction; 8] = [
         mask: OPCODE_MASK | FUNC3_MASK,
         bits: 0b0000011 | 0b001 << FUNC3_POS,
         name: "LH",
+        instruction_type: InstructionType::I,
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
 
@@ -46,6 +48,7 @@ pub const RV32I_SET_LS: [Instruction; 8] = [
         mask: OPCODE_MASK | FUNC3_MASK,
         bits: 0b0000011 | 0b010 << FUNC3_POS,
         name: "LW",
+        instruction_type: InstructionType::I,
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
 
@@ -64,6 +67,7 @@ pub const RV32I_SET_LS: [Instruction; 8] = [
         mask: OPCODE_MASK | FUNC3_MASK,
         bits: 0b0000011 | 0b100 << FUNC3_POS,
         name: "LBU",
+        instruction_type: InstructionType::I,
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
 
@@ -82,6 +86,7 @@ pub const RV32I_SET_LS: [Instruction; 8] = [
         mask: OPCODE_MASK | FUNC3_MASK,
         bits: 0b0000011 | 0b101 << FUNC3_POS,
         name: "LHU",
+        instruction_type: InstructionType::I,
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
 
@@ -100,6 +105,7 @@ pub const RV32I_SET_LS: [Instruction; 8] = [
         mask: OPCODE_MASK | FUNC3_MASK,
         bits: 0b0100011 | 0b010 << FUNC3_POS,
         name: "SW",
+        instruction_type: InstructionType::S,
         operation: |cpu, word| {
             let instruction = parse_instruction_s(word);
 
@@ -118,6 +124,7 @@ pub const RV32I_SET_LS: [Instruction; 8] = [
         mask: OPCODE_MASK | FUNC3_MASK,
         bits: 0b0100011 | 0b001 << FUNC3_POS,
         name: "SH",
+        instruction_type: InstructionType::S,
         operation: |cpu, word| {
             let instruction = parse_instruction_s(word);
 
@@ -136,6 +143,7 @@ pub const RV32I_SET_LS: [Instruction; 8] = [
         mask: OPCODE_MASK | FUNC3_MASK,
         bits: 0b0100011 | 0b000 << FUNC3_POS,
         name: "SB",
+        instruction_type: InstructionType::S,
         operation: |cpu, word| {
             let instruction = parse_instruction_s(word);
 

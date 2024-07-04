@@ -1,12 +1,12 @@
 #![allow(dead_code)]
 
-use anyhow::{Ok, Result};
 use crate::asm::assembler::decode_file;
+use anyhow::{Ok, Result};
 
+mod asm;
 mod isa;
 mod test;
 mod utils;
-mod asm;
 
 fn main() -> Result<()> {
     // let mut cpu = Cpu::new();

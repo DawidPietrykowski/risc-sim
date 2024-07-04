@@ -1,8 +1,8 @@
 use super::{
     cpu::Cpu,
     rv32i::{
-        control_transfer::RV32I_SET_UJ, immediate::RV32I_SET_I, integer_reg_reg::RV32I_SET_R,
-        load_store::RV32I_SET_LS, environment::RV32I_SET_E,
+        control_transfer::RV32I_SET_UJ, environment::RV32I_SET_E, immediate::RV32I_SET_I,
+        integer_reg_reg::RV32I_SET_R, load_store::RV32I_SET_LS,
     },
 };
 use anyhow::{Context, Ok, Result};
@@ -143,14 +143,15 @@ pub enum InstructionData {
     UJ(UJInstructionData),
 }
 
-pub trait InstructionType {}
-
-impl InstructionType for RInstructionData {}
-impl InstructionType for IInstructionData {}
-impl InstructionType for SInstructionData {}
-impl InstructionType for SBInstructionData {}
-impl InstructionType for UInstructionData {}
-impl InstructionType for UJInstructionData {}
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum InstructionType {
+    R,
+    I,
+    S,
+    SB,
+    U,
+    UJ,
+}
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Word(pub u32);
@@ -160,6 +161,7 @@ pub struct Instruction {
     pub mask: u32,
     pub bits: u32,
     pub name: &'static str,
+    pub instruction_type: InstructionType,
     pub operation: fn(cpu: &mut Cpu, word: &Word) -> Result<()>,
 }
 
@@ -248,8 +250,8 @@ pub fn encode_program_line(name: &str, instruction_data: InstructionData) -> Res
                 | (data.rs1.value() as u32) << 15
                 | (data.rs2.value() as u32) << 20
                 | ((data.imm.0) & U5_MASK as u32) << 7
-                | ((data.imm.0) & (((U12_MASK as u32) & !(U5_MASK as u32)))) << 20
-        },
+                | ((data.imm.0) & ((U12_MASK as u32) & !(U5_MASK as u32))) << 20
+        }
         InstructionData::SB(_) => todo!(),
         InstructionData::U(data) => (data.rd.value() as u32) << 7 | (data.imm as u32) << 12,
         InstructionData::UJ(_) => todo!(),

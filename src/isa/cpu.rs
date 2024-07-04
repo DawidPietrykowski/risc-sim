@@ -142,9 +142,3 @@ impl Cpu {
         self.skip_pc_increment = true;
     }
 }
-
-pub trait Operation<I: InstructionType> {
-    fn new(instruction: I) -> Self;
-    fn instruction(&self) -> &I;
-    fn execute(&self, cpu: &mut Cpu) -> Result<()>;
-}
