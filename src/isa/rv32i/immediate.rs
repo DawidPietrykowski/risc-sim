@@ -130,7 +130,7 @@ pub const RV32I_SET_I: [Instruction; 10] = [
             let res: u32 = instruction.imm.wrapping_add(cpu.read_pc_u32());
 
             cpu.write_pc_u32(res);
-            cpu.set_skip_pc_increment_flag(); // Disable default pc increment logic
+            // cpu.set_skip_pc_increment_flag(); // Disable default pc increment logic
 
             cpu.write_x_u32(instruction.rd.value(), res)?;
             Ok(())

@@ -1,4 +1,5 @@
-use crate::isa::types::{decode_program_line, Word};
+use crate::isa::types::{decode_program_line, ProgramLine, Word};
+use anyhow::Result;
 use std::fmt::{Display, Formatter};
 use std::{fmt, fs};
 
@@ -508,4 +509,11 @@ pub fn decode_file() {
             }
         }
     }
+}
+
+pub fn decode_program_from_binary(binary: &[u32]) -> Result<Vec<ProgramLine>> {
+    Ok(binary
+        .iter()
+        .map(|word| decode_program_line(Word(*word)).unwrap())
+        .collect())
 }

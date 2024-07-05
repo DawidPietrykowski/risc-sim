@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::utils::binary_utils::*;
 
 use anyhow::{bail, Context, Ok, Result};
@@ -7,10 +9,21 @@ use super::types::{decode_program_line, ProgramLine, Word};
 pub struct Cpu {
     reg_x32: [u32; 31],
     reg_pc: u32,
+    current_instruction_pc: u32,
     skip_pc_increment: bool,
     #[allow(dead_code)]
     program: Vec<ProgramLine>,
     pub mem_map: Vec<u8>,
+}
+
+impl Display for Cpu {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Registers:")?;
+        for (i, reg) in self.reg_x32.iter().filter(|reg| *reg != &0).enumerate() {
+            writeln!(f, "x{}: {:#010x}", i + 1, reg)?;
+        }
+        writeln!(f, "PC: {:#010x}", self.reg_pc)
+    }
 }
 
 impl Cpu {
@@ -18,17 +31,25 @@ impl Cpu {
         Cpu {
             reg_x32: [0x0; 31],
             reg_pc: 0x0,
+            current_instruction_pc: 0x0,
             skip_pc_increment: false,
             program: vec![],
             mem_map: vec![0; 1024 * 1024 * 1024],
         }
     }
 
+    pub fn load_program(&mut self, program: Vec<ProgramLine>) {
+        self.program = program;
+    }
+
     pub fn run_cycle(&mut self) -> Result<()> {
         // Fetch
         let instruction = self.fetch_instruction()?;
 
+        // println!("[{:#010x}] {}", self.reg_pc, instruction);
+
         // Increase PC
+        self.current_instruction_pc = self.reg_pc;
         self.reg_pc += 4;
 
         // Execute
@@ -135,6 +156,10 @@ impl Cpu {
 
     pub fn write_pc_u32(&mut self, val: u32) {
         self.reg_pc = val;
+    }
+
+    pub fn read_current_instruction_addr_u32(&self) -> u32 {
+        self.current_instruction_pc
     }
 
     pub fn set_skip_pc_increment_flag(&mut self) {

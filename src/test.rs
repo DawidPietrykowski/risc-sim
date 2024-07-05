@@ -3,6 +3,7 @@ mod tests {
     use crate::*;
 
     use anyhow::Result;
+    use asm::assembler::decode_program_from_binary;
     use isa::cpu::*;
     use isa::types::*;
     use proptest::prelude::*;
@@ -13,17 +14,13 @@ mod tests {
         Cpu::new()
     }
 
-    // fn execute_i_instruction(cpu: &mut Cpu, opcode: &str, rd: u8, rs1: u8, imm: u16) -> Result<()> {
-    //     let instruction = IInstructionData {
-    //         rd: U5(rd),
-    //         rs1: U5(rs1),
-    //         imm: U12(imm),
-    //         ..Default::default()
-    //     };
-    //     let op = encode_program_line(opcode, InstructionData::I(instruction))?;
-    //     cpu.execute_word(op)?;
-    //     Ok(())
-    // }
+    // Calculates n-th fibbonacci number and stores it in x5
+    const FIB_PROGRAM_BIN: &[u32] = &[
+        0x00100093, 0x00100113, 0x00002183, // lw x3, x0 - load n from memory
+        0x00000213, 0x00010293, 0x00208133, 0x00028093, 0x00120213,
+        0xfe3248e3, // blt x4, x3, -16
+        0xfcdff06f,
+    ];
 
     fn execute_s_instruction(
         cpu: &mut Cpu,
@@ -43,7 +40,37 @@ mod tests {
         Ok(())
     }
 
+    fn fib(n1: u32) -> u32 {
+        if n1 == 1 {
+            1
+        } else if n1 == 2 {
+            2
+        } else {
+            fib(n1 - 1) + fib(n1 - 2)
+        }
+    }
+
     proptest! {
+        #[test]
+        fn test_fibbonaci_program(n in 1u32..15) {
+            let prog = decode_program_from_binary(FIB_PROGRAM_BIN).unwrap();
+            for i in prog.clone() {
+                println!("{}", i);
+            }
+
+            let mut cpu = Cpu::new();
+
+            cpu.write_mem_u32(0, n).unwrap();
+
+            cpu.load_program(prog);
+
+            while cpu.run_cycle().is_ok() {
+                println!("{}", cpu);
+            }
+
+            prop_assert_eq!(cpu.read_x_u32(5).unwrap(), fib(n));
+        }
+
         #[test]
         fn test_lb(rd in 1u8..31, rs1 in 1u8..31, imm in 0u16..0xF, value in i8::MIN..i8::MAX) {
             if rs1 == rd {
@@ -372,11 +399,6 @@ mod tests {
             };
             let op = encode_program_line("ADDI", InstructionData::I(addi_instruction)).unwrap();
             let decoded = decode_program_line(op).unwrap();
-            // println!("{:#034b}", -2048 as i16);
-            // println!("{:#034b}", i16_to_u16(-2048));
-            // println!("{:#034b}", (-2048 as i32) << 20);
-            // println!("{:#034b}", (i16_to_u16(-2048) as u32) << 20);
-            // println!("{:#034b}", parse_instruction_i(&decoded.word).imm);
             prop_assert_eq!(parse_instruction_i(&decoded.word), addi_instruction);
         }
 
@@ -650,6 +672,5 @@ mod tests {
             let imm = sign_extend_12bit_to_32bit(i16_to_u16(imm));
             prop_assert_eq!(imm, imm as i32);
         }
-        //  */
     }
 }

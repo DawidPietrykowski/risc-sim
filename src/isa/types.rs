@@ -1,3 +1,5 @@
+use std::fmt;
+
 use super::{
     cpu::Cpu,
     rv32i::{
@@ -11,6 +13,13 @@ use anyhow::{Context, Ok, Result};
 pub struct ProgramLine {
     pub instruction: Instruction,
     pub word: Word,
+}
+
+impl fmt::Display for ProgramLine {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let data = parse_instruction(&self.word, self.instruction.instruction_type);
+        write!(f, "{} {:?}", self.instruction, data)
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Debug, Default)]
@@ -65,9 +74,9 @@ impl UJImmediate {
     pub fn from(raw_operation: u32) -> UJImmediate {
         let mut filled: u32 = 0;
 
-        let imm_20: bool = (raw_operation >> 31) == 1;
+        let imm_20: bool = (raw_operation >> 31) & 1 == 1;
         let imm_10_1: u32 = (raw_operation >> 21) & 0x3FF;
-        let imm_11: bool = (raw_operation >> 20) == 1;
+        let imm_11: bool = (raw_operation >> 20) & 1 == 1;
         let imm_19_12: u32 = (raw_operation >> 12) & 0xFF;
 
         filled |= (imm_20 as u32) << 20;
@@ -111,21 +120,33 @@ impl SBImmediate {
     pub fn from(raw_operation: u32) -> SBImmediate {
         let mut filled: u32 = 0;
 
-        let imm_12: bool = (raw_operation >> 31) == 1;
+        let imm_12: bool = (raw_operation >> 31) & 1 == 1;
         let imm_4_1: u32 = (raw_operation >> 8) & 0xF;
-        let imm_11: bool = (raw_operation >> 7) == 1;
+        let imm_11: bool = (raw_operation >> 7) & 1 == 1;
         let imm_10_5: u32 = (raw_operation >> 25) & 0x3F;
+
+        // println!("{:#b}", raw_operation);
+        // println!("imm12: {:#b}", imm_12 as u32);
+        // println!("imm41: {:#b}", imm_4_1);
+        // println!("imm11: {:#b}", imm_11 as u32);
+        // println!("imm105: {:#b}", imm_10_5);
 
         filled |= (imm_12 as u32) << 12;
         filled |= imm_4_1 << 1;
         filled |= (imm_11 as u32) << 11;
         filled |= imm_10_5 << 5;
+        filled &= !(0b1111 << 12 | 0b1);
 
-        SBImmediate(filled & !(0b1111 << 12 | 0b1))
+        // println!("{:#b}", filled);
+
+        // let asi32 = ((filled << 20) as i32) >> 0;
+        // println!("{:#b}", asi32);
+
+        SBImmediate(filled)
     }
 
     pub fn as_i32(&self) -> i32 {
-        ((self.0 << 11) as i32) >> 11
+        ((self.0 << 20) as i32) >> 20
     }
 
     pub fn as_u32(&self) -> u32 {
@@ -165,6 +186,32 @@ pub struct Instruction {
     pub operation: fn(cpu: &mut Cpu, word: &Word) -> Result<()>,
 }
 
+impl fmt::Display for Instruction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} (", self.name)?;
+        match self.instruction_type {
+            InstructionType::R => write!(f, "R-type"),
+            InstructionType::I => write!(f, "I-type"),
+            InstructionType::S => write!(f, "S-type"),
+            InstructionType::SB => write!(f, "B-type"),
+            InstructionType::U => write!(f, "U-type"),
+            InstructionType::UJ => write!(f, "J-type"),
+        }?;
+        write!(f, ")")
+    }
+}
+
+pub fn parse_instruction(word: &Word, instruction_type: InstructionType) -> InstructionData {
+    match instruction_type {
+        InstructionType::R => InstructionData::R(parse_instruction_r(word)),
+        InstructionType::I => InstructionData::I(parse_instruction_i(word)),
+        InstructionType::S => InstructionData::S(parse_instruction_s(word)),
+        InstructionType::SB => InstructionData::SB(parse_instruction_sb(word)),
+        InstructionType::U => InstructionData::U(parse_instruction_u(word)),
+        InstructionType::UJ => InstructionData::UJ(parse_instruction_uj(word)),
+    }
+}
+
 pub fn parse_instruction_i(word: &Word) -> IInstructionData {
     let data = IInstructionData {
         rd: U5((word.0 >> 7) as u8 & U5_MASK),
@@ -172,7 +219,7 @@ pub fn parse_instruction_i(word: &Word) -> IInstructionData {
         rs1: U5((word.0 >> 15) as u8 & U5_MASK),
         imm: U12((word.0 >> 20) as u16 & 0xFFF),
     };
-    println!("{:#034b} {:?}", word.0, data);
+    // println!("{:#034b} {:?}", word.0, data);
     data
 }
 
@@ -216,7 +263,7 @@ pub fn parse_instruction_r(word: &Word) -> RInstructionData {
         rs2: U5((word.0 >> 20) as u8 & U5_MASK),
         func7: U7((word.0 >> 25) as u8 & U7_MASK),
     };
-    println!("{:#034b} {:?}", word.0, data);
+    // println!("{:#034b} {:?}", word.0, data);
     data
 }
 
