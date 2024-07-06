@@ -161,8 +161,8 @@ impl Display for ProgramHeader {
     }
 }
 
-pub fn decode_file() {
-    let file = fs::read("notes/test").unwrap();
+pub fn decode_file() -> Vec<ProgramLine> {
+    let file = fs::read("notes/mem").unwrap();
 
     let magic_value = u32::from_be_bytes(
         file.iter()
@@ -300,22 +300,23 @@ pub fn decode_file() {
 
         let program_header_type =
             match u32::from_le_bytes(file[offset..(offset + 4)].try_into().unwrap()) {
-                0 => ProgramHeaderType::Load,
-                1 => ProgramHeaderType::Dynamic,
-                2 => ProgramHeaderType::Interp,
-                3 => ProgramHeaderType::Note,
-                4 => ProgramHeaderType::Shlib,
-                5 => ProgramHeaderType::Phdr,
-                6 => ProgramHeaderType::Tls,
+                1 => ProgramHeaderType::Load,
+                2 => ProgramHeaderType::Dynamic,
+                3 => ProgramHeaderType::Interp,
+                4 => ProgramHeaderType::Note,
+                5 => ProgramHeaderType::Shlib,
+                6 => ProgramHeaderType::Phdr,
+                7 => ProgramHeaderType::Tls,
                 0x60000000 => ProgramHeaderType::Loos,
                 0x6FFFFFFF => ProgramHeaderType::Hios,
                 0x70000000 => ProgramHeaderType::Loproc,
                 0x7FFFFFFF => ProgramHeaderType::Hiproc,
                 0x70000003 => ProgramHeaderType::Unknown,
-                _ => panic!(
-                    "Invalid program header type {:#x}",
-                    u32::from_le_bytes(file[offset..(offset + 4)].try_into().unwrap())
-                ),
+                // _ => panic!(
+                //     "Invalid program header type {:#x}",
+                //     u32::from_le_bytes(file[offset..(offset + 4)].try_into().unwrap())
+                // ),
+                _ => ProgramHeaderType::Unknown,
             };
 
         let flags = match word_size {
@@ -444,6 +445,8 @@ pub fn decode_file() {
 
     println!("Section Header String Table Offset: {:#x}", shstrtab_offset);
 
+    let mut program: Vec<ProgramLine> = vec![];
+
     for i in 0..elf_header.section_header_count {
         let offset = (elf_header.section_header_table_offset
             + i as u64 * elf_header.section_header_size as u64) as usize;
@@ -468,6 +471,7 @@ pub fn decode_file() {
         println!("Section Header Name: {}", section_header_name);
 
         if section_header_name == ".text" {
+            println!("Found .text section at 0x{:x}", i);
             let section_offset = match word_size {
                 WordSize::W32 => u32::from_le_bytes(
                     file[(offset + 0x10)..(offset + 0x10 + 0x4)]
@@ -504,11 +508,21 @@ pub fn decode_file() {
                 println!("{:#010x}: {:#034b}", pc, instruction);
                 pc += 4;
 
-                let decoded_instruction = decode_program_line(Word(instruction)).unwrap();
-                println!("{:?}", decoded_instruction);
+                let decoded_instruction = decode_program_line(Word(instruction));
+                match decoded_instruction {
+                    Ok(decoded_instruction) => {
+                        println!("{}", decoded_instruction);
+                        program.push(decoded_instruction);
+                    }
+                    Err(e) => {
+                        println!("Error decoding instruction: {}", e);
+                        // break;
+                    }
+                }
             }
         }
     }
+    program
 }
 
 pub fn decode_program_from_binary(binary: &[u32]) -> Result<Vec<ProgramLine>> {

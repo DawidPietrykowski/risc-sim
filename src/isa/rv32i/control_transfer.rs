@@ -54,7 +54,11 @@ pub const RV32I_SET_UJ: [Instruction; 8] = [
             let rs2 = cpu.read_x_i32(instruction.rs2.value())?;
 
             if rs1 == rs2 {
-                cpu.write_pc_u32(instruction.imm.as_u32());
+                let extended_offset = instruction.imm.as_i32();
+                let moved_pc = cpu
+                    .read_current_instruction_addr_u32()
+                    .wrapping_add_signed(extended_offset);
+                cpu.write_pc_u32(moved_pc);
             }
 
             Ok(())
@@ -72,7 +76,11 @@ pub const RV32I_SET_UJ: [Instruction; 8] = [
             let rs2 = cpu.read_x_i32(instruction.rs2.value())?;
 
             if rs1 != rs2 {
-                cpu.write_pc_u32(instruction.imm.as_u32());
+                let extended_offset = instruction.imm.as_i32();
+                let moved_pc = cpu
+                    .read_current_instruction_addr_u32()
+                    .wrapping_add_signed(extended_offset);
+                cpu.write_pc_u32(moved_pc);
             }
 
             Ok(())
@@ -89,16 +97,11 @@ pub const RV32I_SET_UJ: [Instruction; 8] = [
             let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
             let rs2 = cpu.read_x_i32(instruction.rs2.value())?;
 
-            // println!("rs1: {}, rs2: {}", rs1, rs2);
             if rs1 < rs2 {
-                // println!("imm: {}", instruction.imm.as_i32());
                 let extended_offset = instruction.imm.as_i32();
-                // println!("extended_offset: {}", extended_offset);
-                // println!("pc: {:#x}", cpu.read_current_instruction_addr_u32());
                 let moved_pc = cpu
                     .read_current_instruction_addr_u32()
                     .wrapping_add_signed(extended_offset);
-                // println!("moved_pc: {:#x}", moved_pc);
                 cpu.write_pc_u32(moved_pc);
             }
 
@@ -117,7 +120,11 @@ pub const RV32I_SET_UJ: [Instruction; 8] = [
             let rs2 = cpu.read_x_i32(instruction.rs2.value())?;
 
             if rs1 > rs2 {
-                cpu.write_pc_u32(instruction.imm.as_u32());
+                let extended_offset = instruction.imm.as_i32();
+                let moved_pc = cpu
+                    .read_current_instruction_addr_u32()
+                    .wrapping_add_signed(extended_offset);
+                cpu.write_pc_u32(moved_pc);
             }
 
             Ok(())
@@ -135,7 +142,11 @@ pub const RV32I_SET_UJ: [Instruction; 8] = [
             let rs2 = cpu.read_x_u32(instruction.rs2.value())?;
 
             if rs1 <= rs2 {
-                cpu.write_pc_u32(instruction.imm.as_u32());
+                let extended_offset = instruction.imm.as_i32();
+                let moved_pc = cpu
+                    .read_current_instruction_addr_u32()
+                    .wrapping_add_signed(extended_offset);
+                cpu.write_pc_u32(moved_pc);
             }
 
             Ok(())
@@ -153,7 +164,11 @@ pub const RV32I_SET_UJ: [Instruction; 8] = [
             let rs2 = cpu.read_x_u32(instruction.rs2.value())?;
 
             if rs1 >= rs2 {
-                cpu.write_pc_u32(instruction.imm.as_u32());
+                let extended_offset = instruction.imm.as_i32();
+                let moved_pc = cpu
+                    .read_current_instruction_addr_u32()
+                    .wrapping_add_signed(extended_offset);
+                cpu.write_pc_u32(moved_pc);
             }
 
             Ok(())

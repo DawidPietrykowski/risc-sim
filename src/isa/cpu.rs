@@ -11,9 +11,9 @@ pub struct Cpu {
     reg_pc: u32,
     current_instruction_pc: u32,
     skip_pc_increment: bool,
-    #[allow(dead_code)]
     program: Vec<ProgramLine>,
-    pub mem_map: Vec<u8>,
+    mem_map: Vec<u8>,
+    stdout_buffer: Vec<u8>,
 }
 
 impl Display for Cpu {
@@ -28,6 +28,8 @@ impl Display for Cpu {
 
 impl Cpu {
     pub fn new() -> Cpu {
+        let mut stdout_buffer = Vec::<u8>::new();
+        stdout_buffer.reserve(1024);
         Cpu {
             reg_x32: [0x0; 31],
             reg_pc: 0x0,
@@ -35,6 +37,7 @@ impl Cpu {
             skip_pc_increment: false,
             program: vec![],
             mem_map: vec![0; 1024 * 1024 * 1024],
+            stdout_buffer: stdout_buffer,
         }
     }
 
@@ -46,7 +49,7 @@ impl Cpu {
         // Fetch
         let instruction = self.fetch_instruction()?;
 
-        // println!("[{:#010x}] {}", self.reg_pc, instruction);
+        println!("[{:#010x}] {}", self.reg_pc, instruction);
 
         // Increase PC
         self.current_instruction_pc = self.reg_pc;
@@ -162,7 +165,7 @@ impl Cpu {
         self.current_instruction_pc
     }
 
-    pub fn set_skip_pc_increment_flag(&mut self) {
-        self.skip_pc_increment = true;
+    pub fn push_stdout(&mut self, value: u8) {
+        self.stdout_buffer.push(value);
     }
 }

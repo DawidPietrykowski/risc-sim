@@ -7,7 +7,7 @@ use super::{
         integer_reg_reg::RV32I_SET_R, load_store::RV32I_SET_LS,
     },
 };
-use anyhow::{Context, Ok, Result};
+use anyhow::{anyhow, Context, Ok, Result};
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct ProgramLine {
@@ -125,22 +125,11 @@ impl SBImmediate {
         let imm_11: bool = (raw_operation >> 7) & 1 == 1;
         let imm_10_5: u32 = (raw_operation >> 25) & 0x3F;
 
-        // println!("{:#b}", raw_operation);
-        // println!("imm12: {:#b}", imm_12 as u32);
-        // println!("imm41: {:#b}", imm_4_1);
-        // println!("imm11: {:#b}", imm_11 as u32);
-        // println!("imm105: {:#b}", imm_10_5);
-
         filled |= (imm_12 as u32) << 12;
         filled |= imm_4_1 << 1;
         filled |= (imm_11 as u32) << 11;
         filled |= imm_10_5 << 5;
         filled &= !(0b1111 << 12 | 0b1);
-
-        // println!("{:#b}", filled);
-
-        // let asi32 = ((filled << 20) as i32) >> 0;
-        // println!("{:#b}", asi32);
 
         SBImmediate(filled)
     }
@@ -219,7 +208,6 @@ pub fn parse_instruction_i(word: &Word) -> IInstructionData {
         rs1: U5((word.0 >> 15) as u8 & U5_MASK),
         imm: U12((word.0 >> 20) as u16 & 0xFFF),
     };
-    // println!("{:#034b} {:?}", word.0, data);
     data
 }
 
@@ -263,7 +251,6 @@ pub fn parse_instruction_r(word: &Word) -> RInstructionData {
         rs2: U5((word.0 >> 20) as u8 & U5_MASK),
         func7: U7((word.0 >> 25) as u8 & U7_MASK),
     };
-    // println!("{:#034b} {:?}", word.0, data);
     data
 }
 
@@ -304,10 +291,6 @@ pub fn encode_program_line(name: &str, instruction_data: InstructionData) -> Res
         InstructionData::UJ(_) => todo!(),
     };
     word.0 |= instruction.mask & instruction.bits;
-    // println!(
-    //     "{:#034b} {:?} {}",
-    //     word.0, instruction_data, instruction.name
-    // );
     Ok(word)
 }
 
@@ -477,4 +460,58 @@ lazy_static! {
         all.extend_from_slice(&RV32I_SET_E);
         all
     };
+}
+
+pub enum ABIRegister {
+    ZERO,
+    RA,
+    SP,
+    QP,
+    TP,
+    A(u32),
+    S(u32),
+    T(u32),
+}
+
+impl ABIRegister {
+    pub fn from(x_reg_id: u32) -> Result<ABIRegister> {
+        match x_reg_id {
+            0 => Ok(ABIRegister::ZERO),
+            1 => Ok(ABIRegister::RA),
+            2 => Ok(ABIRegister::SP),
+            3 => Ok(ABIRegister::QP),
+            4 => Ok(ABIRegister::TP),
+            5..=7 => Ok(ABIRegister::T(x_reg_id - 5)),
+            8..=9 => Ok(ABIRegister::S(x_reg_id - 8)),
+            10..=17 => Ok(ABIRegister::A(x_reg_id - 10)),
+            18..=27 => Ok(ABIRegister::S(2 + x_reg_id - 18)),
+            28..=31 => Ok(ABIRegister::T(3 + x_reg_id - 28)),
+            32..=u32::MAX => Err(anyhow!("Cannot match register id {}", x_reg_id)),
+        }
+    }
+
+    pub fn to_x_reg_id(&self) -> u32 {
+        match self {
+            ABIRegister::ZERO => 0,
+            ABIRegister::RA => 1,
+            ABIRegister::SP => 2,
+            ABIRegister::QP => 3,
+            ABIRegister::TP => 4,
+            ABIRegister::A(id) => 10 + id,
+            ABIRegister::S(id) => {
+                if *id < 2 {
+                    8 + id
+                } else {
+                    18 + id - 2
+                }
+            }
+            ABIRegister::T(id) => {
+                if *id < 3 {
+                    5 + id
+                } else {
+                    28 + id - 3
+                }
+            }
+        }
+    }
 }
