@@ -30,13 +30,14 @@ pub const RV32I_SET_UJ: [Instruction; 8] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
 
+            cpu.write_x_u32(instruction.rd.value(), cpu.read_pc_u32())?;
+
             let offset = instruction.imm.as_i32();
             let result = cpu
                 .read_x_u32(instruction.rs1.value())?
                 .wrapping_add_signed(offset)
                 & !(0b1);
 
-            cpu.write_x_u32(instruction.rd.value(), result)?;
             cpu.write_pc_u32(result);
 
             Ok(())

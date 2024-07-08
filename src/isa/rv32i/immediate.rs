@@ -3,7 +3,7 @@ use crate::utils::binary_utils::*;
 
 use anyhow::Ok;
 
-pub const RV32I_SET_I: [Instruction; 10] = [
+pub const RV32I_SET_I: [Instruction; 11] = [
     Instruction {
         mask: OPCODE_MASK | FUNC3_MASK,
         bits: 0b000 << FUNC3_POS | 0b0010011,
@@ -27,6 +27,19 @@ pub const RV32I_SET_I: [Instruction; 10] = [
             let instruction = parse_instruction_i(word);
             let imm = sign_extend_12bit_to_32bit(instruction.imm.value());
             let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
+            cpu.write_x_i32(instruction.rd.value(), if rs1 < imm { 1 } else { 0 })?;
+            Ok(())
+        },
+    },
+    Instruction {
+        mask: OPCODE_MASK | FUNC3_MASK,
+        bits: 0b011 << FUNC3_POS | 0b0010011,
+        name: "SLTIU",
+        instruction_type: InstructionType::I,
+        operation: |cpu, word| {
+            let instruction = parse_instruction_i(word);
+            let imm = i32_to_u32(sign_extend_12bit_to_32bit(instruction.imm.value()));
+            let rs1 = cpu.read_x_u32(instruction.rs1.value())?;
             cpu.write_x_i32(instruction.rd.value(), if rs1 < imm { 1 } else { 0 })?;
             Ok(())
         },
@@ -127,10 +140,7 @@ pub const RV32I_SET_I: [Instruction; 10] = [
         instruction_type: InstructionType::U,
         operation: |cpu, word| {
             let instruction = parse_instruction_u(word);
-            let res: u32 = instruction.imm.wrapping_add(cpu.read_pc_u32());
-
-            cpu.write_pc_u32(res);
-            // cpu.set_skip_pc_increment_flag(); // Disable default pc increment logic
+            let res: u32 = instruction.imm.wrapping_add(cpu.read_current_instruction_addr_u32());
 
             cpu.write_x_u32(instruction.rd.value(), res)?;
             Ok(())

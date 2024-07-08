@@ -161,8 +161,14 @@ impl Display for ProgramHeader {
     }
 }
 
-pub fn decode_file() -> Vec<ProgramLine> {
-    let file = fs::read("notes/mem").unwrap();
+pub struct Program {
+    pub entry_point: u32,
+    pub program_memory_offset: u32,
+    pub lines: Vec<ProgramLine>,
+} 
+
+pub fn decode_file(path: &str) -> Program {
+    let file = fs::read(path).unwrap();
 
     let magic_value = u32::from_be_bytes(
         file.iter()
@@ -446,6 +452,7 @@ pub fn decode_file() -> Vec<ProgramLine> {
     println!("Section Header String Table Offset: {:#x}", shstrtab_offset);
 
     let mut program: Vec<ProgramLine> = vec![];
+    let mut text_section_addr = 0;
 
     for i in 0..elf_header.section_header_count {
         let offset = (elf_header.section_header_table_offset
@@ -456,7 +463,6 @@ pub fn decode_file() -> Vec<ProgramLine> {
 
         let string_start = shstrtab_offset + section_header_name_offset;
 
-        println!("Section Header Name Offset: {:#x}", string_start);
 
         // Find the end of the string (null terminator)
         let string_end = file[string_start..]
@@ -468,10 +474,26 @@ pub fn decode_file() -> Vec<ProgramLine> {
         // Extract the section header name
         let section_header_name = std::str::from_utf8(&file[string_start..string_end]).unwrap();
 
+        println!("Section Header table offset: {:#x}", elf_header.section_header_table_offset);
         println!("Section Header Name: {}", section_header_name);
+        println!("Section Header Name Offset: {:#x}", string_start);
+        println!("Section Header Offset {:#x}\n", offset);
 
         if section_header_name == ".text" {
-            println!("Found .text section at 0x{:x}", i);
+
+            let section_addr = match word_size {
+                WordSize::W32 => u32::from_le_bytes(
+                    file[(offset + 0x0C)..(offset + 0x0C + 0x4)]
+                        .try_into()
+                        .unwrap(),
+                ) as u64,
+                WordSize::W64 => u64::from_le_bytes(
+                    file[(offset + 0x10)..(offset + 0x10 + 0x8)]
+                        .try_into()
+                        .unwrap(),
+                ),
+            } as usize;
+
             let section_offset = match word_size {
                 WordSize::W32 => u32::from_le_bytes(
                     file[(offset + 0x10)..(offset + 0x10 + 0x4)]
@@ -500,12 +522,16 @@ pub fn decode_file() -> Vec<ProgramLine> {
 
             let section = &file[section_offset..(section_offset + section_size)];
 
+            println!("Found .text section at {:#x}", offset);
+            println!("Section data start at {:#x}", section_offset);
             println!("Section Size: {:#x}", section_size);
+            println!("Section Address: {:#x}", section_addr);
+            text_section_addr = section_addr;
 
             let mut pc = 0;
             while pc < section_size {
                 let instruction = u32::from_le_bytes(section[pc..(pc + 4)].try_into().unwrap());
-                println!("{:#010x}: {:#034b}", pc, instruction);
+                print!("{:#010x}: {:#034b} ", pc + section_addr, instruction);
                 pc += 4;
 
                 let decoded_instruction = decode_program_line(Word(instruction));
@@ -522,7 +548,11 @@ pub fn decode_file() -> Vec<ProgramLine> {
             }
         }
     }
-    program
+    Program{
+        entry_point: elf_header.entry_point as u32,
+         program_memory_offset: text_section_addr as u32,
+         lines: program,
+    }
 }
 
 pub fn decode_program_from_binary(binary: &[u32]) -> Result<Vec<ProgramLine>> {

@@ -14,6 +14,7 @@ pub struct Cpu {
     program: Vec<ProgramLine>,
     mem_map: Vec<u8>,
     stdout_buffer: Vec<u8>,
+    program_memory_offset: u32,
 }
 
 impl Display for Cpu {
@@ -38,11 +39,14 @@ impl Cpu {
             program: vec![],
             mem_map: vec![0; 1024 * 1024 * 1024],
             stdout_buffer: stdout_buffer,
+            program_memory_offset: 0x0,
         }
     }
 
-    pub fn load_program(&mut self, program: Vec<ProgramLine>) {
+    pub fn load_program(&mut self, program: Vec<ProgramLine>, program_memory_offset: u32, entry_point: u32) {
         self.program = program;
+        self.program_memory_offset = program_memory_offset;
+        self.reg_pc = entry_point;
     }
 
     pub fn run_cycle(&mut self) -> Result<()> {
@@ -73,8 +77,8 @@ impl Cpu {
     fn fetch_instruction(&self) -> Result<ProgramLine> {
         Ok(*self
             .program
-            .get(self.read_pc_u32() as usize / 4)
-            .context("No instruction at index")?)
+            .get((self.read_pc_u32() - self.program_memory_offset) as usize / 4)
+            .context(format!("No instruction at index {:#x}", self.read_pc_u32()))?)
     }
 
     pub fn read_mem_u32(&mut self, addr: u32) -> Result<u32> {
