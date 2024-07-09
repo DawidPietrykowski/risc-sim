@@ -1,3 +1,4 @@
+use crate::isa::memory::Memory;
 use crate::isa::types::{decode_program_line, ProgramLine, Word};
 use anyhow::Result;
 use std::fmt::{Display, Formatter};
@@ -161,13 +162,14 @@ impl Display for ProgramHeader {
     }
 }
 
-pub struct Program {
+pub struct ProgramFile {
     pub entry_point: u32,
+    pub memory: Memory,
     pub program_memory_offset: u32,
     pub lines: Vec<ProgramLine>,
 } 
 
-pub fn decode_file(path: &str) -> Program {
+pub fn decode_file(path: &str) -> ProgramFile {
     let file = fs::read(path).unwrap();
 
     let magic_value = u32::from_be_bytes(
@@ -453,6 +455,7 @@ pub fn decode_file(path: &str) -> Program {
 
     let mut program: Vec<ProgramLine> = vec![];
     let mut text_section_addr = 0;
+    let mut memory: Memory = Memory::new();
 
     for i in 0..elf_header.section_header_count {
         let offset = (elf_header.section_header_table_offset
@@ -479,49 +482,53 @@ pub fn decode_file(path: &str) -> Program {
         println!("Section Header Name Offset: {:#x}", string_start);
         println!("Section Header Offset {:#x}\n", offset);
 
+
+        let section_addr = match word_size {
+            WordSize::W32 => u32::from_le_bytes(
+                file[(offset + 0x0C)..(offset + 0x0C + 0x4)]
+                    .try_into()
+                    .unwrap(),
+            ) as u64,
+            WordSize::W64 => u64::from_le_bytes(
+                file[(offset + 0x10)..(offset + 0x10 + 0x8)]
+                    .try_into()
+                    .unwrap(),
+            ),
+        } as usize;
+
+        let section_offset = match word_size {
+            WordSize::W32 => u32::from_le_bytes(
+                file[(offset + 0x10)..(offset + 0x10 + 0x4)]
+                    .try_into()
+                    .unwrap(),
+            ) as u64,
+            WordSize::W64 => u64::from_le_bytes(
+                file[(offset + 0x18)..(offset + 0x18 + 0x8)]
+                    .try_into()
+                    .unwrap(),
+            ),
+        } as usize;
+
+        let section_size = match word_size {
+            WordSize::W32 => u32::from_le_bytes(
+                file[(offset + 0x14)..(offset + 0x14 + 0x4)]
+                    .try_into()
+                    .unwrap(),
+            ) as u64,
+            WordSize::W64 => u64::from_le_bytes(
+                file[(offset + 0x20)..(offset + 0x20 + 0x8)]
+                    .try_into()
+                    .unwrap(),
+            ),
+        } as usize;
+
+        let section = &file[section_offset..(section_offset + section_size)];
+    
+        for i in 0..section_size {
+            memory.write_mem_u8((section_addr + i) as u32, section[i]).unwrap();
+        }
+
         if section_header_name == ".text" {
-
-            let section_addr = match word_size {
-                WordSize::W32 => u32::from_le_bytes(
-                    file[(offset + 0x0C)..(offset + 0x0C + 0x4)]
-                        .try_into()
-                        .unwrap(),
-                ) as u64,
-                WordSize::W64 => u64::from_le_bytes(
-                    file[(offset + 0x10)..(offset + 0x10 + 0x8)]
-                        .try_into()
-                        .unwrap(),
-                ),
-            } as usize;
-
-            let section_offset = match word_size {
-                WordSize::W32 => u32::from_le_bytes(
-                    file[(offset + 0x10)..(offset + 0x10 + 0x4)]
-                        .try_into()
-                        .unwrap(),
-                ) as u64,
-                WordSize::W64 => u64::from_le_bytes(
-                    file[(offset + 0x18)..(offset + 0x18 + 0x8)]
-                        .try_into()
-                        .unwrap(),
-                ),
-            } as usize;
-
-            let section_size = match word_size {
-                WordSize::W32 => u32::from_le_bytes(
-                    file[(offset + 0x14)..(offset + 0x14 + 0x4)]
-                        .try_into()
-                        .unwrap(),
-                ) as u64,
-                WordSize::W64 => u64::from_le_bytes(
-                    file[(offset + 0x20)..(offset + 0x20 + 0x8)]
-                        .try_into()
-                        .unwrap(),
-                ),
-            } as usize;
-
-            let section = &file[section_offset..(section_offset + section_size)];
-
             println!("Found .text section at {:#x}", offset);
             println!("Section data start at {:#x}", section_offset);
             println!("Section Size: {:#x}", section_size);
@@ -548,10 +555,11 @@ pub fn decode_file(path: &str) -> Program {
             }
         }
     }
-    Program{
+    ProgramFile{
         entry_point: elf_header.entry_point as u32,
-         program_memory_offset: text_section_addr as u32,
-         lines: program,
+        program_memory_offset: text_section_addr as u32,
+        lines: program,
+        memory: memory,
     }
 }
 

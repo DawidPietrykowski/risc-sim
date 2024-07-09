@@ -3,12 +3,11 @@ mod tests {
     use crate::*;
 
     use anyhow::Result;
-    use asm::assembler::decode_program_from_binary;
-    use isa::cpu::*;
     use isa::types::*;
     use proptest::prelude::*;
     use std::result::Result::Ok;
     use utils::binary_utils::*;
+    use isa::memory::Memory;
 
     fn setup_cpu() -> Cpu {
         Cpu::new()
@@ -52,17 +51,24 @@ mod tests {
 
     proptest! {
         #[test]
-        fn test_fibbonaci_program(n in 1u32..15) {
-            let prog = decode_program_from_binary(FIB_PROGRAM_BIN).unwrap();
-            for i in prog.clone() {
-                println!("{}", i);
-            }
+        fn test_memory_mapping(addr in 0x0u32..(u32::MAX - 4)) {
+            let mut cpu = setup_cpu();
+            let value = 0x12345678u32;
+            cpu.write_mem_u32(addr, value).unwrap();
+            prop_assert_eq!(cpu.read_mem_u32(addr).unwrap(), value);
+        }
 
-            let mut cpu = Cpu::new();
+        #[test]
+        fn test_fibbonaci_program(n in 1u32..15, entry_point in 0x1000u32..0xFFFFF) {
+            let mut cpu = Cpu::new();   
+
+            let mut memory = Memory::new();
+            for (id, val) in FIB_PROGRAM_BIN.iter().enumerate() {
+                memory.write_mem_u32((entry_point + 4u32 * (id as u32)) as u32, *val).unwrap();
+            }
+            cpu.load_program(memory, entry_point);
 
             cpu.write_mem_u32(0, n).unwrap();
-
-            cpu.load_program(prog);
 
             while cpu.run_cycle().is_ok() {
                 println!("{}", cpu);
@@ -622,6 +628,7 @@ mod tests {
         fn test_auipc(rd in 1u8..30, imm in 0u32..0xFFFFF, pc in 0u32..0xFFFFFFFF) {
             let mut cpu = Cpu::new();
             cpu.write_pc_u32(pc);
+            cpu.current_instruction_pc = pc;
 
             let auipc_instruction = UInstructionData {
                 rd: U5(rd),
@@ -634,7 +641,6 @@ mod tests {
 
             let expected = (imm << 12).wrapping_add(pc);
             prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), expected);
-            prop_assert_eq!(cpu.read_pc_u32(), expected);
         }
 
         #[test]

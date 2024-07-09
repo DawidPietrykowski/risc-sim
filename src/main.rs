@@ -13,9 +13,7 @@ fn main() -> Result<()> {
     let program = decode_file("notes/simple");
 
     let mut cpu = Cpu::new();
-    cpu.load_program(program.lines, program.program_memory_offset, program.entry_point);
-    // cpu.write_pc_u32(offset as u32);
-
+    cpu.load_program(program.memory, program.entry_point);
 
     let mut count = 0;
     loop {

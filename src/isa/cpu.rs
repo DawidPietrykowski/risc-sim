@@ -2,17 +2,17 @@ use std::fmt::Display;
 
 use crate::utils::binary_utils::*;
 
-use anyhow::{bail, Context, Ok, Result};
+use anyhow::{Context, Ok, Result};
 
-use super::types::{decode_program_line, ProgramLine, Word};
+use super::{memory::Memory, types::{decode_program_line, ProgramLine, Word}};
 
 pub struct Cpu {
     reg_x32: [u32; 31],
     reg_pc: u32,
-    current_instruction_pc: u32,
+    pub current_instruction_pc: u32,
     skip_pc_increment: bool,
     program: Vec<ProgramLine>,
-    mem_map: Vec<u8>,
+    memory: Memory,
     stdout_buffer: Vec<u8>,
     program_memory_offset: u32,
 }
@@ -37,23 +37,24 @@ impl Cpu {
             current_instruction_pc: 0x0,
             skip_pc_increment: false,
             program: vec![],
-            mem_map: vec![0; 1024 * 1024 * 1024],
+            memory: Memory::new(),
             stdout_buffer: stdout_buffer,
             program_memory_offset: 0x0,
         }
     }
 
-    pub fn load_program(&mut self, program: Vec<ProgramLine>, program_memory_offset: u32, entry_point: u32) {
-        self.program = program;
-        self.program_memory_offset = program_memory_offset;
+    pub fn load_program(&mut self, memory: Memory, entry_point: u32) {
+        self.memory = memory;
         self.reg_pc = entry_point;
     }
 
     pub fn run_cycle(&mut self) -> Result<()> {
+        print!("{}[{:#010x}] ", String::from_utf8(self.stdout_buffer.clone()).unwrap(), self.reg_pc);
+
         // Fetch
         let instruction = self.fetch_instruction()?;
 
-        println!("[{:#010x}] {}", self.reg_pc, instruction);
+        println!("{}", instruction);
 
         // Increase PC
         self.current_instruction_pc = self.reg_pc;
@@ -75,45 +76,34 @@ impl Cpu {
     }
 
     fn fetch_instruction(&self) -> Result<ProgramLine> {
-        Ok(*self
-            .program
-            .get((self.read_pc_u32() - self.program_memory_offset) as usize / 4)
-            .context(format!("No instruction at index {:#x}", self.read_pc_u32()))?)
+        decode_program_line(Word(*&self
+                    .memory
+            .read_mem_u32(self.read_pc_u32())
+            .context(format!("No instruction at index {:#x}", self.read_pc_u32()))?))
     }
 
     pub fn read_mem_u32(&mut self, addr: u32) -> Result<u32> {
-        Ok((self.read_mem_u16(addr)? as u32) | (self.read_mem_u16(addr + 2)? as u32) << 16)
+        self.memory.read_mem_u32(addr)
     }
 
     pub fn read_mem_u16(&mut self, addr: u32) -> Result<u16> {
-        Ok((self.read_mem_u8(addr)? as u16) | (self.read_mem_u8(addr + 1)? as u16) << 8)
+        self.memory.read_mem_u16(addr)
     }
 
     pub fn read_mem_u8(&mut self, addr: u32) -> Result<u8> {
-        Ok(*self
-            .mem_map
-            .get(addr as usize)
-            .context(format!("Out of bounds memory access at {}", addr))?)
+        self.memory.read_mem_u8(addr)
     }
 
     pub fn write_mem_u8(&mut self, addr: u32, value: u8) -> Result<()> {
-        if addr as usize >= self.mem_map.len() {
-            bail!(format!("Out of bounds memory access at {}", addr))
-        }
-        self.mem_map[addr as usize] = value;
-        Ok(())
+        self.memory.write_mem_u8(addr, value)
     }
 
     pub fn write_mem_u16(&mut self, addr: u32, value: u16) -> Result<()> {
-        self.write_mem_u8(addr, value as u8)?;
-        self.write_mem_u8(addr + 1, (value >> 8) as u8)?;
-        Ok(())
+        self.memory.write_mem_u16(addr, value)
     }
 
     pub fn write_mem_u32(&mut self, addr: u32, value: u32) -> Result<()> {
-        self.write_mem_u16(addr, value as u16)?;
-        self.write_mem_u16(addr + 2, (value >> 16) as u16)?;
-        Ok(())
+        self.memory.write_mem_u32(addr, value)
     }
 
     pub fn read_x_u32(&self, id: u8) -> Result<u32> {
