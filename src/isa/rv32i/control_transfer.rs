@@ -120,7 +120,7 @@ pub const RV32I_SET_UJ: [Instruction; 8] = [
             let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
             let rs2 = cpu.read_x_i32(instruction.rs2.value())?;
 
-            if rs1 > rs2 {
+            if rs1 >= rs2 {
                 let extended_offset = instruction.imm.as_i32();
                 let moved_pc = cpu
                     .read_current_instruction_addr_u32()
@@ -142,7 +142,7 @@ pub const RV32I_SET_UJ: [Instruction; 8] = [
             let rs1 = cpu.read_x_u32(instruction.rs1.value())?;
             let rs2 = cpu.read_x_u32(instruction.rs2.value())?;
 
-            if rs1 <= rs2 {
+            if rs1 < rs2 {
                 let extended_offset = instruction.imm.as_i32();
                 let moved_pc = cpu
                     .read_current_instruction_addr_u32()

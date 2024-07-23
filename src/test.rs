@@ -31,7 +31,7 @@ mod tests {
         let instruction = SInstructionData {
             rs1: U5(rs1),
             rs2: U5(rs2),
-            imm: SImmediate(imm as u32),
+            imm: SImmediate(U12::new(imm)),
             ..Default::default()
         };
         let op = encode_program_line(opcode, InstructionData::S(instruction))?;

@@ -23,9 +23,16 @@ pub const RV32I_SET_E: [Instruction; 2] = [
                         let byte = cpu.read_mem_u8(buffer_addr + i)?;
                         cpu.push_stdout(byte);
                     }
+                },
+                93 => {
+                    // Exit syscall
+                    cpu.set_halted();
                 }
-                _ => todo!(),
-            };
+                code => {
+                    println!("Unsupported syscall: {}", code);
+                    // todo!();
+                }
+            }
             Ok(())
         },
     },

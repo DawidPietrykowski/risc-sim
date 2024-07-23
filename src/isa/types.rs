@@ -93,7 +93,7 @@ impl UJImmediate {
 }
 
 #[derive(Clone, Copy, PartialEq, Debug, Default)]
-pub struct SImmediate(pub u32);
+pub struct SImmediate(pub U12);
 
 impl SImmediate {
     pub fn from(raw_operation: u32) -> SImmediate {
@@ -105,11 +105,12 @@ impl SImmediate {
         filled |= imm_11_5 << 5;
         filled |= imm_4_0;
 
-        SImmediate(filled & 0xFFF)
+        SImmediate(U12::new((filled & 0xFFF) as u16))
     }
 
     pub fn as_i32(&self) -> i32 {
-        ((self.0 << 11) as i32) >> 11
+        self.0.as_i32()
+        // ((self.0 << 20) as i32) >> 20
     }
 }
 
@@ -283,8 +284,8 @@ pub fn encode_program_line(name: &str, instruction_data: InstructionData) -> Res
             (data.func3.value() as u32) << 12
                 | (data.rs1.value() as u32) << 15
                 | (data.rs2.value() as u32) << 20
-                | ((data.imm.0) & U5_MASK as u32) << 7
-                | ((data.imm.0) & ((U12_MASK as u32) & !(U5_MASK as u32))) << 20
+                | (((data.imm.0.0 as u8) & U5_MASK) as u32) << 7
+                | (((data.imm.0.0) & ((U12_MASK as u16) & !(U5_MASK as u16))) as u32) << 20
         }
         InstructionData::SB(_) => todo!(),
         InstructionData::U(data) => (data.rd.value() as u32) << 7 | (data.imm as u32) << 12,

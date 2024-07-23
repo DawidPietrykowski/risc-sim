@@ -30,7 +30,7 @@ impl Memory {
     }
 
     pub fn read_mem_u8(&self, addr: u32) -> Result<u8> {
-        if addr == u32::MAX {
+        if addr > u32::MAX {
             return Err(anyhow!("Tried to access outside of memory bounds"));
         }
         if let Some(page) = self.pages.get(&(addr / PAGE_SIZE)) {

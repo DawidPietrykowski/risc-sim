@@ -2,12 +2,12 @@ use std::fmt::Display;
 
 use crate::utils::binary_utils::*;
 
-use anyhow::{Context, Ok, Result};
+use anyhow::{bail, Context, Ok, Result};
 
 use super::{memory::Memory, types::{decode_program_line, ProgramLine, Word}};
 
 pub struct Cpu {
-    reg_x32: [u32; 31],
+    reg_x32: [u32; 32],
     reg_pc: u32,
     pub current_instruction_pc: u32,
     skip_pc_increment: bool,
@@ -15,6 +15,7 @@ pub struct Cpu {
     memory: Memory,
     stdout_buffer: Vec<u8>,
     program_memory_offset: u32,
+    halted: bool,
 }
 
 impl Display for Cpu {
@@ -32,7 +33,7 @@ impl Cpu {
         let mut stdout_buffer = Vec::<u8>::new();
         stdout_buffer.reserve(1024);
         Cpu {
-            reg_x32: [0x0; 31],
+            reg_x32: [0x0; 32],
             reg_pc: 0x0,
             current_instruction_pc: 0x0,
             skip_pc_increment: false,
@@ -40,6 +41,7 @@ impl Cpu {
             memory: Memory::new(),
             stdout_buffer: stdout_buffer,
             program_memory_offset: 0x0,
+            halted: false,
         }
     }
 
@@ -49,6 +51,10 @@ impl Cpu {
     }
 
     pub fn run_cycle(&mut self) -> Result<()> {
+        if self.halted {
+            bail!("CPU is halted");
+        }
+
         print!("{}[{:#010x}] ", String::from_utf8(self.stdout_buffer.clone()).unwrap(), self.reg_pc);
 
         // Fetch
@@ -73,6 +79,10 @@ impl Cpu {
     pub fn execute_word(&mut self, word: Word) -> Result<()> {
         let program_line = decode_program_line(word)?;
         (program_line.instruction.operation)(self, &program_line.word)
+    }
+
+    pub fn set_halted(&mut self) {
+        self.halted = true;
     }
 
     fn fetch_instruction(&self) -> Result<ProgramLine> {
