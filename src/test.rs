@@ -51,11 +51,41 @@ mod tests {
 
     proptest! {
         #[test]
-        fn test_memory_mapping(addr in 0x0u32..(u32::MAX - 4)) {
+        fn test_memory_mapping_u32(addr in 0x0u32..(u32::MAX)) {
             let mut cpu = setup_cpu();
             let value = 0x12345678u32;
             cpu.write_mem_u32(addr, value).unwrap();
             prop_assert_eq!(cpu.read_mem_u32(addr).unwrap(), value);
+        }
+
+        #[test]
+        fn test_memory_mapping_u8(addr in 0x0u32..(u32::MAX)) {
+            let mut cpu = setup_cpu();
+            let value = 0x12u8;
+            cpu.write_mem_u8(addr, value).unwrap();
+            prop_assert_eq!(cpu.read_mem_u8(addr).unwrap(), value);
+        }
+
+        #[test]
+        fn test_memory_mapping_u16(addr in 0x0u32..(u32::MAX)) {
+            let mut cpu = setup_cpu();
+            let value = 0x1234u16;
+            cpu.write_mem_u16(addr, value).unwrap();
+            prop_assert_eq!(cpu.read_mem_u16(addr).unwrap(), value);
+        }
+
+        #[test]
+        fn test_memory_mapping_mixed(addr in 0x0u32..(u32::MAX)) {
+            let mut cpu = setup_cpu();
+             let value = 0x12345678u32;
+             cpu.write_mem_u32(addr, value).unwrap();
+             prop_assert_eq!(cpu.read_mem_u8(addr).unwrap(), 0x78);
+             prop_assert_eq!(cpu.read_mem_u8(addr + 1).unwrap(), 0x56);
+             prop_assert_eq!(cpu.read_mem_u8(addr + 2).unwrap(), 0x34);
+             prop_assert_eq!(cpu.read_mem_u8(addr + 3).unwrap(), 0x12);
+             prop_assert_eq!(cpu.read_mem_u16(addr).unwrap(), 0x5678);
+             prop_assert_eq!(cpu.read_mem_u16(addr + 2).unwrap(), 0x1234);
+             prop_assert_eq!(cpu.read_mem_u32(addr).unwrap(), value);
         }
 
         #[test]
@@ -71,7 +101,7 @@ mod tests {
             cpu.write_mem_u32(0, n).unwrap();
 
             while cpu.run_cycle().is_ok() {
-                println!("{}", cpu);
+                // println!("{}", cpu);
             }
 
             prop_assert_eq!(cpu.read_x_u32(5).unwrap(), fib(n));

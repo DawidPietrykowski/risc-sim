@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 use asm::assembler::decode_file;
-use isa::{cpu::Cpu, types::ABIRegister};
+use isa::{cpu::Cpu, memory::Memory, types::ABIRegister};
 
 mod asm;
 mod isa;
@@ -14,6 +14,30 @@ use std::env;
 const MAX_CYCLES: u32 = 100000000;
 
 fn main() -> Result<()> {
+    // let mut memory: Memory = Memory::new();
+
+    // let memory_addr = 0x4;
+    // let val = 0xFF00F000;
+    // memory.write_mem_u32(memory_addr, val);
+    // // memory.write_mem_u8(memory_addr + 0, 0x0F);
+    // // memory.write_mem_u8(memory_addr + 1, 0x0F);
+    // // memory.write_mem_u8(memory_addr + 2, 0x0F);
+    // // memory.write_mem_u8(memory_addr + 3, 0x0F);
+    // // memory.write_mem_u16(memory_addr + 3, 0xabcd);
+
+    // let read_val = memory.read_mem_u32(memory_addr + 0)?;
+    // println!("Read value: {:#x}", read_val);
+    // // assert_eq!(read_val, val);
+
+    // // memory.write_mem_u8(memory_addr + 4, 0xaa);
+
+    // // let read_val = memory.read_mem_u32(memory_addr + 4)?;
+    // // println!("Read value: {:#x}", read_val);
+
+    // let read_val = memory.read_mem_u16(memory_addr + 1)?;
+    // println!("Read value u16: {:#x}", read_val);
+    // return Ok(());
+
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
         return Err(anyhow::anyhow!("Usage: {} <path_to_file>", args[0]));
