@@ -1,9 +1,12 @@
 use std::{
     mem,
     time::{SystemTime, UNIX_EPOCH},
+    u32,
 };
 
 use crate::isa::{self, types::*};
+use anyhow::Context;
+use nix::time::{clock_gettime, ClockId};
 
 #[repr(C)]
 pub struct Stat {
@@ -126,9 +129,27 @@ pub const RV32I_SET_E: [Instruction; 2] = [
                     cpu.write_x_u32(ABIRegister::A(0).to_x_reg_id() as u8, cpu.program_brk)?;
                     cpu.debug_print(|| format!("brk: {:#x}", cpu.program_brk));
                 }
+                403 => {
+                    // clock_gettime
+
+                    let clock_id = cpu.read_x_u32(ABIRegister::A(0).to_x_reg_id() as u8)?;
+                    let timespec_addr = cpu.read_x_u32(ABIRegister::A(1).to_x_reg_id() as u8)?;
+
+                    let now = clock_gettime(ClockId::from_raw(clock_id.try_into().unwrap()))
+                        .context("clock_gettime")?;
+
+                    let seconds = now.tv_sec() as u32;
+                    let nanos = now.tv_nsec() as u32;
+
+                    cpu.write_mem_u32(timespec_addr, seconds)?;
+                    cpu.write_mem_u32(timespec_addr + 4, nanos)?;
+
+                    cpu.write_x_u32(ABIRegister::A(0).to_x_reg_id() as u8, 0)?;
+
+                    cpu.debug_print(|| format!("clock_gettime: {} {}", seconds, nanos));
+                }
                 code => {
-                    cpu.debug_print(|| format!("Unsupported syscall: {}", code));
-                    todo!()
+                    todo!("Unsupported syscall: {}", code)
                 }
             }
             Ok(())
