@@ -4,6 +4,7 @@ use anyhow::Result;
 use std::fmt::{Display, Formatter};
 use std::{fmt, fs};
 
+#[allow(clippy::upper_case_acronyms)]
 struct ELF {}
 
 #[derive(Debug, Clone)]
@@ -19,12 +20,14 @@ enum Endian {
 }
 
 #[derive(Debug)]
+#[allow(clippy::upper_case_acronyms)]
 enum ABI {
     SystemV,
     Other,
 }
 
 #[derive(Debug)]
+#[allow(clippy::upper_case_acronyms)]
 enum ELFType {
     Relocatable,
     Executable,
@@ -34,6 +37,7 @@ enum ELFType {
 }
 
 #[derive(Debug)]
+#[allow(clippy::upper_case_acronyms)]
 enum ISA {
     RISCV,
     X86,
@@ -65,32 +69,32 @@ struct ELFHeader {
 
 impl Display for ELFHeader {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "ELF Header\n")?;
-        write!(f, "  Word Size: {:?}\n", self.word_size)?;
-        write!(f, "  Endian: {:?}\n", self.endian)?;
-        write!(f, "  Version: {}\n", self.version)?;
-        write!(f, "  ABI: {:?}\n", self.abi)?;
-        write!(f, "  ELF Type: {:?}\n", self.elf_type)?;
-        write!(f, "  ISA: {:?}\n", self.isa)?;
-        write!(f, "  Entry Point: {:#x}\n", self.entry_point)?;
-        write!(
+        writeln!(f, "ELF Header")?;
+        writeln!(f, "  Word Size: {:?}", self.word_size)?;
+        writeln!(f, "  Endian: {:?}", self.endian)?;
+        writeln!(f, "  Version: {}", self.version)?;
+        writeln!(f, "  ABI: {:?}", self.abi)?;
+        writeln!(f, "  ELF Type: {:?}", self.elf_type)?;
+        writeln!(f, "  ISA: {:?}", self.isa)?;
+        writeln!(f, "  Entry Point: {:#x}", self.entry_point)?;
+        writeln!(
             f,
-            "  Program Header Table Offset: {:#x}\n",
+            "  Program Header Table Offset: {:#x}",
             self.program_header_table_offset
         )?;
-        write!(
+        writeln!(
             f,
-            "  Section Header Table Offset: {:#x}\n",
+            "  Section Header Table Offset: {:#x}",
             self.section_header_table_offset
         )?;
-        write!(f, "  Header Size: {}\n", self.header_size)?;
-        write!(f, "  Program Header Size: {}\n", self.program_header_size)?;
-        write!(f, "  Program Header Count: {}\n", self.program_header_count)?;
-        write!(f, "  Section Header Size: {}\n", self.section_header_size)?;
-        write!(f, "  Section Header Count: {}\n", self.section_header_count)?;
-        write!(
+        writeln!(f, "  Header Size: {}", self.header_size)?;
+        writeln!(f, "  Program Header Size: {}", self.program_header_size)?;
+        writeln!(f, "  Program Header Count: {}", self.program_header_count)?;
+        writeln!(f, "  Section Header Size: {}", self.section_header_size)?;
+        writeln!(f, "  Section Header Count: {}", self.section_header_count)?;
+        writeln!(
             f,
-            "  Section Header String Table Index: {}\n",
+            "  Section Header String Table Index: {}",
             self.section_header_string_table_index
         )
     }
@@ -124,41 +128,17 @@ struct ProgramHeader {
     alignment: u64,
 }
 
-impl ProgramHeader {
-    fn new(
-        header_type: ProgramHeaderType,
-        flags: u32,
-        segment_offset: u64,
-        virtual_address: u64,
-        physical_address: u64,
-        file_size: u64,
-        memory_size: u64,
-        alignment: u64,
-    ) -> Self {
-        ProgramHeader {
-            header_type,
-            flags,
-            segment_offset,
-            virtual_address,
-            physical_address,
-            file_size,
-            memory_size,
-            alignment,
-        }
-    }
-}
-
 impl Display for ProgramHeader {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "Program Header\n")?;
-        write!(f, "  Type: {:?}\n", self.header_type)?;
-        write!(f, "  Flags: {:#x}\n", self.flags)?;
-        write!(f, "  Segment Offset: {:#x}\n", self.segment_offset)?;
-        write!(f, "  Virtual Address: {:#x}\n", self.virtual_address)?;
-        write!(f, "  Physical Address: {:#x}\n", self.physical_address)?;
-        write!(f, "  File Size: {:#x}\n", self.file_size)?;
-        write!(f, "  Memory Size: {:#x}\n", self.memory_size)?;
-        write!(f, "  Alignment: {:#x}\n", self.alignment)
+        writeln!(f, "Program Header")?;
+        writeln!(f, "  Type: {:?}", self.header_type)?;
+        writeln!(f, "  Flags: {:#x}", self.flags)?;
+        writeln!(f, "  Segment Offset: {:#x}", self.segment_offset)?;
+        writeln!(f, "  Virtual Address: {:#x}", self.virtual_address)?;
+        writeln!(f, "  Physical Address: {:#x}", self.physical_address)?;
+        writeln!(f, "  File Size: {:#x}", self.file_size)?;
+        writeln!(f, "  Memory Size: {:#x}", self.memory_size)?;
+        writeln!(f, "  Alignment: {:#x}", self.alignment)
     }
 }
 
@@ -167,7 +147,7 @@ pub struct ProgramFile {
     pub memory: Memory,
     pub program_memory_offset: u32,
     pub lines: Vec<ProgramLine>,
-} 
+}
 
 pub fn decode_file(path: &str) -> ProgramFile {
     let file = fs::read(path).unwrap();
@@ -181,7 +161,7 @@ pub fn decode_file(path: &str) -> ProgramFile {
             .unwrap(),
     );
 
-    let expected_magic_value = u32::from_be_bytes([0x7F, 'E' as u8, 'L' as u8, 'F' as u8]);
+    let expected_magic_value = u32::from_be_bytes([0x7F, b'E', b'L', b'F']);
 
     assert_eq!(magic_value, expected_magic_value);
 
@@ -418,8 +398,8 @@ pub fn decode_file(path: &str) -> ProgramFile {
             ),
         };
 
-        let program_header = ProgramHeader::new(
-            program_header_type,
+        let program_header = ProgramHeader {
+            header_type: program_header_type,
             flags,
             segment_offset,
             virtual_address,
@@ -427,7 +407,7 @@ pub fn decode_file(path: &str) -> ProgramFile {
             file_size,
             memory_size,
             alignment,
-        );
+        };
 
         println!("{}", program_header);
     }
@@ -466,7 +446,6 @@ pub fn decode_file(path: &str) -> ProgramFile {
 
         let string_start = shstrtab_offset + section_header_name_offset;
 
-
         // Find the end of the string (null terminator)
         let string_end = file[string_start..]
             .iter()
@@ -477,11 +456,13 @@ pub fn decode_file(path: &str) -> ProgramFile {
         // Extract the section header name
         let section_header_name = std::str::from_utf8(&file[string_start..string_end]).unwrap();
 
-        println!("Section Header table offset: {:#x}", elf_header.section_header_table_offset);
-        println!("Section Header Name: {}", section_header_name);
-        println!("Section Header Name Offset: {:#x}", string_start);
-        println!("Section Header Offset {:#x}\n", offset);
-
+        // println!(
+        //     "Section Header table offset: {:#x}",
+        //     elf_header.section_header_table_offset
+        // );
+        // println!("Section Header Name: {}", section_header_name);
+        // println!("Section Header Name Offset: {:#x}", string_start);
+        // println!("Section Header Offset {:#x}\n", offset);
 
         let section_addr = match word_size {
             WordSize::W32 => u32::from_le_bytes(
@@ -523,9 +504,11 @@ pub fn decode_file(path: &str) -> ProgramFile {
         } as usize;
 
         let section = &file[section_offset..(section_offset + section_size)];
-    
-        for i in 0..section_size {
-            memory.write_mem_u8((section_addr + i) as u32, section[i]).unwrap();
+
+        for (i, byte) in section.iter().take(section_size).enumerate() {
+            memory
+                .write_mem_u8((section_addr + i) as u32, *byte)
+                .unwrap();
         }
 
         if section_header_name == ".text" {
@@ -538,13 +521,13 @@ pub fn decode_file(path: &str) -> ProgramFile {
             let mut pc = 0;
             while pc < section_size {
                 let instruction = u32::from_le_bytes(section[pc..(pc + 4)].try_into().unwrap());
-                print!("{:#010x}: {:#034b} ", pc + section_addr, instruction);
+                // print!("{:#010x}: {:#034b} ", pc + section_addr, instruction);
                 pc += 4;
 
                 let decoded_instruction = decode_program_line(Word(instruction));
                 match decoded_instruction {
                     Ok(decoded_instruction) => {
-                        println!("{}", decoded_instruction);
+                        // println!("{}", decoded_instruction);
                         program.push(decoded_instruction);
                     }
                     Err(e) => {
@@ -555,11 +538,11 @@ pub fn decode_file(path: &str) -> ProgramFile {
             }
         }
     }
-    ProgramFile{
+    ProgramFile {
         entry_point: elf_header.entry_point as u32,
         program_memory_offset: text_section_addr as u32,
         lines: program,
-        memory: memory,
+        memory,
     }
 }
 

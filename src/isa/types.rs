@@ -6,6 +6,7 @@ use super::{
         control_transfer::RV32I_SET_UJ, environment::RV32I_SET_E, immediate::RV32I_SET_I,
         integer_reg_reg::RV32I_SET_R, load_store::RV32I_SET_LS,
     },
+    rv32m::muldiv_reg_reg::RV32M_SET_R,
 };
 use anyhow::{anyhow, Context, Ok, Result};
 
@@ -110,7 +111,6 @@ impl SImmediate {
 
     pub fn as_i32(&self) -> i32 {
         self.0.as_i32()
-        // ((self.0 << 20) as i32) >> 20
     }
 }
 
@@ -130,13 +130,13 @@ impl SBImmediate {
         filled |= imm_4_1 << 1;
         filled |= (imm_11 as u32) << 11;
         filled |= imm_10_5 << 5;
-        filled &= !(0b1111 << 12 | 0b1);
+        filled &= !(0b111 << 13 | 0b1);
 
         SBImmediate(filled)
     }
 
     pub fn as_i32(&self) -> i32 {
-        ((self.0 << 20) as i32) >> 20
+        ((self.0 << 19) as i32) >> 19
     }
 
     pub fn as_u32(&self) -> u32 {
@@ -203,13 +203,12 @@ pub fn parse_instruction(word: &Word, instruction_type: InstructionType) -> Inst
 }
 
 pub fn parse_instruction_i(word: &Word) -> IInstructionData {
-    let data = IInstructionData {
+    IInstructionData {
         rd: U5((word.0 >> 7) as u8 & U5_MASK),
         func3: U3((word.0 >> 12) as u8 & U3_MASK),
         rs1: U5((word.0 >> 15) as u8 & U5_MASK),
         imm: U12((word.0 >> 20) as u16 & 0xFFF),
-    };
-    data
+    }
 }
 
 pub fn parse_instruction_u(word: &Word) -> UInstructionData {
@@ -231,7 +230,7 @@ pub fn parse_instruction_s(word: &Word) -> SInstructionData {
         func3: U3((word.0 >> 12) as u8 & U3_MASK),
         rs1: U5((word.0 >> 15) as u8 & U5_MASK),
         rs2: U5((word.0 >> 20) as u8 & U5_MASK),
-        imm: SImmediate::from(word.0 as u32),
+        imm: SImmediate::from(word.0),
     }
 }
 
@@ -240,26 +239,25 @@ pub fn parse_instruction_sb(word: &Word) -> SBInstructionData {
         func3: U3((word.0 >> 12) as u8 & U3_MASK),
         rs1: U5((word.0 >> 15) as u8 & U5_MASK),
         rs2: U5((word.0 >> 20) as u8 & U5_MASK),
-        imm: SBImmediate::from(word.0 as u32),
+        imm: SBImmediate::from(word.0),
     }
 }
 
 pub fn parse_instruction_r(word: &Word) -> RInstructionData {
-    let data = RInstructionData {
+    RInstructionData {
         rd: U5((word.0 >> 7) as u8 & U5_MASK),
         func3: U3((word.0 >> 12) as u8 & U3_MASK),
         rs1: U5((word.0 >> 15) as u8 & U5_MASK),
         rs2: U5((word.0 >> 20) as u8 & U5_MASK),
         func7: U7((word.0 >> 25) as u8 & U7_MASK),
-    };
-    data
+    }
 }
 
 pub fn decode_program_line(word: Word) -> Result<ProgramLine> {
     let instruction = *ALL_INSTRUCTIONS
         .iter()
         .find(|ins| (word.0 & ins.mask) == ins.bits)
-        .context("Instruction not found")?;
+        .context(format!("Instruction {:#x} not found", word.0))?;
     Ok(ProgramLine { instruction, word })
 }
 
@@ -284,11 +282,11 @@ pub fn encode_program_line(name: &str, instruction_data: InstructionData) -> Res
             (data.func3.value() as u32) << 12
                 | (data.rs1.value() as u32) << 15
                 | (data.rs2.value() as u32) << 20
-                | (((data.imm.0.0 as u8) & U5_MASK) as u32) << 7
-                | (((data.imm.0.0) & ((U12_MASK as u16) & !(U5_MASK as u16))) as u32) << 20
+                | (((data.imm.0 .0 as u8) & U5_MASK) as u32) << 7
+                | (((data.imm.0 .0) & ((U12_MASK) & !(U5_MASK as u16))) as u32) << 20
         }
         InstructionData::SB(_) => todo!(),
-        InstructionData::U(data) => (data.rd.value() as u32) << 7 | (data.imm as u32) << 12,
+        InstructionData::U(data) => (data.rd.value() as u32) << 7 | (data.imm) << 12,
         InstructionData::UJ(_) => todo!(),
     };
     word.0 |= instruction.mask & instruction.bits;
@@ -318,10 +316,10 @@ const U12_SHIFT: u8 = 12;
 pub const FUNC3_ORI: u8 = 0b110;
 pub const FUNC3_XORI: u8 = 0b100;
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, Default)]
 pub struct U3(pub u8);
 
-impl BitValue<u8, U3> for U3 {
+impl BitValue<u8> for U3 {
     fn new(value: u8) -> U3 {
         assert_eq!(value & !U3_MASK, 0);
         U3(value & U3_MASK)
@@ -340,16 +338,10 @@ impl BitValue<u8, U3> for U3 {
     }
 }
 
-impl Default for U3 {
-    fn default() -> Self {
-        U3(0)
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, Default)]
 pub struct U5(pub u8);
 
-impl BitValue<u8, U5> for U5 {
+impl BitValue<u8> for U5 {
     fn new(value: u8) -> U5 {
         assert_eq!(value & !U5_MASK, 0);
         U5(value & U5_MASK)
@@ -368,16 +360,10 @@ impl BitValue<u8, U5> for U5 {
     }
 }
 
-impl Default for U5 {
-    fn default() -> Self {
-        U5(0)
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, Default)]
 pub struct U7(pub u8);
 
-impl BitValue<u8, U7> for U7 {
+impl BitValue<u8> for U7 {
     fn new(value: u8) -> U7 {
         assert_eq!(value & !U7_MASK, 0);
         U7(value & U7_MASK)
@@ -396,16 +382,10 @@ impl BitValue<u8, U7> for U7 {
     }
 }
 
-impl Default for U7 {
-    fn default() -> Self {
-        U7(0)
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, Default)]
 pub struct U12(pub u16);
 
-impl BitValue<u16, U12> for U12 {
+impl BitValue<u16> for U12 {
     fn new(value: u16) -> U12 {
         assert_eq!(value & (0b1111 << 12), 0);
         U12(value & !(0b1111 << 12))
@@ -430,17 +410,11 @@ impl U12 {
     }
 }
 
-impl Default for U12 {
-    fn default() -> Self {
-        U12(0)
-    }
-}
-
-pub trait BitValue<S, T> {
-    fn new(value: S) -> T;
+pub trait BitValue<S> {
+    fn new(value: S) -> Self;
     fn value(&self) -> S;
-    fn max_value() -> T;
-    fn min_value() -> T;
+    fn max_value() -> Self;
+    fn min_value() -> Self;
 }
 
 pub fn find_instruction_by_name(name: &str) -> Result<Instruction> {
@@ -459,12 +433,13 @@ lazy_static! {
         all.extend_from_slice(&RV32I_SET_UJ);
         all.extend_from_slice(&RV32I_SET_LS);
         all.extend_from_slice(&RV32I_SET_E);
+        all.extend_from_slice(&RV32M_SET_R);
         all
     };
 }
 
 pub enum ABIRegister {
-    ZERO,
+    Zero,
     RA,
     SP,
     QP,
@@ -477,7 +452,7 @@ pub enum ABIRegister {
 impl ABIRegister {
     pub fn from(x_reg_id: u32) -> Result<ABIRegister> {
         match x_reg_id {
-            0 => Ok(ABIRegister::ZERO),
+            0 => Ok(ABIRegister::Zero),
             1 => Ok(ABIRegister::RA),
             2 => Ok(ABIRegister::SP),
             3 => Ok(ABIRegister::QP),
@@ -493,7 +468,7 @@ impl ABIRegister {
 
     pub fn to_x_reg_id(&self) -> u32 {
         match self {
-            ABIRegister::ZERO => 0,
+            ABIRegister::Zero => 0,
             ABIRegister::RA => 1,
             ABIRegister::SP => 2,
             ABIRegister::QP => 3,

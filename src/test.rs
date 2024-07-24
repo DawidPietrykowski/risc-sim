@@ -3,11 +3,11 @@ mod tests {
     use crate::*;
 
     use anyhow::Result;
+    use isa::memory::Memory;
     use isa::types::*;
     use proptest::prelude::*;
     use std::result::Result::Ok;
     use utils::binary_utils::*;
-    use isa::memory::Memory;
 
     fn setup_cpu() -> Cpu {
         Cpu::new()
@@ -60,11 +60,11 @@ mod tests {
 
         #[test]
         fn test_fibbonaci_program(n in 1u32..15, entry_point in 0x1000u32..0xFFFFF) {
-            let mut cpu = Cpu::new();   
+            let mut cpu = Cpu::new();
 
             let mut memory = Memory::new();
             for (id, val) in FIB_PROGRAM_BIN.iter().enumerate() {
-                memory.write_mem_u32((entry_point + 4u32 * (id as u32)) as u32, *val).unwrap();
+                memory.write_mem_u32(entry_point + 4u32 * (id as u32), *val).unwrap();
             }
             cpu.load_program(memory, entry_point);
 
@@ -212,11 +212,7 @@ mod tests {
     }
 
     fn execute_u_instruction(cpu: &mut Cpu, opcode: &str, rd: u8, imm: u32) -> Result<()> {
-        let instruction = UInstructionData {
-            rd: U5(rd),
-            imm: imm,
-            ..Default::default()
-        };
+        let instruction = UInstructionData { rd: U5(rd), imm };
         let op = encode_program_line(opcode, InstructionData::U(instruction))?;
         cpu.execute_word(op)?;
         Ok(())
@@ -283,7 +279,7 @@ mod tests {
     });
 
     test_instruction_u!(test_lui2, "LUI", |cpu: &mut Cpu, rd, imm| {
-        let expected = (imm << 12) as u32;
+        let expected = imm << 12;
         prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), expected);
         Ok(())
     });
@@ -400,7 +396,7 @@ mod tests {
             let addi_instruction = IInstructionData {
                 rd: U5(rd),
                 rs1: U5(rs1),
-                imm: imm,
+                imm,
                 ..Default::default()
             };
             let op = encode_program_line("ADDI", InstructionData::I(addi_instruction)).unwrap();
@@ -414,7 +410,7 @@ mod tests {
             let addi_instruction = IInstructionData {
                 rd: U5(rd),
                 rs1: U5(rs1),
-                imm: imm,
+                imm,
                 ..Default::default()
             };
             let op = encode_program_line("ADDI", InstructionData::I(addi_instruction)).unwrap();
@@ -613,14 +609,14 @@ mod tests {
 
             let lui_instruction = UInstructionData {
                 rd: U5(rd),
-                imm: imm,
+                imm,
             };
 
             let op = encode_program_line("LUI", InstructionData::U(lui_instruction)).unwrap();
 
             prop_assert!(cpu.execute_word(op).is_ok());
 
-            let expected = (imm << 12) as u32;
+            let expected = imm << 12;
             prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), expected);
         }
 
@@ -632,7 +628,7 @@ mod tests {
 
             let auipc_instruction = UInstructionData {
                 rd: U5(rd),
-                imm: imm,
+                imm,
             };
 
             let op = encode_program_line("AUIPC", InstructionData::U(auipc_instruction)).unwrap();

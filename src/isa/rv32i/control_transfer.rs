@@ -33,6 +33,10 @@ pub const RV32I_SET_UJ: [Instruction; 8] = [
             cpu.write_x_u32(instruction.rd.value(), cpu.read_pc_u32())?;
 
             let offset = instruction.imm.as_i32();
+            let rs1 = cpu.read_x_u32(instruction.rs1.value())?;
+
+            cpu.debug_print(|| format!("rs1: {:#x}", rs1));
+
             let result = cpu
                 .read_x_u32(instruction.rs1.value())?
                 .wrapping_add_signed(offset)
@@ -53,6 +57,20 @@ pub const RV32I_SET_UJ: [Instruction; 8] = [
 
             let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
             let rs2 = cpu.read_x_i32(instruction.rs2.value())?;
+
+            cpu.debug_print(|| format!("rs1: {:#x}", rs1));
+            cpu.debug_print(|| format!("rs2: {:#x}", rs2));
+            cpu.debug_print(|| format!("imm: {:#x}", instruction.imm.as_u32()));
+            cpu.debug_print(|| format!("ext: {:#x}", instruction.imm.as_i32() as u32));
+            cpu.debug_print(|| format!("exti32: {}", instruction.imm.as_i32()));
+            cpu.debug_print(|| format!("pc: {:#x}", cpu.read_pc_u32()));
+            cpu.debug_print(|| {
+                format!(
+                    "pc+ext: {:#x}",
+                    cpu.read_pc_u32()
+                        .wrapping_add_signed(instruction.imm.as_i32())
+                )
+            });
 
             if rs1 == rs2 {
                 let extended_offset = instruction.imm.as_i32();
@@ -75,6 +93,9 @@ pub const RV32I_SET_UJ: [Instruction; 8] = [
 
             let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
             let rs2 = cpu.read_x_i32(instruction.rs2.value())?;
+
+            cpu.debug_print(|| format!("rs1: {:#x}", rs1));
+            cpu.debug_print(|| format!("rs2: {:#x}", rs2));
 
             if rs1 != rs2 {
                 let extended_offset = instruction.imm.as_i32();

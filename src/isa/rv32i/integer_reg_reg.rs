@@ -14,6 +14,9 @@ pub const RV32I_SET_R: [Instruction; 10] = [
             let rs2 = cpu.read_x_i32(instruction.rs2.value())?;
             let (res, _) = rs1.overflowing_add(rs2);
             cpu.write_x_i32(instruction.rd.value(), res)?;
+
+            cpu.debug_print(|| format!("ADD: rs1={}, rs2={}, res={}", rs1, rs2, res));
+
             Ok(())
         },
     },

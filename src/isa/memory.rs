@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Debug, fmt::Formatter};
 
 use anyhow::{anyhow, Context, Result};
 
@@ -7,7 +7,13 @@ const PAGE_SIZE: u32 = 4096;
 const MEMORY_SIZE: u32 = u32::MAX;
 
 pub struct Memory {
-    pages: HashMap<u32, Page>
+    pages: HashMap<u32, Page>,
+}
+
+impl Debug for Memory {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Memory {{ pages: {} }}", self.pages.len())
+    }
 }
 
 struct Page {
@@ -18,21 +24,20 @@ struct Page {
 impl Page {
     pub fn new(position: u32) -> Page {
         Page {
-            position: position,
-            data: [0; PAGE_SIZE as usize]
+            position,
+            data: [0; PAGE_SIZE as usize],
         }
     }
 }
 
 impl Memory {
     pub fn new() -> Self {
-        Memory { pages: HashMap::new() }
+        Memory {
+            pages: HashMap::new(),
+        }
     }
 
     pub fn read_mem_u8(&self, addr: u32) -> Result<u8> {
-        if addr > u32::MAX {
-            return Err(anyhow!("Tried to access outside of memory bounds"));
-        }
         if let Some(page) = self.pages.get(&(addr / PAGE_SIZE)) {
             Ok(page.data[(addr - page.position) as usize])
         } else {
@@ -54,11 +59,14 @@ impl Memory {
             return Err(anyhow!("Tried to access outside of memory bounds"));
         }
 
-        if !self.pages.contains_key(&page_id) {
-            self.pages.insert(page_id, Page::new(page_id * PAGE_SIZE));
-        }
+        self.pages
+            .entry(page_id)
+            .or_insert_with(|| Page::new(page_id * PAGE_SIZE));
 
-        let page = self.pages.get_mut(&(addr / PAGE_SIZE)).context("Failed to allocate new page")?;
+        let page = self
+            .pages
+            .get_mut(&(addr / PAGE_SIZE))
+            .context("Failed to allocate new page")?;
 
         page.data[(addr - page.position) as usize] = value;
 
