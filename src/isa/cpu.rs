@@ -128,7 +128,8 @@ impl Cpu {
         decode_program_line(Word(
             self.memory
                 .read_mem_u32(self.read_pc_u32())
-                .context(format!("No instruction at index {:#x}", self.read_pc_u32()))?,
+                .context("No instruction at pc")?,
+                // .context(format!("No instruction at index {:#x}", self.read_pc_u32()))?,
         ))
     }
 
@@ -160,7 +161,8 @@ impl Cpu {
         let value = self
             .reg_x32
             .get(id as usize)
-            .context(format!("Register x{} does not exist", id))?;
+            // .context(format!("Register x{} does not exist", id))?;
+            .context("Register does not exist")?;
 
         Ok(*value)
     }
@@ -177,7 +179,8 @@ impl Cpu {
         let reg_value = self
             .reg_x32
             .get_mut(id as usize)
-            .context(format!("Register x{} does not exist", id))?;
+            // .context(format!("Register x{} does not exist", id))?;
+            .context("Register does not exist")?;
 
         *reg_value = i32_to_u32(value);
         Ok(())
@@ -191,7 +194,8 @@ impl Cpu {
         let reg_value = self
             .reg_x32
             .get_mut(id as usize)
-            .context(format!("Register x{} does not exist", id))?;
+            // .context(format!("Register x{} does not exist", id))?;
+            .context("Register does not exist")?;
 
         *reg_value = value;
         Ok(())

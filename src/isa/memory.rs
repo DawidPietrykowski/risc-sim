@@ -1,13 +1,15 @@
-use std::{collections::HashMap, fmt::Debug, fmt::Formatter};
+use std::{fmt::Debug, fmt::Formatter};
 
 use anyhow::{anyhow, Context, Result};
 
-const PAGE_SIZE: u32 = 4096;
+use rustc_hash::{FxBuildHasher, FxHashMap};
+
+const PAGE_SIZE: u32 = 4096 * 16;
 
 const MEMORY_SIZE: u32 = u32::MAX;
 
 pub struct Memory {
-    pages: HashMap<u32, Page>,
+    pages: FxHashMap<u32, Page>,
 }
 
 impl Debug for Memory {
@@ -33,7 +35,7 @@ impl Page {
 impl Memory {
     pub fn new() -> Self {
         Memory {
-            pages: HashMap::new(),
+            pages: FxHashMap::with_capacity_and_hasher(1024, FxBuildHasher::default()),
         }
     }
 

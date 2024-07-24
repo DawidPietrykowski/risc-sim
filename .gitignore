@@ -3,3 +3,5 @@ proptest-regressions
 .vscode
 .idea
 notes
+flamegraph.svg
+perf.data*
