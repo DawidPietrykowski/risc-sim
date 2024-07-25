@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 
 use rustc_hash::{FxBuildHasher, FxHashMap};
 
-const PAGE_SIZE: u32 = 4096;
+const PAGE_SIZE: u32 = 4096 * 16;
 
 const MEMORY_SIZE: u32 = u32::MAX;
 
@@ -42,7 +42,7 @@ impl Memory {
     pub fn read_mem_u8(&self, addr: u32) -> Result<u8> {
         let offset = addr & 0b11;
         let full_value = self.read_mem_u32(addr & !0b11)?;
-        Ok(((full_value >> (offset * 8)) & (0xFFFF)) as u8)
+        Ok(((full_value >> (offset * 8)) & (0xFF)) as u8)
     }
 
     pub fn read_mem_u32(&self, addr: u32) -> Result<u32> {
@@ -88,7 +88,7 @@ impl Memory {
     pub fn read_mem_u16(&self, addr: u32) -> Result<u16> {
         let offset_bits = (addr & 0b1) * 8;
         let full_value = self.read_mem_u32(addr & !(0b1))?;
-        let u16_slice = (full_value >> (offset_bits)) & 0xffffffff;
+        let u16_slice = (full_value >> (offset_bits)) & 0xffff;
         Ok(u16_slice as u16)
     }
 
@@ -103,7 +103,7 @@ impl Memory {
     pub fn write_mem_u16(&mut self, addr: u32, value: u16) -> Result<()> {
         let offset_bits = (addr & 0b1) * 8;
         let full_value = self.read_mem_u32(addr & !(0b1))?;
-        let cleared_value = !(0xFFFFFFFF << (offset_bits)) & full_value;
+        let cleared_value = !(0xFFFF << (offset_bits)) & full_value;
         let filled_value = cleared_value | ((value as u32) << (offset_bits));
         self.write_mem_u32(addr & !(0b1), filled_value)
     }

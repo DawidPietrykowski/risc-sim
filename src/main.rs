@@ -17,6 +17,13 @@ fn main() -> Result<()> {
     if false {
         let mut memory: Memory = Memory::new();
 
+        memory.write_mem_u32(0x21054, 0x10c78)?;
+        let read_val = memory.read_mem_u32(0x21054)?;
+        println!("Read value: {:#010X}", read_val);
+        let read_val = memory.read_mem_u8(0x21056)?;
+        println!("Read value: {:#010X}", read_val);
+        return Ok(());
+
         let addr = 4096 - 3;
 
         let value = 0x12345678u32;
@@ -79,6 +86,7 @@ fn main() -> Result<()> {
 
     let mut cpu = Cpu::new();
     cpu.load_program(program.memory, program.entry_point);
+    // cpu.set_debug_enabled(true);
 
     let start_time = std::time::Instant::now();
 
@@ -88,9 +96,11 @@ fn main() -> Result<()> {
         if count > MAX_CYCLES {
             return Err(anyhow::anyhow!("Too many cycles"));
         }
-        // println!("Cycles: {}", count);
         match cpu.run_cycle() {
-            Ok(_) => continue,
+            Ok(_) => {
+                // println!("Cycle: {}", count);
+                continue;
+            }
             Err(e) => {
                 break e;
             }

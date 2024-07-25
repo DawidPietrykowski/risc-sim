@@ -80,7 +80,7 @@ impl Cpu {
         let instruction = self.fetch_instruction()?;
 
         if self.debug_enabled {
-            println!("{}", instruction);
+            println!("\n{}", instruction);
         }
         // Increase PC
         self.current_instruction_pc = self.reg_pc;

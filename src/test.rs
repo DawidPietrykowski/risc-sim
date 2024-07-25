@@ -7,6 +7,7 @@ mod tests {
     use isa::types::*;
     use proptest::prelude::*;
     use std::result::Result::Ok;
+    use std::u32;
     use utils::binary_utils::*;
 
     fn setup_cpu() -> Cpu {
@@ -56,6 +57,9 @@ mod tests {
             let value = 0x12345678u32;
             cpu.write_mem_u32(addr, value).unwrap();
             prop_assert_eq!(cpu.read_mem_u32(addr).unwrap(), value);
+            prop_assert_eq!(cpu.read_mem_u32(addr + 1).unwrap(), 0x00123456);
+            prop_assert_eq!(cpu.read_mem_u32(addr + 2).unwrap(), 0x00001234);
+            prop_assert_eq!(cpu.read_mem_u32(addr + 3).unwrap(), 0x00000012);
         }
 
         #[test]
@@ -67,6 +71,27 @@ mod tests {
         }
 
         #[test]
+        fn test_memory_mapping_u16_edge_case(addr in 0x0u32..(u32::MAX - 3)) {
+            let mut cpu = setup_cpu();
+            let value = u32::MAX;
+
+            for offset in 0..4 {
+                cpu.write_mem_u32(addr, value).unwrap();
+                cpu.write_mem_u16(addr + offset, 0x0000).unwrap();
+
+                let expected = match offset {
+                    0 => 0xffff0000,
+                    1 => 0xff0000ff,
+                    2 => 0x0000ffff,
+                    3 => 0x00ffffff,
+                    _ => unreachable!(),
+                };
+                let result = cpu.read_mem_u32(addr).unwrap();
+                prop_assert_eq!(result, expected);
+            }
+        }
+
+        #[test]
         fn test_memory_mapping_u16(addr in 0x0u32..(u32::MAX)) {
             let mut cpu = setup_cpu();
             let value = 0x1234u16;
@@ -75,35 +100,55 @@ mod tests {
         }
 
         #[test]
+        fn test_memory_mapping_u16_misaligned(addr in 0x0u32..(u32::MAX)) {
+            let mut cpu = setup_cpu();
+            let value = 0x1234u16;
+            cpu.write_mem_u16(addr + 1, value).unwrap();
+            prop_assert_eq!(cpu.read_mem_u16(addr + 1).unwrap(), value);
+        }
+
+        #[test]
         fn test_memory_mapping_mixed(addr in 0x0u32..(u32::MAX)) {
             let mut cpu = setup_cpu();
-             let value = 0x12345678u32;
-             cpu.write_mem_u32(addr, value).unwrap();
-             prop_assert_eq!(cpu.read_mem_u8(addr).unwrap(), 0x78);
-             prop_assert_eq!(cpu.read_mem_u8(addr + 1).unwrap(), 0x56);
-             prop_assert_eq!(cpu.read_mem_u8(addr + 2).unwrap(), 0x34);
-             prop_assert_eq!(cpu.read_mem_u8(addr + 3).unwrap(), 0x12);
-             prop_assert_eq!(cpu.read_mem_u16(addr).unwrap(), 0x5678);
-             prop_assert_eq!(cpu.read_mem_u16(addr + 1).unwrap(), 0x3456);
-             prop_assert_eq!(cpu.read_mem_u16(addr + 2).unwrap(), 0x1234);
-             prop_assert_eq!(cpu.read_mem_u32(addr).unwrap(), value);
+            let value = 0x12345678u32;
+            cpu.write_mem_u32(addr, value).unwrap();
+            prop_assert_eq!(cpu.read_mem_u8(addr).unwrap(), 0x78);
+            prop_assert_eq!(cpu.read_mem_u8(addr + 1).unwrap(), 0x56);
+            prop_assert_eq!(cpu.read_mem_u8(addr + 2).unwrap(), 0x34);
+            prop_assert_eq!(cpu.read_mem_u8(addr + 3).unwrap(), 0x12);
+            prop_assert_eq!(cpu.read_mem_u16(addr).unwrap(), 0x5678);
+            prop_assert_eq!(cpu.read_mem_u16(addr + 1).unwrap(), 0x3456);
+            prop_assert_eq!(cpu.read_mem_u16(addr + 2).unwrap(), 0x1234);
+            prop_assert_eq!(cpu.read_mem_u32(addr).unwrap(), value);
 
-             cpu.write_mem_u16(addr, 0xabcd).unwrap();
-             prop_assert_eq!(cpu.read_mem_u8(addr).unwrap(), 0xcd);
-             prop_assert_eq!(cpu.read_mem_u8(addr + 1).unwrap(), 0xab);
+            cpu.write_mem_u16(addr, 0xabcd).unwrap();
+            prop_assert_eq!(cpu.read_mem_u8(addr).unwrap(), 0xcd);
+            prop_assert_eq!(cpu.read_mem_u8(addr + 1).unwrap(), 0xab);
 
-             cpu.write_mem_u16(addr + 2, 0xdcba).unwrap();
-             prop_assert_eq!(cpu.read_mem_u8(addr + 2).unwrap(), 0xba);
-             prop_assert_eq!(cpu.read_mem_u8(addr + 3).unwrap(), 0xdc);
+            cpu.write_mem_u16(addr + 2, 0xdcba).unwrap();
+            prop_assert_eq!(cpu.read_mem_u8(addr + 2).unwrap(), 0xba);
+            prop_assert_eq!(cpu.read_mem_u8(addr + 3).unwrap(), 0xdc);
 
-             prop_assert_eq!(cpu.read_mem_u32(addr).unwrap(), 0xdcbaabcd);
+            prop_assert_eq!(cpu.read_mem_u32(addr).unwrap(), 0xdcbaabcd);
 
-             cpu.write_mem_u8(addr, 0xef).unwrap();
-             prop_assert_eq!(cpu.read_mem_u8(addr).unwrap(), 0xef);
+            cpu.write_mem_u8(addr, 0xef).unwrap();
+            prop_assert_eq!(cpu.read_mem_u8(addr).unwrap(), 0xef);
 
-             cpu.write_mem_u8(addr + 1, 0xab).unwrap();
+            cpu.write_mem_u8(addr + 1, 0xab).unwrap();
 
-             prop_assert_eq!(cpu.read_mem_u32(addr).unwrap(), 0xdcbaabef);
+            prop_assert_eq!(cpu.read_mem_u32(addr).unwrap(), 0xdcbaabef);
+        }
+
+        #[test]
+        fn test_memory_cross_boundary_u32(addr_v in 0x0u32..(u32::MAX / (4096 * 16)), offset in 0u32..4u32) {
+            let mut cpu = setup_cpu();
+            let value = 0x12345678u32;
+            let addr = addr_v * 4096 * 16 + offset;
+            cpu.write_mem_u32(addr, value).unwrap();
+            prop_assert_eq!(cpu.read_mem_u32(addr).unwrap(), value);
+            prop_assert_eq!(cpu.read_mem_u32(addr + 1).unwrap(), 0x00123456);
+            prop_assert_eq!(cpu.read_mem_u32(addr + 2).unwrap(), 0x00001234);
+            prop_assert_eq!(cpu.read_mem_u32(addr + 3).unwrap(), 0x00000012);
         }
 
         #[test]

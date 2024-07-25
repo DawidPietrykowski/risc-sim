@@ -70,7 +70,7 @@ pub const RV32I_SET_LS: [Instruction; 8] = [
 
             let read_value = cpu.read_mem_u32(moved_addr)?;
 
-            cpu.debug_print(|| format!("LW: {}", read_value));
+            cpu.debug_print(|| format!("LW: {:#x}", read_value));
 
             cpu.write_x_u32(instruction.rd.value(), read_value)?;
 
@@ -132,7 +132,7 @@ pub const RV32I_SET_LS: [Instruction; 8] = [
 
             cpu.debug_print(|| {
                 format!(
-                    "SW: {:#x} = {} (addr: {:#x} + {}) word: {:#x}",
+                    "SW: {:#x} = {:#x} (addr: {:#x} + {}) word: {:#x}",
                     moved_addr, read_value, rs1, extended_offset, word.0
                 )
             });
