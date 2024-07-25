@@ -14,30 +14,62 @@ use std::env;
 const MAX_CYCLES: u32 = 100000000;
 
 fn main() -> Result<()> {
-    // let mut memory: Memory = Memory::new();
+    if false {
+        let mut memory: Memory = Memory::new();
 
-    // let memory_addr = 0x4;
-    // let val = 0xFF00F000;
-    // memory.write_mem_u32(memory_addr, val);
-    // // memory.write_mem_u8(memory_addr + 0, 0x0F);
-    // // memory.write_mem_u8(memory_addr + 1, 0x0F);
-    // // memory.write_mem_u8(memory_addr + 2, 0x0F);
-    // // memory.write_mem_u8(memory_addr + 3, 0x0F);
-    // // memory.write_mem_u16(memory_addr + 3, 0xabcd);
+        let addr = 4096 - 3;
 
-    // let read_val = memory.read_mem_u32(memory_addr + 0)?;
-    // println!("Read value: {:#x}", read_val);
-    // // assert_eq!(read_val, val);
+        let value = 0x12345678u32;
+        // let value = 0xFF00F001;
+        memory.write_mem_u32(addr, value).unwrap();
 
-    // // memory.write_mem_u8(memory_addr + 4, 0xaa);
+        println!("{:#010X}", value);
+        println!("{:#010X}", memory.read_mem_u32(0).unwrap());
+        println!("{:#010X}", memory.read_mem_u32(4).unwrap());
 
-    // // let read_val = memory.read_mem_u32(memory_addr + 4)?;
-    // // println!("Read value: {:#x}", read_val);
+        assert_eq!(memory.read_mem_u32(addr).unwrap(), value);
 
-    // let read_val = memory.read_mem_u16(memory_addr + 1)?;
-    // println!("Read value u16: {:#x}", read_val);
-    // return Ok(());
+        assert_eq!(memory.read_mem_u8(addr).unwrap(), 0x78);
+        assert_eq!(memory.read_mem_u8(addr + 1).unwrap(), 0x56);
+        assert_eq!(memory.read_mem_u8(addr + 2).unwrap(), 0x34);
+        assert_eq!(memory.read_mem_u8(addr + 3).unwrap(), 0x12);
+        // assert_eq!(memory.read_mem_u8(addr).unwrap(), 0x01);
+        // assert_eq!(memory.read_mem_u8(addr + 1).unwrap(), 0xF0);
+        // assert_eq!(memory.read_mem_u8(addr + 2).unwrap(), 0x00);
+        // assert_eq!(memory.read_mem_u8(addr + 3).unwrap(), 0xFF);
 
+        // assert_eq!(memory.read_mem_u16(addr).unwrap(), 0xF001);
+        // assert_eq!(memory.read_mem_u16(addr + 2).unwrap(), 0xFF00);
+
+        assert_eq!(memory.read_mem_u16(addr).unwrap(), 0x5678);
+        assert_eq!(memory.read_mem_u16(addr + 1).unwrap(), 0x3456);
+        assert_eq!(memory.read_mem_u16(addr + 2).unwrap(), 0x1234);
+        assert_eq!(memory.read_mem_u16(addr + 3).unwrap(), 0x0012);
+
+        return Ok(());
+
+        let memory_addr = 0x0;
+        let val = 0xFF00F000;
+        memory.write_mem_u32(memory_addr, val);
+        // memory.write_mem_u8(memory_addr + 0, 0x0F);
+        // memory.write_mem_u8(memory_addr + 1, 0x0F);
+        // memory.write_mem_u8(memory_addr + 2, 0x0F);
+        // memory.write_mem_u8(memory_addr + 3, 0x0F);
+        // memory.write_mem_u16(memory_addr + 3, 0xabcd);
+
+        let read_val = memory.read_mem_u32(memory_addr + 0)?;
+        println!("Read value: {:#x}", read_val);
+        // assert_eq!(read_val, val);
+
+        // memory.write_mem_u8(memory_addr + 4, 0xaa);
+
+        // let read_val = memory.read_mem_u32(memory_addr + 4)?;
+        // println!("Read value: {:#x}", read_val);
+
+        let read_val = memory.read_mem_u16(memory_addr + 0)?;
+        println!("Read value u16: {:#x}", read_val);
+        return Ok(());
+    }
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
         return Err(anyhow::anyhow!("Usage: {} <path_to_file>", args[0]));

@@ -129,7 +129,7 @@ impl Cpu {
             self.memory
                 .read_mem_u32(self.read_pc_u32())
                 .context("No instruction at pc")?,
-                // .context(format!("No instruction at index {:#x}", self.read_pc_u32()))?,
+            // .context(format!("No instruction at index {:#x}", self.read_pc_u32()))?,
         ))
     }
 

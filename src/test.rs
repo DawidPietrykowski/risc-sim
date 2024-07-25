@@ -84,8 +84,26 @@ mod tests {
              prop_assert_eq!(cpu.read_mem_u8(addr + 2).unwrap(), 0x34);
              prop_assert_eq!(cpu.read_mem_u8(addr + 3).unwrap(), 0x12);
              prop_assert_eq!(cpu.read_mem_u16(addr).unwrap(), 0x5678);
+             prop_assert_eq!(cpu.read_mem_u16(addr + 1).unwrap(), 0x3456);
              prop_assert_eq!(cpu.read_mem_u16(addr + 2).unwrap(), 0x1234);
              prop_assert_eq!(cpu.read_mem_u32(addr).unwrap(), value);
+
+             cpu.write_mem_u16(addr, 0xabcd).unwrap();
+             prop_assert_eq!(cpu.read_mem_u8(addr).unwrap(), 0xcd);
+             prop_assert_eq!(cpu.read_mem_u8(addr + 1).unwrap(), 0xab);
+
+             cpu.write_mem_u16(addr + 2, 0xdcba).unwrap();
+             prop_assert_eq!(cpu.read_mem_u8(addr + 2).unwrap(), 0xba);
+             prop_assert_eq!(cpu.read_mem_u8(addr + 3).unwrap(), 0xdc);
+
+             prop_assert_eq!(cpu.read_mem_u32(addr).unwrap(), 0xdcbaabcd);
+
+             cpu.write_mem_u8(addr, 0xef).unwrap();
+             prop_assert_eq!(cpu.read_mem_u8(addr).unwrap(), 0xef);
+
+             cpu.write_mem_u8(addr + 1, 0xab).unwrap();
+
+             prop_assert_eq!(cpu.read_mem_u32(addr).unwrap(), 0xdcbaabef);
         }
 
         #[test]
