@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 use asm::assembler::decode_file;
-use isa::{cpu::Cpu, memory::Memory, types::ABIRegister};
+use isa::{cpu::Cpu, types::ABIRegister};
 
 mod asm;
 mod isa;

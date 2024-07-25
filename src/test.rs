@@ -14,6 +14,45 @@ mod tests {
         Cpu::new()
     }
 
+    const MAX_CYCLES: u32 = 1000000;
+
+    #[test]
+    fn test_example_c_programs() {
+        let test_programs = std::fs::read_dir("tests").unwrap().filter_map(|e| {
+            let e = e.unwrap();
+            let path = e.path();
+            if path.extension().is_none() {
+                Some(path)
+            } else {
+                None
+            }
+        });
+        for file_path in test_programs {
+            let program = decode_file(file_path.as_os_str().to_str().unwrap());
+            let mut cpu = setup_cpu();
+            cpu.load_program(program.memory, program.entry_point);
+            let mut count = 0;
+
+            loop {
+                count += 1;
+                if count > MAX_CYCLES {
+                    break Err(anyhow::anyhow!("Too many cycles"));
+                }
+                match cpu.run_cycle() {
+                    Ok(_) => continue,
+                    Err(e) => {
+                        break Ok(e);
+                    }
+                }
+            }
+            .unwrap();
+
+            let expected_data = std::fs::read_to_string(file_path.with_extension("res")).unwrap();
+            let cpu_stdout = cpu.read_and_clear_stdout_buffer();
+            assert_eq!(expected_data, cpu_stdout);
+        }
+    }
+
     // Calculates n-th fibbonacci number and stores it in x5
     const FIB_PROGRAM_BIN: &[u32] = &[
         0x00100093, 0x00100113, 0x00002183, // lw x3, x0 - load n from memory
