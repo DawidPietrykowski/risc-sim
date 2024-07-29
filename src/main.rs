@@ -25,7 +25,7 @@ fn main() -> Result<()> {
     let program = decode_file(file_path);
 
     let mut cpu = Cpu::new();
-    cpu.load_program(program.memory, program.entry_point);
+    cpu.load_program(program);
     // cpu.set_debug_enabled(true);
 
     let start_time = std::time::Instant::now();

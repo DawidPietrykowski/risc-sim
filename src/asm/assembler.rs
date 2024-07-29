@@ -148,6 +148,7 @@ pub struct ProgramFile {
     pub memory: VecMemory,
     pub program_memory_offset: u32,
     pub lines: Vec<ProgramLine>,
+    pub program_size: u32,
 }
 
 pub fn decode_file(path: &str) -> ProgramFile {
@@ -436,6 +437,7 @@ pub fn decode_file(path: &str) -> ProgramFile {
 
     let mut program: Vec<ProgramLine> = vec![];
     let mut text_section_addr = 0;
+    let mut text_section_size = 0;
     let mut memory: VecMemory = VecMemory::new();
 
     for i in 0..elf_header.section_header_count {
@@ -518,6 +520,7 @@ pub fn decode_file(path: &str) -> ProgramFile {
             println!("Section Size: {:#x}", section_size);
             println!("Section Address: {:#x}", section_addr);
             text_section_addr = section_addr;
+            text_section_size = section_size;
 
             let mut pc = 0;
             while pc < section_size {
@@ -542,6 +545,7 @@ pub fn decode_file(path: &str) -> ProgramFile {
     ProgramFile {
         entry_point: elf_header.entry_point as u32,
         program_memory_offset: text_section_addr as u32,
+        program_size: text_section_size as u32,
         lines: program,
         memory,
     }

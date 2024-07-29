@@ -5,6 +5,7 @@ mod tests {
     use crate::cpu::memory::memory_core::Memory;
     use anyhow::Result;
 
+    use asm::assembler::ProgramFile;
     use cpu::memory::vec_memory::VecMemory;
     use proptest::prelude::*;
     use std::result::Result::Ok;
@@ -31,7 +32,8 @@ mod tests {
         for file_path in test_programs {
             let program = decode_file(file_path.as_os_str().to_str().unwrap());
             let mut cpu = setup_cpu();
-            cpu.load_program(program.memory, program.entry_point);
+
+            cpu.load_program(program);
             let mut count = 0;
 
             loop {
@@ -199,7 +201,10 @@ mod tests {
             for (id, val) in FIB_PROGRAM_BIN.iter().enumerate() {
                 memory.write_mem_u32(entry_point + 4u32 * (id as u32), *val).unwrap();
             }
-            cpu.load_program(memory, entry_point);
+            // cpu.load_program(memory, entry_point, (FIB_PROGRAM_BIN.len() * 4) as u32);
+            cpu.load_program(
+                ProgramFile {entry_point, memory, program_memory_offset: entry_point, lines: vec![], program_size: (FIB_PROGRAM_BIN.len() * 4) as u32 }
+            );
 
             cpu.write_mem_u32(0, n).unwrap();
 

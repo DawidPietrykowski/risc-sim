@@ -1,10 +1,10 @@
 use std::fmt::Display;
 
-use crate::utils::binary_utils::*;
+use crate::{asm::assembler::ProgramFile, utils::binary_utils::*};
 
-use super::memory::{memory_core::Memory, vec_memory::VecMemory};
+use super::memory::{memory_core::Memory, program_cache::ProgramCache, vec_memory::VecMemory};
 use crate::types::{decode_program_line, ProgramLine, Word};
-use anyhow::{bail, Context, Ok, Result};
+use anyhow::{bail, Context, Result};
 
 pub struct Cpu {
     reg_x32: [u32; 32],
@@ -13,6 +13,7 @@ pub struct Cpu {
     skip_pc_increment: bool,
     program: Vec<ProgramLine>,
     pub memory: VecMemory,
+    program_cache: Option<ProgramCache>,
     pub stdout_buffer: Vec<u8>,
     program_memory_offset: u32,
     halted: bool,
@@ -52,6 +53,7 @@ impl Cpu {
             skip_pc_increment: false,
             program: vec![],
             memory: VecMemory::new(),
+            program_cache: None,
             stdout_buffer,
             program_memory_offset: 0x0,
             halted: false,
@@ -60,9 +62,16 @@ impl Cpu {
         }
     }
 
-    pub fn load_program(&mut self, memory: VecMemory, entry_point: u32) {
-        self.memory = memory;
-        self.reg_pc = entry_point;
+    pub fn load_program(&mut self, program_file: ProgramFile) {
+        self.reg_pc = program_file.entry_point;
+        if let Ok(cache) = ProgramCache::new(
+            program_file.program_memory_offset,
+            program_file.program_memory_offset + program_file.program_size,
+            &program_file.memory,
+        ) {
+            self.program_cache = Some(cache);
+        }
+        self.memory = program_file.memory;
         self.write_x_u32(2, INITIAL_STACK_POINTER).unwrap();
         self.program_brk = INITIAL_PROGRAM_BREAK;
     }
@@ -84,12 +93,13 @@ impl Cpu {
         self.reg_pc += 4;
 
         // Execute
-        self.execute_program_line(instruction)?;
+        self.execute_program_line(&instruction)?;
 
         Ok(())
     }
 
-    pub fn execute_program_line(&mut self, program_line: ProgramLine) -> Result<()> {
+    #[inline(always)]
+    pub fn execute_program_line(&mut self, program_line: &ProgramLine) -> Result<()> {
         (program_line.instruction.operation)(self, &program_line.word)
     }
 
@@ -121,7 +131,13 @@ impl Cpu {
         }
     }
 
+    #[inline(always)]
     fn fetch_instruction(&self) -> Result<ProgramLine> {
+        if let Some(program_cache) = &self.program_cache {
+            if let Some(program_line) = program_cache.try_get_line(self.reg_pc) {
+                return Ok(*program_line);
+            }
+        }
         decode_program_line(Word(
             self.memory
                 .read_mem_u32(self.read_pc_u32())
