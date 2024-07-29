@@ -1,18 +1,17 @@
-use std::{fmt::Debug, fmt::Formatter};
-
 use anyhow::{anyhow, Result};
+use std::{fmt::Debug, fmt::Formatter};
 
 use rustc_hash::{FxBuildHasher, FxHashMap};
 
+use super::memory_core::{Memory, MEMORY_SIZE};
+
 const PAGE_SIZE: u32 = 4096 * 16;
 
-const MEMORY_SIZE: u32 = u32::MAX;
-
-pub struct Memory {
+pub struct FxHashMemory {
     pages: FxHashMap<u32, Page>,
 }
 
-impl Debug for Memory {
+impl Debug for FxHashMemory {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "Memory {{ pages: {} }}", self.pages.len())
     }
@@ -32,20 +31,22 @@ impl Page {
     }
 }
 
-impl Memory {
+impl FxHashMemory {
     pub fn new() -> Self {
-        Memory {
-            pages: FxHashMap::with_capacity_and_hasher(1024, FxBuildHasher::default()),
+        FxHashMemory {
+            pages: FxHashMap::with_capacity_and_hasher(1024, FxBuildHasher),
         }
     }
+}
 
-    pub fn read_mem_u8(&self, addr: u32) -> Result<u8> {
+impl Memory for FxHashMemory {
+    fn read_mem_u8(&self, addr: u32) -> Result<u8> {
         let offset = addr & 0b11;
         let full_value = self.read_mem_u32(addr & !0b11)?;
         Ok(((full_value >> (offset * 8)) & (0xFF)) as u8)
     }
 
-    pub fn read_mem_u32(&self, addr: u32) -> Result<u32> {
+    fn read_mem_u32(&self, addr: u32) -> Result<u32> {
         let page_id = addr / PAGE_SIZE;
         if let Some(page) = self.pages.get(&page_id) {
             if 0 == addr & 3 {
@@ -85,14 +86,14 @@ impl Memory {
         }
     }
 
-    pub fn read_mem_u16(&self, addr: u32) -> Result<u16> {
+    fn read_mem_u16(&self, addr: u32) -> Result<u16> {
         let offset_bits = (addr & 0b1) * 8;
         let full_value = self.read_mem_u32(addr & !(0b1))?;
         let u16_slice = (full_value >> (offset_bits)) & 0xffff;
         Ok(u16_slice as u16)
     }
 
-    pub fn write_mem_u8(&mut self, addr: u32, value: u8) -> Result<()> {
+    fn write_mem_u8(&mut self, addr: u32, value: u8) -> Result<()> {
         let offset = addr & 0b11;
         let full_value = self.read_mem_u32(addr & !(0b11))?;
         let masked_full_value = full_value & !(0xff << (8 * (offset)));
@@ -100,7 +101,7 @@ impl Memory {
         self.write_mem_u32(addr & !(0b11), filled_full_value)
     }
 
-    pub fn write_mem_u16(&mut self, addr: u32, value: u16) -> Result<()> {
+    fn write_mem_u16(&mut self, addr: u32, value: u16) -> Result<()> {
         let offset_bits = (addr & 0b1) * 8;
         let full_value = self.read_mem_u32(addr & !(0b1))?;
         let cleared_value = !(0xFFFF << (offset_bits)) & full_value;
@@ -108,7 +109,7 @@ impl Memory {
         self.write_mem_u32(addr & !(0b1), filled_value)
     }
 
-    pub fn write_mem_u32(&mut self, addr: u32, value: u32) -> Result<()> {
+    fn write_mem_u32(&mut self, addr: u32, value: u32) -> Result<()> {
         let reordered_value = value.swap_bytes();
 
         let page_id = addr / PAGE_SIZE;

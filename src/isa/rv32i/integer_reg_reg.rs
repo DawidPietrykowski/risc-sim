@@ -1,4 +1,4 @@
-use crate::isa::types::*;
+use crate::types::*;
 
 use anyhow::Ok;
 

@@ -1,10 +1,10 @@
 use std::{
     mem,
     time::{SystemTime, UNIX_EPOCH},
-    u32,
 };
 
-use crate::isa::{self, types::*};
+use crate::{isa, types::*};
+
 use anyhow::Context;
 use nix::time::{clock_gettime, ClockId};
 

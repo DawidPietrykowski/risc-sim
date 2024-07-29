@@ -1,5 +1,6 @@
-use crate::isa::memory::Memory;
-use crate::isa::types::{decode_program_line, ProgramLine, Word};
+use crate::cpu::memory::hashmap_memory::FxHashMemory;
+use crate::cpu::memory::memory_core::Memory;
+use crate::types::{decode_program_line, ProgramLine, Word};
 use anyhow::Result;
 use std::fmt::{Display, Formatter};
 use std::{fmt, fs};
@@ -144,7 +145,7 @@ impl Display for ProgramHeader {
 
 pub struct ProgramFile {
     pub entry_point: u32,
-    pub memory: Memory,
+    pub memory: FxHashMemory,
     pub program_memory_offset: u32,
     pub lines: Vec<ProgramLine>,
 }
@@ -435,7 +436,7 @@ pub fn decode_file(path: &str) -> ProgramFile {
 
     let mut program: Vec<ProgramLine> = vec![];
     let mut text_section_addr = 0;
-    let mut memory: Memory = Memory::new();
+    let mut memory: FxHashMemory = FxHashMemory::new();
 
     for i in 0..elf_header.section_header_count {
         let offset = (elf_header.section_header_table_offset

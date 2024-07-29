@@ -2,11 +2,14 @@
 
 use anyhow::Result;
 use asm::assembler::decode_file;
-use isa::{cpu::Cpu, types::ABIRegister};
+use cpu::cpu_core::Cpu;
+use types::ABIRegister;
 
 mod asm;
+mod cpu;
 mod isa;
 mod test;
+mod types;
 mod utils;
 
 use std::env;

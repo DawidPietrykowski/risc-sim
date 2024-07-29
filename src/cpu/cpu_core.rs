@@ -2,12 +2,9 @@ use std::fmt::Display;
 
 use crate::utils::binary_utils::*;
 
+use super::memory::{hashmap_memory::FxHashMemory, memory_core::Memory};
+use crate::types::{decode_program_line, ProgramLine, Word};
 use anyhow::{bail, Context, Ok, Result};
-
-use super::{
-    memory::Memory,
-    types::{decode_program_line, ProgramLine, Word},
-};
 
 pub struct Cpu {
     reg_x32: [u32; 32],
@@ -15,7 +12,7 @@ pub struct Cpu {
     pub current_instruction_pc: u32,
     skip_pc_increment: bool,
     program: Vec<ProgramLine>,
-    memory: Memory,
+    pub memory: FxHashMemory,
     pub stdout_buffer: Vec<u8>,
     program_memory_offset: u32,
     halted: bool,
@@ -54,7 +51,7 @@ impl Cpu {
             current_instruction_pc: 0x0,
             skip_pc_increment: false,
             program: vec![],
-            memory: Memory::new(),
+            memory: FxHashMemory::new(),
             stdout_buffer,
             program_memory_offset: 0x0,
             halted: false,
@@ -63,7 +60,7 @@ impl Cpu {
         }
     }
 
-    pub fn load_program(&mut self, memory: Memory, entry_point: u32) {
+    pub fn load_program(&mut self, memory: FxHashMemory, entry_point: u32) {
         self.memory = memory;
         self.reg_pc = entry_point;
         self.write_x_u32(2, INITIAL_STACK_POINTER).unwrap();

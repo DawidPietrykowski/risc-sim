@@ -1,12 +1,14 @@
 use std::fmt;
 
-use super::{
-    cpu::Cpu,
-    rv32i::{
-        control_transfer::RV32I_SET_UJ, environment::RV32I_SET_E, immediate::RV32I_SET_I,
-        integer_reg_reg::RV32I_SET_R, load_store::RV32I_SET_LS,
+use crate::{
+    cpu::cpu_core::Cpu,
+    isa::{
+        rv32i::{
+            control_transfer::RV32I_SET_UJ, environment::RV32I_SET_E, immediate::RV32I_SET_I,
+            integer_reg_reg::RV32I_SET_R, load_store::RV32I_SET_LS,
+        },
+        rv32m::muldiv_reg_reg::RV32M_SET_R,
     },
-    rv32m::muldiv_reg_reg::RV32M_SET_R,
 };
 use anyhow::{anyhow, Context, Ok, Result};
 

@@ -1,5 +1,5 @@
 use crate::{
-    isa::types::*,
+    types::*,
     utils::binary_utils::{u16_to_i16, u8_to_i8},
 };
 
