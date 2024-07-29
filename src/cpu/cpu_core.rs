@@ -131,19 +131,22 @@ impl Cpu {
         }
     }
 
-    #[inline(always)]
     fn fetch_instruction(&self) -> Result<ProgramLine> {
-        if let Some(program_cache) = &self.program_cache {
-            if let Some(program_line) = program_cache.try_get_line(self.reg_pc) {
-                return Ok(*program_line);
-            }
+        let cache_line = self
+            .program_cache
+            .as_ref()
+            .unwrap()
+            .try_get_line(self.reg_pc);
+
+        if cache_line.is_some() {
+            return Ok(cache_line.unwrap());
         }
-        decode_program_line(Word(
+
+        return decode_program_line(Word(
             self.memory
                 .read_mem_u32(self.read_pc_u32())
                 .context("No instruction at pc")?,
-            // .context(format!("No instruction at index {:#x}", self.read_pc_u32()))?,
-        ))
+        ));
     }
 
     pub fn read_mem_u32(&mut self, addr: u32) -> Result<u32> {

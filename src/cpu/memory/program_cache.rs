@@ -23,10 +23,18 @@ impl ProgramCache {
         })
     }
 
-    pub fn try_get_line(&self, addr: u32) -> Option<&ProgramLine> {
+    pub fn try_get_line(&self, addr: u32) -> Option<ProgramLine> {
         if addr < self.start_addr || addr >= self.end_addr {
             return None;
         }
-        Some(&self.data[((addr - self.start_addr) / 4) as usize])
+        Some(self.data[((addr - self.start_addr) / 4) as usize])
+    }
+
+    pub fn get_line_unchecked(&self, addr: u32) -> ProgramLine {
+        unsafe {
+            *self
+                .data
+                .get_unchecked(((addr - self.start_addr) / 4) as usize)
+        }
     }
 }

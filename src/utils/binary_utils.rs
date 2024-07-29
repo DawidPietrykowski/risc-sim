@@ -23,18 +23,9 @@ pub fn i32_to_u32(value: i32) -> u32 {
 }
 
 pub fn sign_extend_12bit_to_16bit(value: u16) -> i16 {
-    let positive: bool = (value & (0b1 << 11)) == 0;
-    match positive {
-        true => u16_to_i16(value),
-        false => u16_to_i16(value | (0b1111 << 12)),
-    }
+    (((value << 4) as i16) >> 4) as i16
 }
 
 pub fn sign_extend_12bit_to_32bit(value: u16) -> i32 {
-    let positive: bool = (value & (0b1 << 11)) == 0;
-    let padding: u32 = match positive {
-        true => 0x0,
-        false => 0xFFFFF000,
-    };
-    u32_to_i32(padding | value as u32)
+    (((value << 4) as i16) >> 4) as i32
 }
