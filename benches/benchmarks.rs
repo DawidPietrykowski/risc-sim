@@ -1,5 +1,3 @@
-use std::u32;
-
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use risc_sim::{
     asm::assembler::ProgramFile,
