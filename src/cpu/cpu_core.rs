@@ -10,8 +10,6 @@ pub struct Cpu {
     reg_x32: [u32; 32],
     reg_pc: u32,
     pub current_instruction_pc: u32,
-    skip_pc_increment: bool,
-    program: Vec<ProgramLine>,
     pub memory: VecMemory,
     program_cache: Option<ProgramCache>,
     pub stdout_buffer: Vec<u8>,
@@ -43,6 +41,12 @@ const INITIAL_STACK_POINTER: u32 = 0xbfffff00;
 const INITIAL_PROGRAM_BREAK: u32 = 0x00023000;
 const STDOUT_BUFFER_SIZE: usize = 1024 * 32;
 
+impl Default for Cpu {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Cpu {
     pub fn new() -> Cpu {
         let stdout_buffer = Vec::<u8>::with_capacity(STDOUT_BUFFER_SIZE);
@@ -50,8 +54,6 @@ impl Cpu {
             reg_x32: [0x0; 32],
             reg_pc: 0x0,
             current_instruction_pc: 0x0,
-            skip_pc_increment: false,
-            program: vec![],
             memory: VecMemory::new(),
             program_cache: None,
             stdout_buffer,
@@ -138,15 +140,15 @@ impl Cpu {
             .unwrap()
             .try_get_line(self.reg_pc);
 
-        if cache_line.is_some() {
-            return Ok(cache_line.unwrap());
+        if let Some(cache_line) = cache_line {
+            return Ok(cache_line);
         }
 
-        return decode_program_line(Word(
+        decode_program_line(Word(
             self.memory
                 .read_mem_u32(self.read_pc_u32())
                 .context("No instruction at pc")?,
-        ));
+        ))
     }
 
     pub fn read_mem_u32(&mut self, addr: u32) -> Result<u32> {

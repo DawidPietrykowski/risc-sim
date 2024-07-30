@@ -39,6 +39,12 @@ impl FxHashMemory {
     }
 }
 
+impl Default for FxHashMemory {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Memory for FxHashMemory {
     fn read_mem_u8(&self, addr: u32) -> Result<u8> {
         let offset = addr & 0b11;
@@ -60,7 +66,7 @@ impl Memory for FxHashMemory {
                 let addr_upper = addr_lower + 4;
 
                 let val_upper;
-                if addr_upper >= (page.position + PAGE_SIZE) {
+                if (addr_upper - page.position) >= PAGE_SIZE {
                     let upper_page_id = page_id + 1;
                     let upper_page = self // TODO: dont allocate new if not found
                         .pages
@@ -131,7 +137,7 @@ impl Memory for FxHashMemory {
             page.data[(addr_lower - page.position) as usize / 4] &= !(u32::MAX >> (8 * offset));
             page.data[(addr_lower - page.position) as usize / 4] |= reordered_value >> (8 * offset);
 
-            if addr_upper >= (page.position + PAGE_SIZE) {
+            if (addr_upper - page.position) >= PAGE_SIZE {
                 let upper_page_id = page_id + 1;
                 let upper_page = self
                     .pages

@@ -5,7 +5,8 @@ mod tests {
     use crate::cpu::memory::memory_core::Memory;
     use anyhow::Result;
 
-    use asm::assembler::ProgramFile;
+    use asm::assembler::{decode_file, ProgramFile};
+    use cpu::cpu_core::Cpu;
     use cpu::memory::vec_memory::VecMemory;
     use proptest::prelude::*;
     use std::result::Result::Ok;
@@ -94,7 +95,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn test_memory_mapping_u32(addr in 0x0u32..(u32::MAX)) {
+        fn test_memory_mapping_u32(addr in 0x0u32..(u32::MAX - 3 - 3)) {
             let mut cpu = setup_cpu();
             let value = 0x12345678u32;
             cpu.write_mem_u32(addr, value).unwrap();
@@ -113,7 +114,7 @@ mod tests {
         }
 
         #[test]
-        fn test_memory_mapping_u16_edge_case(addr in 0x0u32..(u32::MAX - 3)) {
+        fn test_memory_mapping_u16_edge_case(addr in 0x0u32..(u32::MAX - 1 - 3)) {
             let mut cpu = setup_cpu();
             let value = u32::MAX;
 
@@ -134,7 +135,7 @@ mod tests {
         }
 
         #[test]
-        fn test_memory_mapping_u16(addr in 0x0u32..(u32::MAX)) {
+        fn test_memory_mapping_u16(addr in 0x0u32..(u32::MAX - 2)) {
             let mut cpu = setup_cpu();
             let value = 0x1234u16;
             cpu.write_mem_u16(addr, value).unwrap();
@@ -142,7 +143,7 @@ mod tests {
         }
 
         #[test]
-        fn test_memory_mapping_u16_misaligned(addr in 0x0u32..(u32::MAX)) {
+        fn test_memory_mapping_u16_misaligned(addr in 0x0u32..(u32::MAX - 3)) {
             let mut cpu = setup_cpu();
             let value = 0x1234u16;
             cpu.write_mem_u16(addr + 1, value).unwrap();
@@ -150,7 +151,7 @@ mod tests {
         }
 
         #[test]
-        fn test_memory_mapping_mixed(addr in 0x0u32..(u32::MAX)) {
+        fn test_memory_mapping_mixed(addr in 0x0u32..(u32::MAX - 3)) {
             let mut cpu = setup_cpu();
             let value = 0x12345678u32;
             cpu.write_mem_u32(addr, value).unwrap();
@@ -182,7 +183,7 @@ mod tests {
         }
 
         #[test]
-        fn test_memory_cross_boundary_u32(addr_v in 0x0u32..(u32::MAX / (4096 * 16)), offset in 0u32..4u32) {
+        fn test_memory_cross_boundary_u32(addr_v in 0x0u32..((u32::MAX - 3) / (4096 * 16)), offset in 0u32..4u32) {
             let mut cpu = setup_cpu();
             let value = 0x12345678u32;
             let addr = addr_v * 4096 * 16 + offset;

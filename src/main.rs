@@ -1,16 +1,9 @@
 #![allow(dead_code)]
 
 use anyhow::Result;
-use asm::assembler::decode_file;
-use cpu::cpu_core::Cpu;
-use types::ABIRegister;
-
-mod asm;
-mod cpu;
-mod isa;
-mod test;
-mod types;
-mod utils;
+use risc_sim::asm::assembler::decode_file;
+use risc_sim::cpu::cpu_core::Cpu;
+use risc_sim::types::ABIRegister;
 
 use std::env;
 

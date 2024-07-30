@@ -305,16 +305,12 @@ pub const FUNC12_MASK: u32 = (U12_MASK as u32) << 20;
 pub const FUNC12_POS: u32 = 20;
 
 const U7_MASK: u8 = 0b1111111;
-const U7_SHIFT: u8 = 7;
 
 const U5_MASK: u8 = 0b11111;
-const U5_SHIFT: u8 = 5;
 
 const U3_MASK: u8 = 0b111;
-const U3_SHIFT: u8 = 3;
 
 const U12_MASK: u16 = 0b111111111111;
-const U12_SHIFT: u8 = 12;
 
 pub const FUNC3_ORI: u8 = 0b110;
 pub const FUNC3_XORI: u8 = 0b100;

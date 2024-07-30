@@ -23,7 +23,7 @@ pub fn i32_to_u32(value: i32) -> u32 {
 }
 
 pub fn sign_extend_12bit_to_16bit(value: u16) -> i16 {
-    (((value << 4) as i16) >> 4) as i16
+    ((value << 4) as i16) >> 4
 }
 
 pub fn sign_extend_12bit_to_32bit(value: u16) -> i32 {

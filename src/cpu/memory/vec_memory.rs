@@ -37,6 +37,13 @@ impl VecMemory {
     }
 }
 
+impl Default for VecMemory {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[allow(dead_code)]
 impl VecMemory {
     fn get_page_id(&self, addr: u32) -> u32 {
         addr / PAGE_SIZE
@@ -86,7 +93,7 @@ impl Memory for VecMemory {
                 let addr_upper = addr_lower + 4;
 
                 let val_upper;
-                if addr_upper >= (page.position + PAGE_SIZE) {
+                if (addr_upper - page.position) >= PAGE_SIZE {
                     let upper_page_id = page_id + 1;
                     let upper_page = self.get_page(upper_page_id);
 
@@ -152,7 +159,7 @@ impl Memory for VecMemory {
             page.data[(addr_lower - page.position) as usize / 4] &= !(u32::MAX >> (8 * offset));
             page.data[(addr_lower - page.position) as usize / 4] |= reordered_value >> (8 * offset);
 
-            if addr_upper >= (page.position + PAGE_SIZE) {
+            if (addr_upper - page.position) >= PAGE_SIZE {
                 let upper_page_id = page_id + 1;
                 let upper_page = self.get_page_or_create(upper_page_id);
 

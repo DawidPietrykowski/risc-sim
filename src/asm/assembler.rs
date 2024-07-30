@@ -5,9 +5,6 @@ use anyhow::Result;
 use std::fmt::{Display, Formatter};
 use std::{fmt, fs};
 
-#[allow(clippy::upper_case_acronyms)]
-struct ELF {}
-
 #[derive(Debug, Clone)]
 enum WordSize {
     W32,
