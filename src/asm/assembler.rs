@@ -2,6 +2,7 @@ use crate::cpu::memory::memory_core::Memory;
 use crate::cpu::memory::vec_memory::VecMemory;
 use crate::types::{decode_program_line, ProgramLine, Word};
 use anyhow::Result;
+use bitflags::bitflags;
 use std::fmt::{Display, Formatter};
 use std::{fmt, fs};
 
@@ -95,6 +96,104 @@ impl Display for ELFHeader {
             "  Section Header String Table Index: {}",
             self.section_header_string_table_index
         )
+    }
+}
+
+#[derive(Debug)]
+#[allow(non_camel_case_types)]
+enum SectionType {
+    SHT_NULL,
+    SHT_PROGBITS,
+    SHT_SYMTAB,
+    SHT_STRTAB,
+    SHT_RELA,
+    SHT_HASH,
+    SHT_DYNAMIC,
+    SHT_NOTE,
+    SHT_NOBITS,
+    SHT_REL,
+    SHT_SHLIB,
+    SHT_DYNSYM,
+    SHT_INIT_ARRAY,
+    SHT_FINI_ARRAY,
+    SHT_PREINIT_ARRAY,
+    SHT_GROUP,
+    SHT_SYMTAB_SHNDX,
+    SHT_NUM,
+    SHT_LOOS,
+}
+
+bitflags! {
+    struct SectionFlags: u64 {
+        const SHF_WRITE            = 0x1;
+        const SHF_ALLOC            = 0x2;
+        const SHF_EXECINSTR        = 0x4;
+        const SHF_MERGE            = 0x10;
+        const SHF_STRINGS          = 0x20;
+        const SHF_INFO_LINK        = 0x40;
+        const SHF_LINK_ORDER       = 0x80;
+        const SHF_OS_NONCONFORMING = 0x100;
+        const SHF_GROUP            = 0x200;
+        const SHF_TLS              = 0x400;
+        const SHF_MASKOS           = 0x0ff00000;
+        const SHF_MASKPROC         = 0xf0000000;
+        const SHF_ORDERED          = 0x40000000;
+        const SHF_EXCLUDE          = 0x80000000;
+    }
+}
+
+impl fmt::Display for SectionFlags {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut flags = Vec::new();
+
+        if self.contains(SectionFlags::SHF_WRITE) {
+            flags.push("WRITE");
+        }
+        if self.contains(SectionFlags::SHF_ALLOC) {
+            flags.push("ALLOC");
+        }
+        if self.contains(SectionFlags::SHF_EXECINSTR) {
+            flags.push("EXECINSTR");
+        }
+        if self.contains(SectionFlags::SHF_MERGE) {
+            flags.push("MERGE");
+        }
+        if self.contains(SectionFlags::SHF_STRINGS) {
+            flags.push("STRINGS");
+        }
+        if self.contains(SectionFlags::SHF_INFO_LINK) {
+            flags.push("INFO_LINK");
+        }
+        if self.contains(SectionFlags::SHF_LINK_ORDER) {
+            flags.push("LINK_ORDER");
+        }
+        if self.contains(SectionFlags::SHF_OS_NONCONFORMING) {
+            flags.push("OS_NONCONFORMING");
+        }
+        if self.contains(SectionFlags::SHF_GROUP) {
+            flags.push("GROUP");
+        }
+        if self.contains(SectionFlags::SHF_TLS) {
+            flags.push("TLS");
+        }
+        if self.contains(SectionFlags::SHF_MASKOS) {
+            flags.push("MASKOS");
+        }
+        if self.contains(SectionFlags::SHF_MASKPROC) {
+            flags.push("MASKPROC");
+        }
+        if self.contains(SectionFlags::SHF_ORDERED) {
+            flags.push("ORDERED");
+        }
+        if self.contains(SectionFlags::SHF_EXCLUDE) {
+            flags.push("EXCLUDE");
+        }
+
+        if flags.is_empty() {
+            write!(f, "NONE")
+        } else {
+            write!(f, "{}", flags.join(" | "))
+        }
     }
 }
 
@@ -456,13 +555,48 @@ pub fn decode_file(path: &str) -> ProgramFile {
         // Extract the section header name
         let section_header_name = std::str::from_utf8(&file[string_start..string_end]).unwrap();
 
-        // println!(
-        //     "Section Header table offset: {:#x}",
-        //     elf_header.section_header_table_offset
-        // );
-        // println!("Section Header Name: {}", section_header_name);
-        // println!("Section Header Name Offset: {:#x}", string_start);
-        // println!("Section Header Offset {:#x}\n", offset);
+        let section_type_raw = u32::from_le_bytes(
+            file[(offset + 0x4)..(offset + 0x4 + 0x4)]
+                .try_into()
+                .unwrap(),
+        );
+
+        let section_type = match section_type_raw {
+            0 => SectionType::SHT_NULL,
+            1 => SectionType::SHT_PROGBITS,
+            2 => SectionType::SHT_SYMTAB,
+            3 => SectionType::SHT_STRTAB,
+            4 => SectionType::SHT_RELA,
+            5 => SectionType::SHT_HASH,
+            6 => SectionType::SHT_DYNAMIC,
+            7 => SectionType::SHT_NOTE,
+            8 => SectionType::SHT_NOBITS,
+            9 => SectionType::SHT_REL,
+            10 => SectionType::SHT_SHLIB,
+            11 => SectionType::SHT_DYNSYM,
+            14 => SectionType::SHT_INIT_ARRAY,
+            15 => SectionType::SHT_FINI_ARRAY,
+            16 => SectionType::SHT_PREINIT_ARRAY,
+            17 => SectionType::SHT_GROUP,
+            18 => SectionType::SHT_SYMTAB_SHNDX,
+            0x6ffffffa => SectionType::SHT_LOOS,
+            _ => SectionType::SHT_NUM,
+        };
+
+        let section_flags_raw = match word_size {
+            WordSize::W32 => u32::from_le_bytes(
+                file[(offset + 0x08)..(offset + 0x08 + 0x4)]
+                    .try_into()
+                    .unwrap(),
+            ) as u64,
+            WordSize::W64 => u64::from_le_bytes(
+                file[(offset + 0x08)..(offset + 0x08 + 0x8)]
+                    .try_into()
+                    .unwrap(),
+            ),
+        };
+
+        let section_flags = SectionFlags::from_bits_truncate(section_flags_raw);
 
         let section_addr = match word_size {
             WordSize::W32 => u32::from_le_bytes(
@@ -503,12 +637,27 @@ pub fn decode_file(path: &str) -> ProgramFile {
             ),
         } as usize;
 
+        println!(
+            "\nSection Header table offset: {:#x}",
+            elf_header.section_header_table_offset
+        );
+        println!("Section Header Name: {}", section_header_name);
+        println!("Section Header Name Offset: {:#x}", string_start);
+        println!("Section Header Offset {:#x}", offset);
+        println!("Section Address: {:#x}", section_addr);
+        println!("Section Offset: {:#x}", section_offset);
+        println!("Section Size: {:#x}", section_size);
+        println!("Section flags: {}", section_flags);
+        println!("Section type: {:?}", section_type);
+
         let section = &file[section_offset..(section_offset + section_size)];
 
-        for (i, byte) in section.iter().take(section_size).enumerate() {
-            memory
-                .write_mem_u8((section_addr + i) as u32, *byte)
-                .unwrap();
+        if section_flags.contains(SectionFlags::SHF_ALLOC) {
+            for (i, byte) in section.iter().take(section_size).enumerate() {
+                memory
+                    .write_mem_u8((section_addr + i) as u32, *byte)
+                    .unwrap();
+            }
         }
 
         if section_header_name == ".text" {
@@ -522,13 +671,15 @@ pub fn decode_file(path: &str) -> ProgramFile {
             let mut pc = 0;
             while pc < section_size {
                 let instruction = u32::from_le_bytes(section[pc..(pc + 4)].try_into().unwrap());
-                // print!("{:#010x}: {:#034b} ", pc + section_addr, instruction);
+                // println!("{:#010x}: {:#x} ", pc + section_offset, instruction);
                 pc += 4;
 
                 let decoded_instruction = decode_program_line(Word(instruction));
                 match decoded_instruction {
                     Ok(decoded_instruction) => {
-                        // println!("{}", decoded_instruction);
+                        // if pc < 100 {
+                        // println!("{:#010x}: {:#x} ", pc + section_addr, instruction);
+                        // println!("{}", decoded_instruction);}
                         program.push(decoded_instruction);
                     }
                     Err(e) => {

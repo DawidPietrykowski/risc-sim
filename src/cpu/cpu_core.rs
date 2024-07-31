@@ -134,14 +134,10 @@ impl Cpu {
     }
 
     fn fetch_instruction(&self) -> Result<ProgramLine> {
-        let cache_line = self
-            .program_cache
-            .as_ref()
-            .unwrap()
-            .try_get_line(self.reg_pc);
-
-        if let Some(cache_line) = cache_line {
-            return Ok(cache_line);
+        if let Some(cache) = &self.program_cache {
+            if let Some(cache_line) = cache.try_get_line(self.reg_pc) {
+                return Ok(cache_line);
+            }
         }
 
         decode_program_line(Word(

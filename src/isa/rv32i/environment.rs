@@ -149,7 +149,7 @@ pub const RV32I_SET_E: [Instruction; 2] = [
                     cpu.debug_print(|| format!("clock_gettime: {} {}", seconds, nanos));
                 }
                 code => {
-                    todo!("Unsupported syscall: {}", code)
+                    println!("Unsupported syscall: {}", code)
                 }
             }
             Ok(())
