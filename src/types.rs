@@ -259,7 +259,7 @@ pub fn decode_program_line(word: Word) -> Result<ProgramLine> {
     let instruction = *(ALL_INSTRUCTIONS
         .iter()
         .find(|ins| (word.0 & ins.mask) == ins.bits)
-        // .context(format!("Instruction {:#x} not found", word.0))?;
+        // .context(format!("Instruction {:#x} not found", word.0))?);
         .context("Instruction not found")?);
     Ok(ProgramLine { instruction, word })
 }

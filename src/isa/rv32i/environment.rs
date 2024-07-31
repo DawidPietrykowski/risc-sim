@@ -1,11 +1,10 @@
 use std::{
-    mem,
-    time::{SystemTime, UNIX_EPOCH},
+    fs::Metadata, mem, os::unix::fs::MetadataExt, time::{SystemTime, UNIX_EPOCH}
 };
 
-use crate::{isa, types::*};
+use crate::{isa, system::kernel::{Kernel, SeekType}, types::*};
 
-use anyhow::Context;
+use anyhow::{bail, Context, Result};
 use nix::time::{clock_gettime, ClockId};
 
 #[repr(C)]
@@ -23,6 +22,26 @@ pub struct Stat {
     pub atime: u64,
     pub mtime: u64,
     pub ctime: u64,
+}
+
+impl From<Metadata> for Stat {
+    fn from(metadata: Metadata) -> Self {
+        Stat {
+            dev: metadata.dev(),
+            ino: metadata.ino(),
+            mode: metadata.mode() as u32,
+            nlink: metadata.nlink() as u32,
+            uid: metadata.uid(),
+            gid: metadata.gid(),
+            rdev: metadata.rdev(),
+            size: metadata.len() as i64,
+            blksize: metadata.blksize() as i64,
+            blocks: (metadata.len() as i64 + 511) / 512,
+            atime: metadata.atime() as u64,
+            mtime: metadata.mtime() as u64,
+            ctime: metadata.ctime() as u64,
+        }
+    }
 }
 
 impl Stat {
@@ -73,7 +92,73 @@ pub const RV32I_SET_E: [Instruction; 2] = [
                     // Close syscall
                     let fd = cpu.read_x_u32(ABIRegister::A(0).to_x_reg_id() as u8)?;
                     cpu.debug_print(|| format!("close: {}", fd));
+
                     cpu.write_x_u32(ABIRegister::A(0).to_x_reg_id() as u8, 0)?;
+
+                    if fd == 0 {
+                        bail!("Unsupported file descriptor: {}", fd)
+                    }
+
+                    match cpu.kernel.close_fd(fd) {
+                        Ok(_) => {
+                            cpu.write_x_u32(ABIRegister::A(0).to_x_reg_id() as u8, 0)?;
+                        }
+                        Err(_e) => {
+                            cpu.write_x_i32(ABIRegister::A(0).to_x_reg_id() as u8, -1)?;
+                            cpu.write_x_u32(ABIRegister::A(10).to_x_reg_id() as u8, 1)?;
+                        }
+                    }
+                }
+                62 => {
+                    // Seek syscall
+                    let fd = cpu.read_x_u32(ABIRegister::A(0).to_x_reg_id() as u8)?;
+                    let offset = cpu.read_x_u32(ABIRegister::A(1).to_x_reg_id() as u8)?;
+                    let seek_type = SeekType::from(cpu.read_x_u32(ABIRegister::A(2).to_x_reg_id() as u8)?);
+
+                    cpu.debug_print(|| format!("seek: {} {} {:?}", fd, offset, seek_type));
+
+                    if fd == 0 {
+                        bail!("Unsupported file descriptor: {}", fd)
+                    }
+
+                    let res: Result<u64> = cpu.kernel.seek_fd(fd, offset as usize, seek_type);
+
+                    match res {
+                        Ok(len) => {
+                            cpu.write_x_u32(ABIRegister::A(0).to_x_reg_id() as u8, len as u32)?;
+                        }
+                        Err(_e) => {
+                            cpu.write_x_i32(ABIRegister::A(0).to_x_reg_id() as u8, -1)?;
+                            cpu.write_x_u32(ABIRegister::A(10).to_x_reg_id() as u8, 1)?;
+                        }
+                    }
+                }
+                63 => {
+                    // Read syscall
+                    let fd = cpu.read_x_u32(ABIRegister::A(0).to_x_reg_id() as u8)?;
+                    let buffer_addr = cpu.read_x_u32(ABIRegister::A(1).to_x_reg_id() as u8)?;
+                    let len = cpu.read_x_u32(ABIRegister::A(2).to_x_reg_id() as u8)?;
+
+                    cpu.debug_print(|| format!("read: {} {} {}", fd, buffer_addr, len));
+
+                    if fd == 0 {
+                        bail!("Unsupported file descriptor: {}", fd)
+                    }
+
+                    let mut buf = vec![0; len as usize];
+
+                    let res: Result<usize> = cpu.kernel.read_fd(fd, buf.as_mut_slice());
+
+                    match res {
+                        Ok(len) => {
+                            cpu.write_buf(buffer_addr, buf.as_mut_slice())?;
+                            cpu.write_x_u32(ABIRegister::A(0).to_x_reg_id() as u8, len as u32)?;
+                        }
+                        Err(_e) => {
+                            cpu.write_x_i32(ABIRegister::A(0).to_x_reg_id() as u8, -1)?;
+                            cpu.write_x_u32(ABIRegister::A(10).to_x_reg_id() as u8, 1)?;
+                        }
+                    }
                 }
                 64 => {
                     // Write syscall
@@ -81,16 +166,34 @@ pub const RV32I_SET_E: [Instruction; 2] = [
                     let buffer_addr = cpu.read_x_u32(ABIRegister::A(1).to_x_reg_id() as u8)?;
                     let len = cpu.read_x_u32(ABIRegister::A(2).to_x_reg_id() as u8)?;
 
-                    if fd != 1 {
-                        todo!()
+                    if fd == 0 {
+                        bail!("Unsupported file descriptor: {}", fd)
                     }
 
-                    for i in 0..len {
-                        let byte = cpu.read_mem_u8(buffer_addr + i)?;
-                        cpu.push_stdout(byte);
-                    }
-                    cpu.write_x_u32(ABIRegister::A(0).to_x_reg_id() as u8, len)?;
+                    let mut buf = vec![0; len as usize];
+                    cpu.read_buf(buffer_addr, buf.as_mut_slice())?;
 
+                    let res: Result<u32> = match fd {
+                        1 => {
+                            cpu.write_stdout(buf.as_mut_slice());
+                            Ok(buf.len() as u32)
+                        }
+                        2 => {
+                            cpu.write_stderr(buf.as_mut_slice());
+                            Ok(buf.len() as u32)
+                        }
+                        other => Ok(cpu.kernel.write_fd(other, buf.as_mut_slice())? as u32),
+                    };
+
+                    match res {
+                        Ok(len) => {
+                            cpu.write_x_u32(ABIRegister::A(0).to_x_reg_id() as u8, len)?;
+                        }
+                        Err(_e) => {
+                            cpu.write_x_i32(ABIRegister::A(0).to_x_reg_id() as u8, -1)?;
+                            cpu.write_x_u32(ABIRegister::A(10).to_x_reg_id() as u8, 1)?;
+                        }
+                    }
                     cpu.debug_print(|| format!("write: {} {:#x} {}", fd, buffer_addr, len));
                     cpu.debug_print(|| {
                         format!("written: {}", String::from_utf8_lossy(&cpu.stdout_buffer))
@@ -101,18 +204,14 @@ pub const RV32I_SET_E: [Instruction; 2] = [
                     let fd = cpu.read_x_u32(ABIRegister::A(0).to_x_reg_id() as u8)?;
                     let stat_addr = cpu.read_x_u32(ABIRegister::A(1).to_x_reg_id() as u8)?;
                     cpu.debug_print(|| format!("fstat: {} addr: {:#x}", fd, stat_addr));
-                    if fd == 1 {
+                    let stat =if fd == 1 {
                         Stat::new_stdout(cpu.stdout_buffer.len() as u32)
-                            .to_bytes()
-                            .iter()
-                            .enumerate()
-                            .for_each(|(i, b)| {
-                                cpu.write_mem_u8(stat_addr + i as u32, *b).unwrap();
-                            });
-                        cpu.write_x_u32(ABIRegister::A(0).to_x_reg_id() as u8, 0)?;
                     } else {
-                        todo!()
-                    }
+                        Stat::from(cpu.kernel.fstat_fd(fd)?)
+                    };
+                    
+                    cpu.write_x_u32(ABIRegister::A(0).to_x_reg_id() as u8, 0)?;
+                    cpu.write_buf(stat_addr, &stat.to_bytes() as &[u8])?;
                 }
                 93 => {
                     // Exit syscall
@@ -138,15 +237,37 @@ pub const RV32I_SET_E: [Instruction; 2] = [
                     let now = clock_gettime(ClockId::from_raw(clock_id.try_into().unwrap()))
                         .context("clock_gettime")?;
 
-                    let seconds = now.tv_sec() as u32;
+                    let seconds = now.tv_sec() as u64;
                     let nanos = now.tv_nsec() as u32;
 
-                    cpu.write_mem_u32(timespec_addr, seconds)?;
-                    cpu.write_mem_u32(timespec_addr + 4, nanos)?;
+                    cpu.write_mem_u32(timespec_addr, (seconds >> 32) as u32)?;
+                    cpu.write_mem_u32(timespec_addr + 4, (seconds) as u32)?;
+                    cpu.write_mem_u32(timespec_addr + 8, nanos as u32)?;
 
                     cpu.write_x_u32(ABIRegister::A(0).to_x_reg_id() as u8, 0)?;
 
-                    cpu.debug_print(|| format!("clock_gettime: {} {}", seconds, nanos));
+                    // cpu.debug_print(|| format!("clock_gettime: {} {}", seconds, nanos));
+                    println!("clock_gettime: {} {}", seconds, nanos);
+                }
+                1024 => {
+                    // open
+                    let path_addr = cpu.read_x_u32(ABIRegister::A(0).to_x_reg_id() as u8)?;
+                    let path = cpu.read_c_string(path_addr)?;
+                    let flags = cpu.read_x_u32(ABIRegister::A(1).to_x_reg_id() as u8)?;
+
+                    println!("open file: {} {:#x}", path, flags);
+
+                    match cpu.kernel.open_file(&path) {
+                        Ok(fd) => {
+                            cpu.write_x_u32(ABIRegister::A(0).to_x_reg_id() as u8, fd)?;
+                            println!("Opened file: {} with fd {}", path, fd);
+                        }
+                        Err(_e) => {
+                            cpu.write_x_i32(ABIRegister::A(0).to_x_reg_id() as u8, -1)?;
+                            cpu.write_x_u32(ABIRegister::A(1).to_x_reg_id() as u8, 1)?;
+                            println!("Failed to open file: {}", path);
+                        }
+                    }
                 }
                 code => {
                     println!("Unsupported syscall: {}", code)

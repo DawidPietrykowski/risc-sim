@@ -143,4 +143,18 @@ impl<T: PageStorage> Memory for PageMemory<T> {
 
         Ok(())
     }
+
+    fn read_buf(&self, addr: u32, buf: &mut [u8]) -> Result<()> {
+        for (i, byte) in buf.iter_mut().enumerate() {
+            *byte = self.read_mem_u8(addr + i as u32)?;
+        }
+        Ok(())
+    }
+
+    fn write_buf(&mut self, addr: u32, buf: &[u8]) -> Result<()> {
+        for (i, byte) in buf.iter().enumerate() {
+            self.write_mem_u8(addr + i as u32, *byte)?;
+        }
+        Ok(())
+    }
 }

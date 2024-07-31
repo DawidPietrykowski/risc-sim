@@ -1,6 +1,9 @@
 use std::fmt::Display;
 
-use crate::{asm::assembler::ProgramFile, utils::binary_utils::*};
+use crate::{
+    asm::assembler::ProgramFile, system::passthrough_kernel::PassthroughKernel,
+    utils::binary_utils::*,
+};
 
 use super::memory::{memory_core::Memory, program_cache::ProgramCache, vec_memory::VecMemory};
 use crate::types::{decode_program_line, ProgramLine, Word};
@@ -13,10 +16,13 @@ pub struct Cpu {
     pub memory: VecMemory,
     program_cache: Option<ProgramCache>,
     pub stdout_buffer: Vec<u8>,
+    pub stdin_buffer: Vec<u8>,
+    pub stderr_buffer: Vec<u8>,
     program_memory_offset: u32,
     halted: bool,
     pub program_brk: u32,
     debug_enabled: bool,
+    pub kernel: PassthroughKernel,
 }
 
 impl Display for Cpu {
@@ -61,6 +67,9 @@ impl Cpu {
             halted: false,
             program_brk: 0,
             debug_enabled: false,
+            stdin_buffer: Vec::new(),
+            stderr_buffer: Vec::new(),
+            kernel: PassthroughKernel::default(),
         }
     }
 
@@ -147,15 +156,15 @@ impl Cpu {
         ))
     }
 
-    pub fn read_mem_u32(&mut self, addr: u32) -> Result<u32> {
+    pub fn read_mem_u32(&self, addr: u32) -> Result<u32> {
         self.memory.read_mem_u32(addr)
     }
 
-    pub fn read_mem_u16(&mut self, addr: u32) -> Result<u16> {
+    pub fn read_mem_u16(&self, addr: u32) -> Result<u16> {
         self.memory.read_mem_u16(addr)
     }
 
-    pub fn read_mem_u8(&mut self, addr: u32) -> Result<u8> {
+    pub fn read_mem_u8(&self, addr: u32) -> Result<u8> {
         self.memory.read_mem_u8(addr)
     }
 
@@ -227,7 +236,35 @@ impl Cpu {
         self.current_instruction_pc
     }
 
-    pub fn push_stdout(&mut self, value: u8) {
-        self.stdout_buffer.push(value);
+    pub fn read_c_string(&self, addr: u32) -> Result<String> {
+        let mut result = String::new();
+        let mut current_addr = addr;
+        loop {
+            let byte = self.read_mem_u8(current_addr)?;
+            if byte == 0 {
+                break;
+            }
+            result.push(byte as char);
+            current_addr += 1;
+        }
+        Ok(result)
+    }
+
+    pub fn write_stdout(&mut self, buf: &[u8]) {
+        self.stdout_buffer.extend(buf);
+        print!("{}", String::from_utf8_lossy(buf));
+    }
+
+    pub fn write_stderr(&mut self, buf: &[u8]) {
+        self.stderr_buffer.extend(buf);
+        print!("{}", String::from_utf8_lossy(buf));
+    }
+
+    pub fn read_buf(&self, addr: u32, buf: &mut [u8]) -> Result<()> {
+        self.memory.read_buf(addr, buf)
+    }
+
+    pub fn write_buf(&mut self, addr: u32, buf: &[u8]) -> Result<()> {
+        self.memory.write_buf(addr, buf)
     }
 }

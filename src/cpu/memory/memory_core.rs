@@ -8,4 +8,6 @@ pub trait Memory {
     fn write_mem_u8(&mut self, addr: u32, value: u8) -> Result<()>;
     fn write_mem_u16(&mut self, addr: u32, value: u16) -> Result<()>;
     fn write_mem_u32(&mut self, addr: u32, value: u32) -> Result<()>;
+    fn read_buf(&self, addr: u32, buf: &mut [u8]) -> Result<()>;
+    fn write_buf(&mut self, addr: u32, buf: &[u8]) -> Result<()>;
 }
