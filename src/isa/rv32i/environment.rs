@@ -24,6 +24,24 @@ pub struct Stat {
     pub ctime: u64,
 }
 
+#[repr(C)]
+struct TimeT{
+    pub sec: i64,
+    pub nsec: i64,
+}
+
+impl TimeT{
+    pub fn to_bytes(&self) -> Vec<u8> {
+        unsafe {
+            let bytes_ptr: *const u8 = self as *const TimeT as *const u8;
+            Vec::from(std::slice::from_raw_parts(
+                bytes_ptr,
+                mem::size_of::<TimeT>(),
+            ))
+        }
+    }
+}
+
 impl From<Metadata> for Stat {
     fn from(metadata: Metadata) -> Self {
         Stat {
@@ -237,17 +255,26 @@ pub const RV32I_SET_E: [Instruction; 2] = [
                     let now = clock_gettime(ClockId::from_raw(clock_id.try_into().unwrap()))
                         .context("clock_gettime")?;
 
-                    let seconds = now.tv_sec() as u64;
-                    let nanos = now.tv_nsec() as u32;
+                    let seconds = now.tv_sec() as i64;
+                    let nanos = now.tv_nsec() as i64;
 
-                    cpu.write_mem_u32(timespec_addr, (seconds >> 32) as u32)?;
-                    cpu.write_mem_u32(timespec_addr + 4, (seconds) as u32)?;
-                    cpu.write_mem_u32(timespec_addr + 8, nanos as u32)?;
+                    // cpu.write_mem_u32(timespec_addr, (seconds) as u32)?;
+                    // cpu.write_mem_u32(timespec_addr + 4, (seconds) as u32)?;
+                    // cpu.write_mem_u32(timespec_addr + 8, nanos as u32)?;
+
+                    let time_t = TimeT{
+                        sec: seconds,
+                        nsec: nanos,
+                    };
+                    
+                    // println!("gettime_sizeof_timet: {}", time_t.to_bytes().len());
+
+                    cpu.write_buf(timespec_addr, &time_t.to_bytes() as &[u8])?;
 
                     cpu.write_x_u32(ABIRegister::A(0).to_x_reg_id() as u8, 0)?;
 
-                    // cpu.debug_print(|| format!("clock_gettime: {} {}", seconds, nanos));
-                    println!("clock_gettime: {} {}", seconds, nanos);
+                    cpu.debug_print(|| format!("clock_gettime: {} {}", seconds, nanos));
+                    // println!("clock_gettime: {} {}", seconds, nanos);
                 }
                 1024 => {
                     // open

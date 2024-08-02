@@ -21,7 +21,7 @@ pub struct Cpu {
     program_memory_offset: u32,
     halted: bool,
     pub program_brk: u32,
-    debug_enabled: bool,
+    pub debug_enabled: bool,
     pub kernel: PassthroughKernel,
 }
 
@@ -44,7 +44,7 @@ impl Display for Cpu {
 }
 
 const INITIAL_STACK_POINTER: u32 = 0xbfffff00;
-const INITIAL_PROGRAM_BREAK: u32 = 0x00023000;
+const INITIAL_PROGRAM_BREAK: u32 = 0x10023000;
 const STDOUT_BUFFER_SIZE: usize = 1024 * 32;
 
 impl Default for Cpu {
@@ -97,7 +97,7 @@ impl Cpu {
         let instruction = self.fetch_instruction()?;
 
         if self.debug_enabled {
-            println!("\n{}", instruction);
+            println!("\nPC({:#x}) {}", self.reg_pc, instruction);
         }
         // Increase PC
         self.current_instruction_pc = self.reg_pc;

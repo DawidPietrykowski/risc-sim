@@ -197,7 +197,7 @@ impl fmt::Display for SectionFlags {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum ProgramHeaderType {
     Load,
     Dynamic,
@@ -210,7 +210,7 @@ enum ProgramHeaderType {
     Hios,
     Loproc,
     Hiproc,
-    Unknown,
+    Unknown(u32),
 }
 
 #[derive(Debug)]
@@ -380,6 +380,12 @@ pub fn decode_file(path: &str) -> ProgramFile {
 
     println!("{}", elf_header);
 
+
+    let mut program: Vec<ProgramLine> = vec![];
+    let mut text_section_addr = 0;
+    let mut text_section_size = 0;
+    let mut memory = VecMemory::new();
+
     for i in 0..elf_header.program_header_count {
         let offset = (elf_header.program_header_table_offset
             + i as u64 * elf_header.program_header_size as u64) as usize;
@@ -397,12 +403,7 @@ pub fn decode_file(path: &str) -> ProgramFile {
                 0x6FFFFFFF => ProgramHeaderType::Hios,
                 0x70000000 => ProgramHeaderType::Loproc,
                 0x7FFFFFFF => ProgramHeaderType::Hiproc,
-                0x70000003 => ProgramHeaderType::Unknown,
-                // _ => panic!(
-                //     "Invalid program header type {:#x}",
-                //     u32::from_le_bytes(file[offset..(offset + 4)].try_into().unwrap())
-                // ),
-                _ => ProgramHeaderType::Unknown,
+                other => ProgramHeaderType::Unknown(other),
             };
 
         let flags = match word_size {
@@ -508,6 +509,20 @@ pub fn decode_file(path: &str) -> ProgramFile {
         };
 
         println!("{}", program_header);
+
+        if program_header.header_type == ProgramHeaderType::Load {
+            // Load the segment into memory
+            let segment_data = &file[program_header.segment_offset as usize
+                ..(program_header.segment_offset + program_header.file_size) as usize];
+            let segment_address = program_header.virtual_address as usize;
+
+
+            for (i, byte) in segment_data.iter().enumerate() {
+                memory
+                    .write_mem_u8((segment_address + i) as u32, *byte)
+                    .unwrap();
+            }
+        }
     }
 
     // Name string table
@@ -531,10 +546,6 @@ pub fn decode_file(path: &str) -> ProgramFile {
 
     println!("Section Header String Table Offset: {:#x}", shstrtab_offset);
 
-    let mut program: Vec<ProgramLine> = vec![];
-    let mut text_section_addr = 0;
-    let mut text_section_size = 0;
-    let mut memory = VecMemory::new();
 
     for i in 0..elf_header.section_header_count {
         let offset = (elf_header.section_header_table_offset
