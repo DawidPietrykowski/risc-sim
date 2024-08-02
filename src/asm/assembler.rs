@@ -380,7 +380,6 @@ pub fn decode_file(path: &str) -> ProgramFile {
 
     println!("{}", elf_header);
 
-
     let mut program: Vec<ProgramLine> = vec![];
     let mut text_section_addr = 0;
     let mut text_section_size = 0;
@@ -516,7 +515,6 @@ pub fn decode_file(path: &str) -> ProgramFile {
                 ..(program_header.segment_offset + program_header.file_size) as usize];
             let segment_address = program_header.virtual_address as usize;
 
-
             for (i, byte) in segment_data.iter().enumerate() {
                 memory
                     .write_mem_u8((segment_address + i) as u32, *byte)
@@ -545,7 +543,6 @@ pub fn decode_file(path: &str) -> ProgramFile {
     } as usize;
 
     println!("Section Header String Table Offset: {:#x}", shstrtab_offset);
-
 
     for i in 0..elf_header.section_header_count {
         let offset = (elf_header.section_header_table_offset

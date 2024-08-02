@@ -23,10 +23,9 @@ impl Default for PassthroughKernel {
 
 impl PassthroughKernel {
     fn get_file(&mut self, fd: u32) -> Result<&mut File> {
-        Ok(self
-            .fd_map
+        self.fd_map
             .get_mut(&fd)
-            .ok_or_else(|| anyhow!("Invalid fd"))?)
+            .ok_or_else(|| anyhow!("Invalid fd"))
     }
 }
 
@@ -67,7 +66,7 @@ impl Kernel for PassthroughKernel {
         };
         self.get_file(fd)?.seek(seek).context("Failed to seek file")
     }
-    
+
     fn fstat_fd(&mut self, fd: u32) -> Result<std::fs::Metadata> {
         self.get_file(fd)?.metadata().context("Failed to stat file")
     }

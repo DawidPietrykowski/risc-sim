@@ -1,8 +1,15 @@
 use std::{
-    fs::Metadata, mem, os::unix::fs::MetadataExt, time::{SystemTime, UNIX_EPOCH}
+    fs::Metadata,
+    mem,
+    os::unix::fs::MetadataExt,
+    time::{SystemTime, UNIX_EPOCH},
 };
 
-use crate::{isa, system::kernel::{Kernel, SeekType}, types::*};
+use crate::{
+    isa,
+    system::kernel::{Kernel, SeekType},
+    types::*,
+};
 
 use anyhow::{bail, Context, Result};
 use nix::time::{clock_gettime, ClockId};
@@ -25,12 +32,12 @@ pub struct Stat {
 }
 
 #[repr(C)]
-struct TimeT{
+struct TimeT {
     pub sec: i64,
     pub nsec: i64,
 }
 
-impl TimeT{
+impl TimeT {
     pub fn to_bytes(&self) -> Vec<u8> {
         unsafe {
             let bytes_ptr: *const u8 = self as *const TimeT as *const u8;
@@ -47,7 +54,7 @@ impl From<Metadata> for Stat {
         Stat {
             dev: metadata.dev(),
             ino: metadata.ino(),
-            mode: metadata.mode() as u32,
+            mode: metadata.mode(),
             nlink: metadata.nlink() as u32,
             uid: metadata.uid(),
             gid: metadata.gid(),
@@ -131,7 +138,8 @@ pub const RV32I_SET_E: [Instruction; 2] = [
                     // Seek syscall
                     let fd = cpu.read_x_u32(ABIRegister::A(0).to_x_reg_id() as u8)?;
                     let offset = cpu.read_x_u32(ABIRegister::A(1).to_x_reg_id() as u8)?;
-                    let seek_type = SeekType::from(cpu.read_x_u32(ABIRegister::A(2).to_x_reg_id() as u8)?);
+                    let seek_type =
+                        SeekType::from(cpu.read_x_u32(ABIRegister::A(2).to_x_reg_id() as u8)?);
 
                     cpu.debug_print(|| format!("seek: {} {} {:?}", fd, offset, seek_type));
 
@@ -222,12 +230,12 @@ pub const RV32I_SET_E: [Instruction; 2] = [
                     let fd = cpu.read_x_u32(ABIRegister::A(0).to_x_reg_id() as u8)?;
                     let stat_addr = cpu.read_x_u32(ABIRegister::A(1).to_x_reg_id() as u8)?;
                     cpu.debug_print(|| format!("fstat: {} addr: {:#x}", fd, stat_addr));
-                    let stat =if fd == 1 {
+                    let stat = if fd == 1 {
                         Stat::new_stdout(cpu.stdout_buffer.len() as u32)
                     } else {
                         Stat::from(cpu.kernel.fstat_fd(fd)?)
                     };
-                    
+
                     cpu.write_x_u32(ABIRegister::A(0).to_x_reg_id() as u8, 0)?;
                     cpu.write_buf(stat_addr, &stat.to_bytes() as &[u8])?;
                 }
@@ -262,11 +270,11 @@ pub const RV32I_SET_E: [Instruction; 2] = [
                     // cpu.write_mem_u32(timespec_addr + 4, (seconds) as u32)?;
                     // cpu.write_mem_u32(timespec_addr + 8, nanos as u32)?;
 
-                    let time_t = TimeT{
+                    let time_t = TimeT {
                         sec: seconds,
                         nsec: nanos,
                     };
-                    
+
                     // println!("gettime_sizeof_timet: {}", time_t.to_bytes().len());
 
                     cpu.write_buf(timespec_addr, &time_t.to_bytes() as &[u8])?;
