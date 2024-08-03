@@ -3,7 +3,7 @@ use std::fmt::{Debug, Formatter};
 
 use super::memory_core::{Memory, MEMORY_SIZE};
 
-pub const PAGE_SIZE: u32 = 4096 * 16;
+pub const PAGE_SIZE: u32 = 4096 * 128;
 
 #[allow(unused)]
 pub trait PageStorage {
@@ -21,7 +21,7 @@ impl<T: PageStorage> Debug for PageMemory<T> {
 }
 
 pub struct Page {
-    pub data: [u32; (PAGE_SIZE / 4) as usize],
+    pub data: Box<[u32; (PAGE_SIZE / 4) as usize]>,
     pub position: u32,
 }
 
@@ -29,7 +29,7 @@ impl Page {
     pub fn new(position: u32) -> Page {
         Page {
             position,
-            data: [0; (PAGE_SIZE / 4) as usize],
+            data: Box::new([0; (PAGE_SIZE / 4) as usize]),
         }
     }
 }

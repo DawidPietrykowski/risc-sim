@@ -19,14 +19,15 @@ fn main() -> Result<()> {
     const SCREEN_WIDTH: u32 = 320;
     const SCREEN_HEIGHT: u32 = 200;
     const SCREEN_ADDR: u32 = 0x40000000;
+    const SCALE_SCREEN: u32 = 1;
     const SIMULATE_DISPLAY: bool = true;
 
     let mut window = if SIMULATE_DISPLAY {
         Some(
             Window::new(
                 "DISPLAY",
-                SCREEN_WIDTH as usize,
-                SCREEN_HEIGHT as usize,
+                (SCALE_SCREEN * SCREEN_WIDTH) as usize,
+                (SCALE_SCREEN * SCREEN_HEIGHT) as usize,
                 WindowOptions::default(),
             )
             .unwrap_or_else(|e| {
@@ -37,7 +38,7 @@ fn main() -> Result<()> {
         None
     };
 
-    let mut buffer: Vec<u32> = vec![0; (SCREEN_WIDTH * SCREEN_HEIGHT).try_into().unwrap()];
+    let mut buffer: Vec<u32> = vec![0; (SCREEN_WIDTH * SCREEN_HEIGHT * SCALE_SCREEN * SCALE_SCREEN).try_into().unwrap()];
 
     let file_path = &args[1];
     let program = decode_file(file_path);
@@ -54,7 +55,7 @@ fn main() -> Result<()> {
         if count > MAX_CYCLES {
             break anyhow::anyhow!("Too many cycles");
         }
-        if SIMULATE_DISPLAY && count % 5000000 == 0 {
+        if SIMULATE_DISPLAY && count % 13000000 == 0 {
             println!("Draw on cycle: {}", count);
 
             if window.as_ref().unwrap().is_key_down(Key::Escape) {
@@ -63,9 +64,9 @@ fn main() -> Result<()> {
 
             let cmap = false;
 
-            for i in 0..SCREEN_HEIGHT {
-                for j in 0..SCREEN_WIDTH {
-                    let pixel_index = (j) * SCREEN_HEIGHT + (i);
+            for ypos in 0..SCREEN_HEIGHT {
+                for xpos in 0..SCREEN_WIDTH {
+                    let pixel_index = (xpos) * SCREEN_HEIGHT + (ypos);
                     let g;
                     let b;
                     let r;
@@ -80,7 +81,12 @@ fn main() -> Result<()> {
                         g = (val >> 8) & 0xFF;
                         b = (val >> 16) & 0xFF;
                     }
-                    buffer[pixel_index as usize] = r | (g << 8) | (b << 16) | (0xFF << 24);
+                    for xt in 0..SCALE_SCREEN {
+                        for yt in 0..SCALE_SCREEN {
+                            let pixel_index = (xpos + xt) * (SCREEN_HEIGHT) + (ypos + yt);
+                            buffer[pixel_index as usize] = r | (g << 8) | (b << 16) | (0xFF << 24);
+                        }
+                    }
                 }
             }
 
