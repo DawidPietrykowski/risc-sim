@@ -3,7 +3,7 @@ use std::fmt::{Debug, Formatter};
 
 use super::memory_core::{Memory, MEMORY_SIZE};
 
-pub const PAGE_SIZE: u32 = 4096 * 128;
+pub const PAGE_SIZE: u32 = 4096 * 256;
 
 #[allow(unused)]
 pub trait PageStorage {

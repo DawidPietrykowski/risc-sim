@@ -2,7 +2,7 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 use risc_sim::{
     asm::assembler::ProgramFile,
     cpu::{
-        cpu_core::Cpu,
+        cpu_core::{Cpu, CurrentMemory},
         memory::{hashmap_memory::FxHashMemory, memory_core::Memory, vec_memory::VecMemory},
     },
 };
@@ -17,7 +17,7 @@ const FIB_PROGRAM_BIN: &[u32] = &[
 fn fibbonaci_program(n: u32) {
     let mut cpu = Cpu::new();
 
-    let mut memory = VecMemory::new();
+    let mut memory = CurrentMemory::new();
     for (id, val) in FIB_PROGRAM_BIN.iter().enumerate() {
         memory.write_mem_u32(4u32 * (id as u32), *val).unwrap();
     }

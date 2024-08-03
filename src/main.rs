@@ -18,9 +18,12 @@ fn main() -> Result<()> {
 
     const SCREEN_WIDTH: u32 = 320;
     const SCREEN_HEIGHT: u32 = 200;
+    const MEMORY_BUFFER_SIZE: u32 = SCREEN_WIDTH * SCREEN_HEIGHT * 4;
     const SCREEN_ADDR: u32 = 0x40000000;
-    const SCALE_SCREEN: u32 = 1;
+    const SCALE_SCREEN: u32 = 4;
     const SIMULATE_DISPLAY: bool = true;
+
+    let mut frames_written = 0;
 
     let mut window = if SIMULATE_DISPLAY {
         Some(
@@ -38,7 +41,22 @@ fn main() -> Result<()> {
         None
     };
 
-    let mut buffer: Vec<u32> = vec![0; (SCREEN_WIDTH * SCREEN_HEIGHT * SCALE_SCREEN * SCALE_SCREEN).try_into().unwrap()];
+
+    let mut buffer: Vec<u32> = vec![
+        0;
+        (SCREEN_WIDTH * SCREEN_HEIGHT * SCALE_SCREEN * SCALE_SCREEN)
+            .try_into()
+            .unwrap()
+    ];
+
+    window
+    .as_mut()
+    .unwrap()
+    .update_with_buffer(&buffer, SCREEN_WIDTH as usize, SCREEN_HEIGHT as usize)
+    .unwrap();
+
+    // delay for 10s
+    // std::thread::sleep(std::time::Duration::from_secs(10));
 
     let file_path = &args[1];
     let program = decode_file(file_path);
@@ -55,8 +73,15 @@ fn main() -> Result<()> {
         if count > MAX_CYCLES {
             break anyhow::anyhow!("Too many cycles");
         }
-        if SIMULATE_DISPLAY && count % 13000000 == 0 {
+        if SIMULATE_DISPLAY
+            && count % 5000000 == 0
+            && cpu.read_mem_u8(SCREEN_ADDR + MEMORY_BUFFER_SIZE)? != 0
+        {
+            frames_written += 1;
+
             println!("Draw on cycle: {}", count);
+
+            cpu.write_mem_u8(SCREEN_ADDR + MEMORY_BUFFER_SIZE, 0)?;
 
             if window.as_ref().unwrap().is_key_down(Key::Escape) {
                 break anyhow::anyhow!("Escape pressed");
@@ -123,6 +148,7 @@ fn main() -> Result<()> {
     println!("Program exit code: {}", exit_code);
     println!("Total cycle count: {} k", count / 1_000);
     println!("Elapsed time: {:?}", elapsed_time);
+    println!("FPS: {}", frames_written as f64 / elapsed_time.as_secs_f64());
     println!(
         "Cycles per second: {} mln",
         (count as f64 / elapsed_time.as_secs_f64()) as u64 / 1_000_000

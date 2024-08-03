@@ -5,15 +5,19 @@ use crate::{
     utils::binary_utils::*,
 };
 
-use super::memory::{memory_core::Memory, program_cache::ProgramCache, vec_memory::VecMemory};
+use super::memory::{
+    memory_core::Memory, program_cache::ProgramCache, vec_memory::VecMemory,
+};
 use crate::types::{decode_program_line, ProgramLine, Word};
 use anyhow::{bail, Context, Result};
+
+pub type CurrentMemory = VecMemory;
 
 pub struct Cpu {
     reg_x32: [u32; 32],
     reg_pc: u32,
     pub current_instruction_pc: u32,
-    pub memory: VecMemory,
+    pub memory: CurrentMemory,
     program_cache: Option<ProgramCache>,
     pub stdout_buffer: Vec<u8>,
     pub stdin_buffer: Vec<u8>,
@@ -60,7 +64,7 @@ impl Cpu {
             reg_x32: [0x0; 32],
             reg_pc: 0x0,
             current_instruction_pc: 0x0,
-            memory: VecMemory::new(),
+            memory: CurrentMemory::new(),
             program_cache: None,
             stdout_buffer,
             program_memory_offset: 0x0,
@@ -171,7 +175,10 @@ impl Cpu {
 
     #[cfg(feature = "maxperf")]
     fn fetch_instruction_unchecked(&self) -> ProgramLine {
-        self.program_cache.as_ref().unwrap().get_line_unchecked(self.reg_pc)
+        self.program_cache
+            .as_ref()
+            .unwrap()
+            .get_line_unchecked(self.reg_pc)
     }
 
     pub fn read_mem_u32(&self, addr: u32) -> Result<u32> {
@@ -217,13 +224,13 @@ impl Cpu {
             return Ok(()); // x0 is hardwired to 0
         }
 
-        # [cfg(not(feature = "maxperf"))]
+        #[cfg(not(feature = "maxperf"))]
         let reg_value = self
             .reg_x32
             .get_mut(id as usize)
             // .context(format!("Register x{} does not exist", id))?;
             .context("Register does not exist")?;
-        # [cfg(feature = "maxperf")]
+        #[cfg(feature = "maxperf")]
         let reg_value = unsafe { self.reg_x32.get_unchecked_mut(id as usize) };
 
         *reg_value = i32_to_u32(value);

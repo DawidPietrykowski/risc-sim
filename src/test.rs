@@ -6,8 +6,8 @@ mod tests {
     use anyhow::Result;
 
     use asm::assembler::{decode_file, ProgramFile};
-    use cpu::cpu_core::Cpu;
-    use cpu::memory::vec_memory::VecMemory;
+    use cpu::cpu_core::{Cpu, CurrentMemory};
+    
     use proptest::prelude::*;
     use std::result::Result::Ok;
     use types::*;
@@ -198,7 +198,7 @@ mod tests {
         fn test_fibbonaci_program(n in 1u32..15, entry_point in 0x1000u32..0xFFFFF) {
             let mut cpu = Cpu::new();
 
-            let mut memory = VecMemory::new();
+            let mut memory = CurrentMemory::new();
             for (id, val) in FIB_PROGRAM_BIN.iter().enumerate() {
                 memory.write_mem_u32(entry_point + 4u32 * (id as u32), *val).unwrap();
             }

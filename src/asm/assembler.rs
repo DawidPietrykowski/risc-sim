@@ -1,5 +1,5 @@
+use crate::cpu::cpu_core::CurrentMemory;
 use crate::cpu::memory::memory_core::Memory;
-use crate::cpu::memory::vec_memory::VecMemory;
 use crate::types::{decode_program_line, ProgramLine, Word};
 use anyhow::Result;
 use bitflags::bitflags;
@@ -241,7 +241,7 @@ impl Display for ProgramHeader {
 
 pub struct ProgramFile {
     pub entry_point: u32,
-    pub memory: VecMemory,
+    pub memory: CurrentMemory,
     pub program_memory_offset: u32,
     pub lines: Vec<ProgramLine>,
     pub program_size: u32,
@@ -383,7 +383,7 @@ pub fn decode_file(path: &str) -> ProgramFile {
     let mut program: Vec<ProgramLine> = vec![];
     let mut text_section_addr = 0;
     let mut text_section_size = 0;
-    let mut memory = VecMemory::new();
+    let mut memory = CurrentMemory::new();
 
     for i in 0..elf_header.program_header_count {
         let offset = (elf_header.program_header_table_offset
