@@ -109,6 +109,19 @@ impl Cpu {
         Ok(())
     }
 
+    #[cfg(feature = "maxperf")]
+    pub fn run_cycle_uncheked(&mut self) {
+        // Fetch
+        let instruction = self.fetch_instruction_unchecked();
+
+        // Increase PC
+        self.current_instruction_pc = self.reg_pc;
+        self.reg_pc += 4;
+
+        // Execute
+        let _ = self.execute_program_line(&instruction);
+    }
+
     #[inline(always)]
     pub fn execute_program_line(&mut self, program_line: &ProgramLine) -> Result<()> {
         (program_line.instruction.operation)(self, &program_line.word)
@@ -156,6 +169,11 @@ impl Cpu {
         ))
     }
 
+    #[cfg(feature = "maxperf")]
+    fn fetch_instruction_unchecked(&self) -> ProgramLine {
+        self.program_cache.as_ref().unwrap().get_line_unchecked(self.reg_pc)
+    }
+
     pub fn read_mem_u32(&self, addr: u32) -> Result<u32> {
         self.memory.read_mem_u32(addr)
     }
@@ -199,11 +217,14 @@ impl Cpu {
             return Ok(()); // x0 is hardwired to 0
         }
 
+        # [cfg(not(feature = "maxperf"))]
         let reg_value = self
             .reg_x32
             .get_mut(id as usize)
             // .context(format!("Register x{} does not exist", id))?;
             .context("Register does not exist")?;
+        # [cfg(feature = "maxperf")]
+        let reg_value = unsafe { self.reg_x32.get_unchecked_mut(id as usize) };
 
         *reg_value = i32_to_u32(value);
         Ok(())
@@ -214,11 +235,14 @@ impl Cpu {
             return Ok(()); // x0 is hardwired to 0
         }
 
+        #[cfg(not(feature = "maxperf"))]
         let reg_value = self
             .reg_x32
             .get_mut(id as usize)
             // .context(format!("Register x{} does not exist", id))?;
             .context("Register does not exist")?;
+        #[cfg(feature = "maxperf")]
+        let reg_value = unsafe { self.reg_x32.get_unchecked_mut(id as usize) };
 
         *reg_value = value;
         Ok(())

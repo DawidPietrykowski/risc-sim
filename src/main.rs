@@ -98,6 +98,7 @@ fn main() -> Result<()> {
                     .unwrap();
             }
         }
+        #[cfg(not(feature = "maxperf"))]
         match cpu.run_cycle() {
             Ok(_) => {
                 // println!("Cycle: {}", count);
@@ -107,6 +108,8 @@ fn main() -> Result<()> {
                 break e;
             }
         }
+        #[cfg(feature = "maxperf")]
+        cpu.run_cycle_uncheked();
     };
 
     let elapsed_time = start_time.elapsed();
