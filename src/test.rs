@@ -7,7 +7,7 @@ mod tests {
 
     use asm::assembler::{decode_file, ProgramFile};
     use cpu::cpu_core::{Cpu, CurrentMemory};
-    
+
     use proptest::prelude::*;
     use std::result::Result::Ok;
     use types::*;
