@@ -11,6 +11,13 @@ pub struct ProgramCache {
 }
 
 impl ProgramCache {
+    pub fn empty() -> ProgramCache {
+        ProgramCache {
+            start_addr: 0,
+            end_addr: 0,
+            data: Vec::new(),
+        }
+    }
     pub fn new(start_addr: u32, end_addr: u32, memory: &dyn Memory) -> Result<ProgramCache> {
         let mut data = Vec::new();
         for i in (start_addr..end_addr).step_by(4) {

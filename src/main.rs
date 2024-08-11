@@ -20,7 +20,7 @@ fn main() -> Result<()> {
     const SCREEN_HEIGHT: u32 = 200;
     const MEMORY_BUFFER_SIZE: u32 = SCREEN_WIDTH * SCREEN_HEIGHT * 4;
     const SCREEN_ADDR: u32 = 0x40000000;
-    const SCALE_SCREEN: u32 = 4;
+    const SCALE_SCREEN: u32 = 2;
     const SIMULATE_DISPLAY: bool = true;
 
     let mut frames_written = 0;
@@ -41,7 +41,6 @@ fn main() -> Result<()> {
         None
     };
 
-
     let mut buffer: Vec<u32> = vec![
         0;
         (SCREEN_WIDTH * SCREEN_HEIGHT * SCALE_SCREEN * SCALE_SCREEN)
@@ -50,10 +49,10 @@ fn main() -> Result<()> {
     ];
 
     window
-    .as_mut()
-    .unwrap()
-    .update_with_buffer(&buffer, SCREEN_WIDTH as usize, SCREEN_HEIGHT as usize)
-    .unwrap();
+        .as_mut()
+        .unwrap()
+        .update_with_buffer(&buffer, SCREEN_WIDTH as usize, SCREEN_HEIGHT as usize)
+        .unwrap();
 
     // delay for 10s
     // std::thread::sleep(std::time::Duration::from_secs(10));
@@ -148,7 +147,10 @@ fn main() -> Result<()> {
     println!("Program exit code: {}", exit_code);
     println!("Total cycle count: {} k", count / 1_000);
     println!("Elapsed time: {:?}", elapsed_time);
-    println!("FPS: {}", frames_written as f64 / elapsed_time.as_secs_f64());
+    println!(
+        "FPS: {}",
+        frames_written as f64 / elapsed_time.as_secs_f64()
+    );
     println!(
         "Cycles per second: {} mln",
         (count as f64 / elapsed_time.as_secs_f64()) as u64 / 1_000_000

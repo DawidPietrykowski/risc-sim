@@ -5,9 +5,7 @@ use crate::{
     utils::binary_utils::*,
 };
 
-use super::memory::{
-    memory_core::Memory, program_cache::ProgramCache, vec_memory::VecMemory,
-};
+use super::memory::{memory_core::Memory, program_cache::ProgramCache, vec_memory::VecMemory};
 use crate::types::{decode_program_line, ProgramLine, Word};
 use anyhow::{bail, Context, Result};
 
@@ -18,7 +16,7 @@ pub struct Cpu {
     reg_pc: u32,
     pub current_instruction_pc: u32,
     pub memory: CurrentMemory,
-    program_cache: Option<ProgramCache>,
+    program_cache: ProgramCache,
     pub stdout_buffer: Vec<u8>,
     pub stdin_buffer: Vec<u8>,
     pub stderr_buffer: Vec<u8>,
@@ -65,7 +63,7 @@ impl Cpu {
             reg_pc: 0x0,
             current_instruction_pc: 0x0,
             memory: CurrentMemory::new(),
-            program_cache: None,
+            program_cache: ProgramCache::empty(),
             stdout_buffer,
             program_memory_offset: 0x0,
             halted: false,
@@ -79,13 +77,12 @@ impl Cpu {
 
     pub fn load_program(&mut self, program_file: ProgramFile) {
         self.reg_pc = program_file.entry_point;
-        if let Ok(cache) = ProgramCache::new(
+        self.program_cache = ProgramCache::new(
             program_file.program_memory_offset,
             program_file.program_memory_offset + program_file.program_size,
             &program_file.memory,
-        ) {
-            self.program_cache = Some(cache);
-        }
+        )
+        .unwrap();
         self.memory = program_file.memory;
         self.write_x_u32(2, INITIAL_STACK_POINTER).unwrap();
         self.program_brk = INITIAL_PROGRAM_BREAK;
@@ -160,25 +157,20 @@ impl Cpu {
     }
 
     fn fetch_instruction(&self) -> Result<ProgramLine> {
-        if let Some(cache) = &self.program_cache {
-            if let Some(cache_line) = cache.try_get_line(self.reg_pc) {
-                return Ok(cache_line);
-            }
+        if let Some(cache_line) = self.program_cache.try_get_line(self.reg_pc) {
+            return Ok(cache_line);
+        } else {
+            return decode_program_line(Word(
+                self.memory
+                    .read_mem_u32(self.read_pc_u32())
+                    .context("No instruction at pc")?,
+            ));
         }
-
-        decode_program_line(Word(
-            self.memory
-                .read_mem_u32(self.read_pc_u32())
-                .context("No instruction at pc")?,
-        ))
     }
 
     #[cfg(feature = "maxperf")]
     fn fetch_instruction_unchecked(&self) -> ProgramLine {
-        self.program_cache
-            .as_ref()
-            .unwrap()
-            .get_line_unchecked(self.reg_pc)
+        self.program_cache.get_line_unchecked(self.reg_pc)
     }
 
     pub fn read_mem_u32(&self, addr: u32) -> Result<u32> {
