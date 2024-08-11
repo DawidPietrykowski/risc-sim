@@ -1,4 +1,7 @@
-use std::{collections::BTreeMap, fmt::{Debug, Formatter}};
+use std::{
+    collections::BTreeMap,
+    fmt::{Debug, Formatter},
+};
 
 use super::page_storage::{Page, PageMemory, PageStorage, PAGE_SIZE};
 

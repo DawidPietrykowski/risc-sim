@@ -1,6 +1,9 @@
 use rustc_hash::{FxBuildHasher, FxHashMap};
 
-use super::page_storage::{Page, PageMemory, PageStorage, PAGE_SIZE};
+use super::{
+    memory_core::MEMORY_CAPACITY,
+    page_storage::{Page, PageMemory, PageStorage, PAGE_SIZE},
+};
 
 pub struct FxHashStorage {
     pages: FxHashMap<u32, Page>,
@@ -9,7 +12,7 @@ pub struct FxHashStorage {
 impl FxHashStorage {
     pub fn new() -> Self {
         FxHashStorage {
-            pages: FxHashMap::with_capacity_and_hasher(1024, FxBuildHasher),
+            pages: FxHashMap::with_capacity_and_hasher(MEMORY_CAPACITY, FxBuildHasher),
         }
     }
 }

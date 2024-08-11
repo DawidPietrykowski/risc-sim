@@ -25,4 +25,5 @@ name = "benchmarks"
 harness = false
 
 [features]
+default = ["maxperf"]
 maxperf = []

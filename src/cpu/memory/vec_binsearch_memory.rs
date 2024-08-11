@@ -1,6 +1,9 @@
 use std::{fmt::Debug, fmt::Formatter};
 
-use super::page_storage::{Page, PageMemory, PageStorage, PAGE_SIZE};
+use super::{
+    memory_core::MEMORY_CAPACITY,
+    page_storage::{Page, PageMemory, PageStorage, PAGE_SIZE},
+};
 
 pub struct VecBSearchPageStorage {
     pages: Vec<(u32, Page)>,
@@ -15,7 +18,7 @@ impl Debug for VecBSearchPageStorage {
 impl VecBSearchPageStorage {
     pub fn new() -> Self {
         VecBSearchPageStorage {
-            pages: Vec::with_capacity(1024),
+            pages: Vec::with_capacity(MEMORY_CAPACITY),
         }
     }
 }
@@ -33,7 +36,6 @@ impl PageStorage for VecBSearchPageStorage {
     }
 
     fn get_page(&self, page_id: u32) -> Option<&Page> {
-        // self.pages.iter().find(|p| p.0 == page_id).map(|p| &p.1)
         let index = self.pages.binary_search_by(|p| p.0.cmp(&page_id));
         match index {
             Ok(i) => Some(&self.pages[i].1),
@@ -42,10 +44,6 @@ impl PageStorage for VecBSearchPageStorage {
     }
 
     fn get_page_mut(&mut self, page_id: u32) -> Option<&mut Page> {
-        // self.pages
-        //     .iter_mut()
-        //     .find(|p| p.0 == page_id)
-        //     .map(|p| &mut p.1)
         let index = self.pages.binary_search_by(|p| p.0.cmp(&page_id));
         match index {
             Ok(i) => Some(&mut self.pages[i].1),
@@ -54,16 +52,13 @@ impl PageStorage for VecBSearchPageStorage {
     }
 
     fn get_page_or_create(&mut self, page_id: u32) -> &mut Page {
-        // if let Some(i) = self.pages.iter_mut().position(|p| p.0 == page_id) {
         let res = self.pages.binary_search_by(|p| p.0.cmp(&page_id));
         if let Ok(i) = res {
             return &mut self.pages[i].1;
         }
 
         return match res {
-            Ok(i) => {
-                &mut self.pages[i].1
-            },
+            Ok(i) => &mut self.pages[i].1,
             Err(i) => {
                 let position = page_id * PAGE_SIZE;
                 let new_page_entry = (page_id, Page::new(position));
@@ -71,14 +66,6 @@ impl PageStorage for VecBSearchPageStorage {
                 &mut self.pages[i].1
             }
         };
-
-
-
-        // let res = self.pages.binary_search_by(|p| p.0.cmp(&page_id));
-        // // assert!(res.is_err());
-        // let index = res.err().unwrap();
-        // self.pages.insert(index, new_page_entry);
-
     }
 
     fn len(&self) -> usize {

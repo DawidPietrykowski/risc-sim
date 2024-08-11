@@ -12,3 +12,4 @@ flamegraph.svg
 perf.data*
 *.wad
 profile.json
+**/.DS_Store

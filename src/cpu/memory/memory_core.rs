@@ -1,4 +1,5 @@
 pub const MEMORY_SIZE: u32 = u32::MAX;
+pub const MEMORY_CAPACITY: usize = 48;
 use anyhow::Result;
 
 pub trait Memory {

@@ -1,6 +1,9 @@
 use std::{fmt::Debug, fmt::Formatter};
 
-use super::page_storage::{Page, PageMemory, PageStorage, PAGE_SIZE};
+use super::{
+    memory_core::MEMORY_CAPACITY,
+    page_storage::{Page, PageMemory, PageStorage, PAGE_SIZE},
+};
 
 pub struct VecPageStorage {
     pages: Vec<(u32, Page)>,
@@ -15,7 +18,7 @@ impl Debug for VecPageStorage {
 impl VecPageStorage {
     pub fn new() -> Self {
         VecPageStorage {
-            pages: Vec::with_capacity(1024),
+            pages: Vec::with_capacity(MEMORY_CAPACITY),
         }
     }
 }

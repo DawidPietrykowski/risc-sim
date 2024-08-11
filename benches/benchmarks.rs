@@ -1,9 +1,17 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::time::Duration;
+
+use criterion::{
+    black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
+    PlotConfiguration,
+};
 use risc_sim::{
     asm::assembler::ProgramFile,
     cpu::{
         cpu_core::{Cpu, CurrentMemory},
-        memory::{hashmap_memory::FxHashMemory, memory_core::Memory, vec_memory::VecMemory},
+        memory::{
+            btree_memory::BTreeMemory, hashmap_memory::FxHashMemory, memory_core::Memory,
+            vec_binsearch_memory::VecBsearchMemory, vec_memory::VecMemory,
+        },
     },
 };
 
@@ -33,15 +41,23 @@ fn fibbonaci_program(n: u32) {
     cpu.write_mem_u32(0, n).unwrap();
 
     while cpu.run_cycle().is_ok() {
-        // println!("{}", cpu);
+
     }
 }
 
 fn read_write_randon_mem(locations: u32, mut mem: impl Memory) {
-    for i in 0..locations {
-        let addr = (u32::MAX / locations) * i;
-        mem.write_mem_u32(addr, i).unwrap();
-        mem.read_mem_u32(addr).unwrap();
+    const RW_CYCLES: usize = 1;
+    const BUF_SIZE: usize = 32;
+    const BUF: [u32; BUF_SIZE] = [0; BUF_SIZE];
+
+    for _ in 0..RW_CYCLES {
+        for j in 0..BUF_SIZE {
+            for i in 0..locations {
+                let addr = (u32::MAX / locations) * i;
+                mem.write_mem_u32(addr + (j * 4) as u32, BUF[j]).unwrap();
+                mem.read_mem_u32(addr + (j * 4) as u32).unwrap();
+            }
+        }
     }
 }
 
@@ -51,15 +67,34 @@ fn bench_fibbonacci(c: &mut Criterion) {
 
 fn bench_mem_read_write(c: &mut Criterion) {
     let mut group = c.benchmark_group("Memory");
-    let span = 1000;
 
-    group.bench_function(BenchmarkId::new("FxHashMemory", span), |b| {
-        b.iter(|| read_write_randon_mem(black_box(span), FxHashMemory::new()))
-    });
+    let plot_config = PlotConfiguration::default().summary_scale(AxisScale::Logarithmic);
+    group.plot_config(plot_config);
 
-    group.bench_function(BenchmarkId::new("VecMemory", span), |b| {
-        b.iter(|| read_write_randon_mem(black_box(span), VecMemory::new()))
-    });
+    group.warm_up_time(Duration::from_millis(100));
+    group.measurement_time(Duration::from_millis(500));
+
+    let spans = vec![1, 2, 3, 5, 8, 12, 20, 40, 70, 90, 100];
+
+    for &span in &spans {
+        group.bench_with_input(BenchmarkId::new("FxHashMemory", span), &span, |b, &s| {
+            b.iter(|| read_write_randon_mem(black_box(s), FxHashMemory::new()))
+        });
+
+        group.bench_with_input(BenchmarkId::new("VecMemory", span), &span, |b, &s| {
+            b.iter(|| read_write_randon_mem(black_box(s), VecMemory::new()))
+        });
+
+        group.bench_with_input(
+            BenchmarkId::new("VecBsearchMemory", span),
+            &span,
+            |b, &s| b.iter(|| read_write_randon_mem(black_box(s), VecBsearchMemory::new())),
+        );
+
+        group.bench_with_input(BenchmarkId::new("BTreeMemory", span), &span, |b, &s| {
+            b.iter(|| read_write_randon_mem(black_box(s), BTreeMemory::new()))
+        });
+    }
 
     group.finish();
 }
