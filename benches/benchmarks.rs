@@ -40,9 +40,7 @@ fn fibbonaci_program(n: u32) {
 
     cpu.write_mem_u32(0, n).unwrap();
 
-    while cpu.run_cycle().is_ok() {
-
-    }
+    while cpu.run_cycle().is_ok() {}
 }
 
 fn read_write_randon_mem(locations: u32, mut mem: impl Memory) {
