@@ -15,14 +15,6 @@ impl Debug for BTreeStorage {
     }
 }
 
-impl BTreeStorage {
-    pub fn new() -> Self {
-        BTreeStorage {
-            pages: BTreeMap::new(),
-        }
-    }
-}
-
 impl Default for BTreeStorage {
     fn default() -> Self {
         Self::new()
@@ -31,6 +23,12 @@ impl Default for BTreeStorage {
 
 #[allow(dead_code)]
 impl PageStorage for BTreeStorage {
+    fn new() -> Self {
+        BTreeStorage {
+            pages: BTreeMap::new(),
+        }
+    }
+
     fn get_page_id(&self, addr: u32) -> u32 {
         addr / PAGE_SIZE
     }

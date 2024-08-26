@@ -36,6 +36,7 @@ fn fibbonaci_program(n: u32) {
         program_memory_offset: 0,
         lines: vec![],
         program_size: (FIB_PROGRAM_BIN.len() * 4) as u32,
+        end_of_data_addr: (FIB_PROGRAM_BIN.len() * 4) as u32,
     });
 
     cpu.write_mem_u32(0, n).unwrap();
@@ -49,10 +50,10 @@ fn read_write_randon_mem(locations: u32, mut mem: impl Memory) {
     const BUF: [u32; BUF_SIZE] = [0; BUF_SIZE];
 
     for _ in 0..RW_CYCLES {
-        for j in 0..BUF_SIZE {
+        for (j, data) in BUF.iter().enumerate().take(BUF_SIZE) {
             for i in 0..locations {
                 let addr = (u32::MAX / locations) * i;
-                mem.write_mem_u32(addr + (j * 4) as u32, BUF[j]).unwrap();
+                mem.write_mem_u32(addr + (j * 4) as u32, *data).unwrap();
                 mem.read_mem_u32(addr + (j * 4) as u32).unwrap();
             }
         }

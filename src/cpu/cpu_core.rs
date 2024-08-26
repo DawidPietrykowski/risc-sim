@@ -23,6 +23,7 @@ pub struct Cpu {
     program_memory_offset: u32,
     halted: bool,
     pub program_brk: u32,
+    # [cfg(not(feature = "maxperf"))]
     pub debug_enabled: bool,
     pub kernel: PassthroughKernel,
 }
@@ -46,8 +47,7 @@ impl Display for Cpu {
 }
 
 const INITIAL_STACK_POINTER: u32 = 0xbfffff00;
-const INITIAL_PROGRAM_BREAK: u32 = 0x10023000;
-const STDOUT_BUFFER_SIZE: usize = 1024 * 32;
+// const INITIAL_PROGRAM_BREAK: u32 = 0x10023000;
 
 impl Default for Cpu {
     fn default() -> Self {
@@ -68,6 +68,7 @@ impl Cpu {
             program_memory_offset: 0x0,
             halted: false,
             program_brk: 0,
+            # [cfg(not(feature = "maxperf"))]
             debug_enabled: false,
             stdin_buffer: Vec::new(),
             stderr_buffer: Vec::new(),
@@ -85,7 +86,7 @@ impl Cpu {
         .unwrap();
         self.memory = program_file.memory;
         self.write_x_u32(2, INITIAL_STACK_POINTER).unwrap();
-        self.program_brk = INITIAL_PROGRAM_BREAK;
+        self.program_brk = program_file.end_of_data_addr;
     }
 
     pub fn run_cycle(&mut self) -> Result<()> {
@@ -97,9 +98,11 @@ impl Cpu {
         // Fetch
         let instruction = self.fetch_instruction()?;
 
+        # [cfg(not(feature = "maxperf"))]
         if self.debug_enabled {
             println!("\nPC({:#x}) {}", self.reg_pc, instruction);
         }
+
         // Increase PC
         self.current_instruction_pc = self.reg_pc;
         self.reg_pc += 4;
@@ -137,20 +140,17 @@ impl Cpu {
         self.halted = true;
     }
 
+    # [cfg(not(feature = "maxperf"))]
     pub fn set_debug_enabled(&mut self, debug_enabled: bool) {
         self.debug_enabled = debug_enabled;
     }
 
-    pub fn read_and_clear_stdout_buffer(&mut self) -> String {
-        let stdout_buffer = String::from_utf8(self.stdout_buffer.clone()).unwrap();
-        self.stdout_buffer.clear();
-        stdout_buffer
-    }
-
+    #[allow(unused)]
     pub fn debug_print<F>(&self, message: F)
     where
         F: FnOnce() -> String,
     {
+        #[cfg(not(feature = "maxperf"))]
         if self.debug_enabled {
             println!("{}", message());
         }
@@ -158,13 +158,13 @@ impl Cpu {
 
     fn fetch_instruction(&self) -> Result<ProgramLine> {
         if let Some(cache_line) = self.program_cache.try_get_line(self.reg_pc) {
-            return Ok(cache_line);
+            Ok(cache_line)
         } else {
-            return decode_program_line(Word(
+            decode_program_line(Word(
                 self.memory
                     .read_mem_u32(self.read_pc_u32())
                     .context("No instruction at pc")?,
-            ));
+            ))
         }
     }
 
@@ -223,7 +223,7 @@ impl Cpu {
             // .context(format!("Register x{} does not exist", id))?;
             .context("Register does not exist")?;
         #[cfg(feature = "maxperf")]
-        let reg_value = unsafe { self.reg_x32.get_unchecked_mut(id as usize) };
+        let reg_value = unsafe { self.reg_x32.get_unchecked_mut(id as usize) }; // SAFETY: For properly compiled code 0 <= id < 32
 
         *reg_value = i32_to_u32(value);
         Ok(())
@@ -241,7 +241,7 @@ impl Cpu {
             // .context(format!("Register x{} does not exist", id))?;
             .context("Register does not exist")?;
         #[cfg(feature = "maxperf")]
-        let reg_value = unsafe { self.reg_x32.get_unchecked_mut(id as usize) };
+        let reg_value = unsafe { self.reg_x32.get_unchecked_mut(id as usize) }; // SAFETY: For properly compiled code 0 <= id < 32
 
         *reg_value = value;
         Ok(())
@@ -259,6 +259,14 @@ impl Cpu {
         self.current_instruction_pc
     }
 
+    pub fn read_buf(&self, addr: u32, buf: &mut [u8]) -> Result<()> {
+        self.memory.read_buf(addr, buf)
+    }
+
+    pub fn write_buf(&mut self, addr: u32, buf: &[u8]) -> Result<()> {
+        self.memory.write_buf(addr, buf)
+    }
+
     pub fn read_c_string(&self, addr: u32) -> Result<String> {
         let mut result = String::new();
         let mut current_addr = addr;
@@ -271,23 +279,5 @@ impl Cpu {
             current_addr += 1;
         }
         Ok(result)
-    }
-
-    pub fn write_stdout(&mut self, buf: &[u8]) {
-        self.stdout_buffer.extend(buf);
-        print!("{}", String::from_utf8_lossy(buf));
-    }
-
-    pub fn write_stderr(&mut self, buf: &[u8]) {
-        self.stderr_buffer.extend(buf);
-        print!("{}", String::from_utf8_lossy(buf));
-    }
-
-    pub fn read_buf(&self, addr: u32, buf: &mut [u8]) -> Result<()> {
-        self.memory.read_buf(addr, buf)
-    }
-
-    pub fn write_buf(&mut self, addr: u32, buf: &[u8]) -> Result<()> {
-        self.memory.write_buf(addr, buf)
     }
 }

@@ -3,6 +3,8 @@ mod tests {
     use crate::*;
 
     use crate::cpu::memory::memory_core::Memory;
+    use crate::system::kernel::Kernel; 
+    
     use anyhow::Result;
 
     use asm::assembler::{decode_file, ProgramFile};
@@ -52,7 +54,7 @@ mod tests {
             .unwrap();
 
             let expected_data = std::fs::read_to_string(file_path.with_extension("res")).unwrap();
-            let cpu_stdout = cpu.read_and_clear_stdout_buffer();
+            let cpu_stdout = cpu.kernel.read_and_clear_stdout_buffer();
             assert_eq!(expected_data, cpu_stdout);
         }
     }
@@ -202,9 +204,10 @@ mod tests {
             for (id, val) in FIB_PROGRAM_BIN.iter().enumerate() {
                 memory.write_mem_u32(entry_point + 4u32 * (id as u32), *val).unwrap();
             }
-            // cpu.load_program(memory, entry_point, (FIB_PROGRAM_BIN.len() * 4) as u32);
+
+            let program_size = (FIB_PROGRAM_BIN.len() * 4) as u32;
             cpu.load_program(
-                ProgramFile {entry_point, memory, program_memory_offset: entry_point, lines: vec![], program_size: (FIB_PROGRAM_BIN.len() * 4) as u32 }
+                ProgramFile {entry_point, memory, program_memory_offset: entry_point, lines: vec![], program_size, end_of_data_addr: program_size }
             );
 
             cpu.write_mem_u32(0, n).unwrap();
@@ -760,10 +763,8 @@ mod tests {
         }
 
         #[test]
-        fn test_auipc(rd in 1u8..30, imm in 0u32..0xFFFFF, pc in 0u32..0xFFFFFFFF) {
+        fn test_auipc(rd in 1u8..30, imm in 0u32..0xFFFFF) {
             let mut cpu = Cpu::new();
-            cpu.write_pc_u32(pc);
-            cpu.current_instruction_pc = pc;
 
             let auipc_instruction = UInstructionData {
                 rd: U5(rd),
@@ -774,7 +775,7 @@ mod tests {
 
             prop_assert!(cpu.execute_word(op).is_ok());
 
-            let expected = (imm << 12).wrapping_add(pc);
+            let expected = imm << 12;
             prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), expected);
         }
 

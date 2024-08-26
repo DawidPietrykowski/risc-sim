@@ -15,14 +15,6 @@ impl Debug for VecBSearchPageStorage {
     }
 }
 
-impl VecBSearchPageStorage {
-    pub fn new() -> Self {
-        VecBSearchPageStorage {
-            pages: Vec::with_capacity(MEMORY_CAPACITY),
-        }
-    }
-}
-
 impl Default for VecBSearchPageStorage {
     fn default() -> Self {
         Self::new()
@@ -31,6 +23,12 @@ impl Default for VecBSearchPageStorage {
 
 #[allow(dead_code)]
 impl PageStorage for VecBSearchPageStorage {
+    fn new() -> Self {
+        VecBSearchPageStorage {
+            pages: Vec::with_capacity(MEMORY_CAPACITY),
+        }
+    }
+
     fn get_page_id(&self, addr: u32) -> u32 {
         addr / PAGE_SIZE
     }
@@ -57,7 +55,7 @@ impl PageStorage for VecBSearchPageStorage {
             return &mut self.pages[i].1;
         }
 
-        return match res {
+        match res {
             Ok(i) => &mut self.pages[i].1,
             Err(i) => {
                 let position = page_id * PAGE_SIZE;
@@ -65,7 +63,7 @@ impl PageStorage for VecBSearchPageStorage {
                 self.pages.insert(i, new_page_entry);
                 &mut self.pages[i].1
             }
-        };
+        }
     }
 
     fn len(&self) -> usize {

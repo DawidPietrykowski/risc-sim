@@ -7,16 +7,25 @@ use std::{
 use super::kernel::{Kernel, SeekType};
 use anyhow::{anyhow, Context, Result};
 
+const STDOUT_BUFFER_SIZE: usize = 1024 * 32;
+
 pub struct PassthroughKernel {
     fd_map: HashMap<u32, File>,
     next_id: u32,
+    pub stdout_buffer: Vec<u8>,
+    pub stdin_buffer: Vec<u8>,
+    pub stderr_buffer: Vec<u8>,
 }
 
 impl Default for PassthroughKernel {
     fn default() -> Self {
+        let stdout_buffer = Vec::<u8>::with_capacity(STDOUT_BUFFER_SIZE);
         Self {
             fd_map: HashMap::new(),
             next_id: 3,
+            stdout_buffer,
+            stdin_buffer: Vec::new(),
+            stderr_buffer: Vec::new(),
         }
     }
 }
@@ -30,6 +39,10 @@ impl PassthroughKernel {
 }
 
 impl Kernel for PassthroughKernel {
+    fn new () -> Self {
+        Self::default()
+    }
+    
     fn open_file(&mut self, path: &str) -> Result<u32> {
         let file = File::open(path)?;
         let id = self.next_id;
@@ -69,5 +82,21 @@ impl Kernel for PassthroughKernel {
 
     fn fstat_fd(&mut self, fd: u32) -> Result<std::fs::Metadata> {
         self.get_file(fd)?.metadata().context("Failed to stat file")
+    }
+
+    fn write_stdout(&mut self, buf: &[u8]) {
+        self.stdout_buffer.extend(buf);
+        print!("{}", String::from_utf8_lossy(buf));
+    }
+
+    fn write_stderr(&mut self, buf: &[u8]) {
+        self.stderr_buffer.extend(buf);
+        print!("{}", String::from_utf8_lossy(buf));
+    }
+
+    fn read_and_clear_stdout_buffer(&mut self) -> String {
+        let stdout_buffer = String::from_utf8(self.stdout_buffer.clone()).unwrap();
+        self.stdout_buffer.clear();
+        stdout_buffer
     }
 }

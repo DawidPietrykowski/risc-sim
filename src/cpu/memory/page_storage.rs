@@ -7,6 +7,7 @@ pub const PAGE_SIZE: u32 = 4096 * 256;
 
 #[allow(unused)]
 pub trait PageStorage {
+    fn new () -> Self;
     fn get_page_id(&self, addr: u32) -> u32;
     fn get_page(&self, page_id: u32) -> Option<&Page>;
     fn get_page_mut(&mut self, page_id: u32) -> Option<&mut Page>;
@@ -39,6 +40,12 @@ pub struct PageMemory<T: PageStorage> {
 }
 
 impl<T: PageStorage> Memory for PageMemory<T> {
+    fn new() -> Self {
+        PageMemory {
+            storage: T::new(),
+        }
+    }
+
     fn read_mem_u8(&self, addr: u32) -> Result<u8> {
         let offset = addr & 0b11;
         let full_value = self.read_mem_u32(addr & !0b11)?;

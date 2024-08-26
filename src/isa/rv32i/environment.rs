@@ -45,7 +45,7 @@ impl TimeT {
                 bytes_ptr,
                 mem::size_of::<TimeT>(),
             ))
-        }
+        } // SAFETY: TimeT is a repr(C) struct, so it is safe to cast it to a byte array
     }
 }
 
@@ -100,7 +100,7 @@ impl Stat {
                 bytes_ptr,
                 mem::size_of::<Stat>(),
             ))
-        }
+        } // SAFETY: Stat is a repr(C) struct, so it is safe to cast it to a byte array
     }
 }
 
@@ -201,11 +201,11 @@ pub const RV32I_SET_E: [Instruction; 2] = [
 
                     let res: Result<u32> = match fd {
                         1 => {
-                            cpu.write_stdout(buf.as_mut_slice());
+                            cpu.kernel.write_stdout(buf.as_mut_slice());
                             Ok(buf.len() as u32)
                         }
                         2 => {
-                            cpu.write_stderr(buf.as_mut_slice());
+                            cpu.kernel.write_stderr(buf.as_mut_slice());
                             Ok(buf.len() as u32)
                         }
                         other => Ok(cpu.kernel.write_fd(other, buf.as_mut_slice())? as u32),
@@ -222,7 +222,7 @@ pub const RV32I_SET_E: [Instruction; 2] = [
                     }
                     cpu.debug_print(|| format!("write: {} {:#x} {}", fd, buffer_addr, len));
                     cpu.debug_print(|| {
-                        format!("written: {}", String::from_utf8_lossy(&cpu.stdout_buffer))
+                        format!("written: {}", String::from_utf8_lossy(&cpu.kernel.stdout_buffer))
                     });
                 }
                 80 => {
@@ -231,7 +231,7 @@ pub const RV32I_SET_E: [Instruction; 2] = [
                     let stat_addr = cpu.read_x_u32(ABIRegister::A(1).to_x_reg_id() as u8)?;
                     cpu.debug_print(|| format!("fstat: {} addr: {:#x}", fd, stat_addr));
                     let stat = if fd == 1 {
-                        Stat::new_stdout(cpu.stdout_buffer.len() as u32)
+                        Stat::new_stdout(cpu.kernel.stdout_buffer.len() as u32)
                     } else {
                         Stat::from(cpu.kernel.fstat_fd(fd)?)
                     };

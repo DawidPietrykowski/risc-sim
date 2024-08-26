@@ -15,14 +15,6 @@ impl Debug for VecPageStorage {
     }
 }
 
-impl VecPageStorage {
-    pub fn new() -> Self {
-        VecPageStorage {
-            pages: Vec::with_capacity(MEMORY_CAPACITY),
-        }
-    }
-}
-
 impl Default for VecPageStorage {
     fn default() -> Self {
         Self::new()
@@ -31,6 +23,12 @@ impl Default for VecPageStorage {
 
 #[allow(dead_code)]
 impl PageStorage for VecPageStorage {
+    fn new() -> Self {
+        VecPageStorage {
+            pages: Vec::with_capacity(MEMORY_CAPACITY),
+        }
+    }
+
     fn get_page_id(&self, addr: u32) -> u32 {
         addr / PAGE_SIZE
     }
@@ -63,11 +61,3 @@ impl PageStorage for VecPageStorage {
 }
 
 pub type VecMemory = PageMemory<VecPageStorage>;
-
-impl VecMemory {
-    pub fn new() -> Self {
-        PageMemory {
-            storage: VecPageStorage::new(),
-        }
-    }
-}

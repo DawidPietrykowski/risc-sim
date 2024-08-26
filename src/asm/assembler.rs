@@ -3,6 +3,7 @@ use crate::cpu::memory::memory_core::Memory;
 use crate::types::{decode_program_line, ProgramLine, Word};
 use anyhow::Result;
 use bitflags::bitflags;
+use std::cmp::max;
 use std::fmt::{Display, Formatter};
 use std::{fmt, fs};
 
@@ -245,6 +246,7 @@ pub struct ProgramFile {
     pub program_memory_offset: u32,
     pub lines: Vec<ProgramLine>,
     pub program_size: u32,
+    pub end_of_data_addr: u32,
 }
 
 pub fn decode_file(path: &str) -> ProgramFile {
@@ -383,7 +385,8 @@ pub fn decode_file(path: &str) -> ProgramFile {
     let mut program: Vec<ProgramLine> = vec![];
     let mut text_section_addr = 0;
     let mut text_section_size = 0;
-    let mut memory = CurrentMemory::new();
+    let mut memory = M::new();
+    let mut end_of_data_addr = 0;
 
     for i in 0..elf_header.program_header_count {
         let offset = (elf_header.program_header_table_offset
@@ -668,6 +671,10 @@ pub fn decode_file(path: &str) -> ProgramFile {
             }
         }
 
+        if section_flags.contains(SectionFlags::SHF_ALLOC) || section_flags.contains(SectionFlags::SHF_EXECINSTR) || section_flags.contains(SectionFlags::SHF_WRITE) {
+            end_of_data_addr = max(end_of_data_addr, section_addr + section_size);
+        }
+
         if section_header_name == ".text" {
             println!("Found .text section at {:#x}", offset);
             println!("Section data start at {:#x}", section_offset);
@@ -704,6 +711,7 @@ pub fn decode_file(path: &str) -> ProgramFile {
         program_size: text_section_size as u32,
         lines: program,
         memory,
+        end_of_data_addr: end_of_data_addr as u32,
     }
 }
 

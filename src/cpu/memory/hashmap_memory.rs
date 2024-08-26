@@ -9,14 +9,6 @@ pub struct FxHashStorage {
     pages: FxHashMap<u32, Page>,
 }
 
-impl FxHashStorage {
-    pub fn new() -> Self {
-        FxHashStorage {
-            pages: FxHashMap::with_capacity_and_hasher(MEMORY_CAPACITY, FxBuildHasher),
-        }
-    }
-}
-
 impl Default for FxHashStorage {
     fn default() -> Self {
         Self::new()
@@ -24,6 +16,12 @@ impl Default for FxHashStorage {
 }
 
 impl PageStorage for FxHashStorage {
+    fn new() -> Self {
+        FxHashStorage {
+            pages: FxHashMap::with_capacity_and_hasher(MEMORY_CAPACITY, FxBuildHasher),
+        }
+    }
+
     fn get_page_id(&self, addr: u32) -> u32 {
         addr / PAGE_SIZE
     }
