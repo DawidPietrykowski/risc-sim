@@ -671,7 +671,10 @@ pub fn decode_file(path: &str) -> ProgramFile {
             }
         }
 
-        if section_flags.contains(SectionFlags::SHF_ALLOC) || section_flags.contains(SectionFlags::SHF_EXECINSTR) || section_flags.contains(SectionFlags::SHF_WRITE) {
+        if section_flags.contains(SectionFlags::SHF_ALLOC)
+            || section_flags.contains(SectionFlags::SHF_EXECINSTR)
+            || section_flags.contains(SectionFlags::SHF_WRITE)
+        {
             end_of_data_addr = max(end_of_data_addr, section_addr + section_size);
         }
 

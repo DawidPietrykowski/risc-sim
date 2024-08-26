@@ -3,8 +3,7 @@ mod tests {
     use crate::*;
 
     use crate::cpu::memory::memory_core::Memory;
-    use crate::system::kernel::Kernel; 
-    
+
     use anyhow::Result;
 
     use asm::assembler::{decode_file, ProgramFile};

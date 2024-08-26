@@ -2,7 +2,10 @@ use std::{
     collections::HashMap,
     fs::File,
     io::{Read, Seek, SeekFrom, Write},
+    time::{SystemTime, UNIX_EPOCH},
 };
+
+use crate::isa::rv32i::environment::Stat;
 
 use super::kernel::{Kernel, SeekType};
 use anyhow::{anyhow, Context, Result};
@@ -39,10 +42,6 @@ impl PassthroughKernel {
 }
 
 impl Kernel for PassthroughKernel {
-    fn new () -> Self {
-        Self::default()
-    }
-    
     fn open_file(&mut self, path: &str) -> Result<u32> {
         let file = File::open(path)?;
         let id = self.next_id;
@@ -80,8 +79,34 @@ impl Kernel for PassthroughKernel {
         self.get_file(fd)?.seek(seek).context("Failed to seek file")
     }
 
-    fn fstat_fd(&mut self, fd: u32) -> Result<std::fs::Metadata> {
-        self.get_file(fd)?.metadata().context("Failed to stat file")
+    fn fstat_fd(&mut self, fd: u32) -> Result<Stat> {
+        if fd == 1 { // emulate STDOUT
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
+
+            return Ok(Stat {
+                dev: 1,
+                ino: 1,
+                mode: 0o020666,
+                nlink: 1,
+                uid: 1000,
+                gid: 1000,
+                rdev: 1,
+                size: self.stdout_buffer.len() as i64,
+                blksize: 1024,
+                blocks: (self.stdout_buffer.len() as i64 + 511) / 512,
+                atime: now,
+                mtime: now,
+                ctime: now,
+            });
+        }
+        Ok(Stat::from(
+            self.get_file(fd)?
+                .metadata()
+                .context("Failed to stat file")?,
+        ))
     }
 
     fn write_stdout(&mut self, buf: &[u8]) {

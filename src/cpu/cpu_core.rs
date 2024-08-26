@@ -1,7 +1,8 @@
 use std::fmt::Display;
 
 use crate::{
-    asm::assembler::ProgramFile, system::passthrough_kernel::PassthroughKernel,
+    asm::assembler::ProgramFile,
+    system::{kernel::Kernel, passthrough_kernel::PassthroughKernel},
     utils::binary_utils::*,
 };
 
@@ -20,9 +21,9 @@ pub struct Cpu {
     program_memory_offset: u32,
     halted: bool,
     pub program_brk: u32,
-    # [cfg(not(feature = "maxperf"))]
+    #[cfg(not(feature = "maxperf"))]
     pub debug_enabled: bool,
-    pub kernel: PassthroughKernel,
+    pub kernel: Box<dyn Kernel>,
 }
 
 impl Display for Cpu {
@@ -63,9 +64,9 @@ impl Cpu {
             program_memory_offset: 0x0,
             halted: false,
             program_brk: 0,
-            # [cfg(not(feature = "maxperf"))]
+            #[cfg(not(feature = "maxperf"))]
             debug_enabled: false,
-            kernel: PassthroughKernel::default(),
+            kernel: Box::new(PassthroughKernel::default()),
         }
     }
 
@@ -91,7 +92,7 @@ impl Cpu {
         // Fetch
         let instruction = self.fetch_instruction()?;
 
-        # [cfg(not(feature = "maxperf"))]
+        #[cfg(not(feature = "maxperf"))]
         if self.debug_enabled {
             println!("\nPC({:#x}) {}", self.reg_pc, instruction);
         }
@@ -133,7 +134,7 @@ impl Cpu {
         self.halted = true;
     }
 
-    # [cfg(not(feature = "maxperf"))]
+    #[cfg(not(feature = "maxperf"))]
     pub fn set_debug_enabled(&mut self, debug_enabled: bool) {
         self.debug_enabled = debug_enabled;
     }

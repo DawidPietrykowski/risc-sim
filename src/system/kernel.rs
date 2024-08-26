@@ -1,6 +1,6 @@
-use std::fs::Metadata;
-
 use anyhow::Result;
+
+use crate::isa::rv32i::environment::Stat;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum SeekType {
@@ -21,14 +21,13 @@ impl From<u32> for SeekType {
 }
 
 pub trait Kernel {
-    fn new() -> Self;
     fn open_file(&mut self, path: &str) -> Result<u32>;
     fn read_fd(&mut self, fd: u32, buf: &mut [u8]) -> Result<usize>;
     fn write_fd(&mut self, fd: u32, buf: &[u8]) -> Result<usize>;
     fn close_fd(&mut self, fd: u32) -> Result<()>;
     fn create_file(&mut self, path: &str) -> Result<()>;
     fn seek_fd(&mut self, fd: u32, offset: usize, seek_type: SeekType) -> Result<u64>;
-    fn fstat_fd(&mut self, fd: u32) -> Result<Metadata>;
+    fn fstat_fd(&mut self, fd: u32) -> Result<Stat>;
     fn write_stderr(&mut self, buf: &[u8]);
     fn write_stdout(&mut self, buf: &[u8]);
     fn read_and_clear_stdout_buffer(&mut self) -> String;
