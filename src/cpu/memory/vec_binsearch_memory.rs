@@ -72,11 +72,3 @@ impl PageStorage for VecBSearchPageStorage {
 }
 
 pub type VecBsearchMemory = PageMemory<VecBSearchPageStorage>;
-
-impl VecBsearchMemory {
-    pub fn new() -> Self {
-        PageMemory {
-            storage: VecBSearchPageStorage::new(),
-        }
-    }
-}

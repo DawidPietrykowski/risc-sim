@@ -80,7 +80,8 @@ impl Kernel for PassthroughKernel {
     }
 
     fn fstat_fd(&mut self, fd: u32) -> Result<Stat> {
-        if fd == 1 { // emulate STDOUT
+        if fd == 1 {
+            // emulate STDOUT
             let now = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()

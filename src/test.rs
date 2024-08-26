@@ -7,7 +7,7 @@ mod tests {
     use anyhow::Result;
 
     use asm::assembler::{decode_file, ProgramFile};
-    use cpu::cpu_core::{Cpu, CurrentMemory};
+    use cpu::{cpu_core::Cpu, memory::vec_memory::VecMemory};
 
     use proptest::prelude::*;
     use std::result::Result::Ok;
@@ -15,7 +15,7 @@ mod tests {
     use utils::binary_utils::*;
 
     fn setup_cpu() -> Cpu {
-        Cpu::new()
+        Cpu::default()
     }
 
     const MAX_CYCLES: u32 = 1000000;
@@ -197,9 +197,9 @@ mod tests {
 
         #[test]
         fn test_fibbonaci_program(n in 1u32..15, entry_point in 0x1000u32..0xFFFFF) {
-            let mut cpu = Cpu::new();
+            let mut cpu = Cpu::default();
 
-            let mut memory = CurrentMemory::new();
+            let mut memory = VecMemory::new();
             for (id, val) in FIB_PROGRAM_BIN.iter().enumerate() {
                 memory.write_mem_u32(entry_point + 4u32 * (id as u32), *val).unwrap();
             }
@@ -561,7 +561,7 @@ mod tests {
 
         #[test]
         fn test_addi(rd in 1u8..30, rs1 in 1u8..30, imm1 in -2048i16..2047, imm2 in -2048i16..2047) {
-            let mut cpu = Cpu::new();
+            let mut cpu = Cpu::default();
             let mut addi_instruction = IInstructionData {
                 rd: U5(rd),
                 rs1: U5(rs1),
@@ -583,7 +583,7 @@ mod tests {
 
         #[test]
         fn test_stli(rd in 1u8..30, rs1 in 1u8..30, imm1 in -2048i16..2047, imm2 in -2048i16..2047){
-            let mut cpu = Cpu::new();
+            let mut cpu = Cpu::default();
             let mut slti_instruction = IInstructionData {
                 rd: U5(rd),
                 rs1: U5(rs1),
@@ -608,7 +608,7 @@ mod tests {
 
         #[test] // TODO: Verify this test
         fn test_andi(rd in 1u8..30, rs1 in 1u8..30, imm1 in 0u16..0xFFFF, imm2 in 0u16..0xFFFF){
-            let mut cpu = Cpu::new();
+            let mut cpu = Cpu::default();
             let mut andi_instruction = IInstructionData {
                 rd: U5(rd),
                 rs1: U5(rs1),
@@ -631,7 +631,7 @@ mod tests {
 
         #[test]
         fn test_ori(rd in 1u8..30, rs1 in 1u8..30, imm1 in 0u16..0x0FFF, imm2 in 0u16..0x0FFF){
-            let mut cpu = Cpu::new();
+            let mut cpu = Cpu::default();
             let mut ori_instruction = IInstructionData {
                 rd: U5(rd),
                 rs1: U5(rs1),
@@ -654,7 +654,7 @@ mod tests {
 
         #[test]
         fn test_xori(rd in 1u8..30, rs1 in 1u8..30, imm1 in 0u16..0x0FFF, imm2 in 0u16..0x0FFF, rs1_val in i32::MIN..i32::MAX) {
-            let mut cpu = Cpu::new();
+            let mut cpu = Cpu::default();
             let mut xori_instruction = IInstructionData{
                 rd: U5(rd),
                 rs1: U5(rs1),
@@ -686,7 +686,7 @@ mod tests {
 
         #[test]
         fn test_slli(rd in 1u8..30, rs1 in 1u8..30, shamt in 0u8..31, rs1_val in i32::MIN..i32::MAX) {
-            let mut cpu = Cpu::new();
+            let mut cpu = Cpu::default();
             let slli_instruction = IInstructionData {
                 rd: U5(rd),
                 rs1: U5(rs1),
@@ -706,7 +706,7 @@ mod tests {
 
         #[test]
         fn test_srli(rd in 1u8..30, rs1 in 1u8..30, shamt in 0u8..31, rs1_val in i32::MIN..i32::MAX) {
-            let mut cpu = Cpu::new();
+            let mut cpu = Cpu::default();
             let srli_instruction = IInstructionData {
                 rd: U5(rd),
                 rs1: U5(rs1),
@@ -726,7 +726,7 @@ mod tests {
 
         #[test]
         fn test_srai(rd in 1u8..30, rs1 in 1u8..30, shamt in 0u8..31, rs1_val in i32::MIN..i32::MAX) {
-            let mut cpu = Cpu::new();
+            let mut cpu = Cpu::default();
 
             let srai_instruction = IInstructionData {
                 rd: U5(rd),
@@ -746,7 +746,7 @@ mod tests {
         }
         #[test]
         fn test_lui(rd in 1u8..30, imm in 0u32..0xFFFFF) {
-            let mut cpu = Cpu::new();
+            let mut cpu = Cpu::default();
 
             let lui_instruction = UInstructionData {
                 rd: U5(rd),
@@ -763,7 +763,7 @@ mod tests {
 
         #[test]
         fn test_auipc(rd in 1u8..30, imm in 0u32..0xFFFFF) {
-            let mut cpu = Cpu::new();
+            let mut cpu = Cpu::default();
 
             let auipc_instruction = UInstructionData {
                 rd: U5(rd),

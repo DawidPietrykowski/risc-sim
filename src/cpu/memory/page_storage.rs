@@ -35,15 +35,17 @@ impl Page {
     }
 }
 
+impl<T: PageStorage> PageMemory<T> {
+    pub fn new() -> Self {
+        PageMemory { storage: T::new() }
+    }
+}
+
 pub struct PageMemory<T: PageStorage> {
     pub storage: T,
 }
 
 impl<T: PageStorage> Memory for PageMemory<T> {
-    fn new() -> Self {
-        PageMemory { storage: T::new() }
-    }
-
     fn read_mem_u8(&self, addr: u32) -> Result<u8> {
         let offset = addr & 0b11;
         let full_value = self.read_mem_u32(addr & !0b11)?;

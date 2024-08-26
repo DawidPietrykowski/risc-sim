@@ -47,14 +47,6 @@ impl PageStorage for FxHashStorage {
 
 pub type FxHashMemory = PageMemory<FxHashStorage>;
 
-impl FxHashMemory {
-    pub fn new() -> Self {
-        PageMemory {
-            storage: FxHashStorage::new(),
-        }
-    }
-}
-
 impl Default for FxHashMemory {
     fn default() -> Self {
         Self::new()

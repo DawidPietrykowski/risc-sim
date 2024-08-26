@@ -53,11 +53,3 @@ impl PageStorage for BTreeStorage {
 }
 
 pub type BTreeMemory = PageMemory<BTreeStorage>;
-
-impl BTreeMemory {
-    pub fn new() -> Self {
-        PageMemory {
-            storage: BTreeStorage::new(),
-        }
-    }
-}

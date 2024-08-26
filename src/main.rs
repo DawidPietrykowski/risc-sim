@@ -60,7 +60,7 @@ fn main() -> Result<()> {
     let file_path = &args[1];
     let program = decode_file(file_path);
 
-    let mut cpu = Cpu::new();
+    let mut cpu = Cpu::default();
     cpu.load_program(program);
     // cpu.set_debug_enabled(true);
 

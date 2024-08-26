@@ -3,7 +3,6 @@ pub const MEMORY_CAPACITY: usize = 48;
 use anyhow::Result;
 
 pub trait Memory {
-    fn new() -> Self;
     fn read_mem_u8(&self, addr: u32) -> Result<u8>;
     fn read_mem_u32(&self, addr: u32) -> Result<u32>;
     fn read_mem_u16(&self, addr: u32) -> Result<u16>;

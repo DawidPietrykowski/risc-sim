@@ -10,13 +10,11 @@ use super::memory::{memory_core::Memory, program_cache::ProgramCache, vec_memory
 use crate::types::{decode_program_line, ProgramLine, Word};
 use anyhow::{bail, Context, Result};
 
-pub type CurrentMemory = VecMemory;
-
 pub struct Cpu {
     reg_x32: [u32; 32],
     reg_pc: u32,
     pub current_instruction_pc: u32,
-    pub memory: CurrentMemory,
+    pub memory: Box<dyn Memory>,
     program_cache: ProgramCache,
     program_memory_offset: u32,
     halted: bool,
@@ -39,8 +37,8 @@ impl Display for Cpu {
             f,
             "Program Memory Offset: {:#010x}",
             self.program_memory_offset
-        )?;
-        writeln!(f, "Memory: {:?}", self.memory)
+        )
+        // writeln!(f, "Memory: {:?}", self.memory)
     }
 }
 
@@ -49,17 +47,11 @@ const INITIAL_STACK_POINTER: u32 = 0xbfffff00;
 
 impl Default for Cpu {
     fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Cpu {
-    pub fn new() -> Cpu {
         Cpu {
             reg_x32: [0x0; 32],
             reg_pc: 0x0,
             current_instruction_pc: 0x0,
-            memory: CurrentMemory::new(),
+            memory: Box::new(VecMemory::new()),
             program_cache: ProgramCache::empty(),
             program_memory_offset: 0x0,
             halted: false,
@@ -67,6 +59,28 @@ impl Cpu {
             #[cfg(not(feature = "maxperf"))]
             debug_enabled: false,
             kernel: Box::new(PassthroughKernel::default()),
+        }
+    }
+}
+
+impl Cpu {
+    pub fn new<M, K>(memory: M, kernel: K) -> Cpu
+    where
+        M: Memory + 'static,
+        K: Kernel + 'static,
+    {
+        Cpu {
+            reg_x32: [0x0; 32],
+            reg_pc: 0x0,
+            current_instruction_pc: 0x0,
+            memory: Box::new(memory),
+            program_cache: ProgramCache::empty(),
+            program_memory_offset: 0x0,
+            halted: false,
+            program_brk: 0,
+            #[cfg(not(feature = "maxperf"))]
+            debug_enabled: false,
+            kernel: Box::new(kernel),
         }
     }
 
@@ -78,7 +92,7 @@ impl Cpu {
             &program_file.memory,
         )
         .unwrap();
-        self.memory = program_file.memory;
+        self.memory = Box::new(program_file.memory);
         self.write_x_u32(2, INITIAL_STACK_POINTER).unwrap();
         self.program_brk = program_file.end_of_data_addr;
     }
