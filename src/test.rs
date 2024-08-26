@@ -2,12 +2,10 @@
 mod tests {
     use crate::*;
 
-    use crate::cpu::memory::memory_core::Memory;
-
     use anyhow::Result;
 
-    use asm::assembler::{decode_file, ProgramFile};
-    use cpu::{cpu_core::Cpu, memory::vec_memory::VecMemory};
+    use asm::assembler::decode_file;
+    use cpu::cpu_core::Cpu;
 
     use proptest::prelude::*;
     use std::result::Result::Ok;
@@ -35,7 +33,7 @@ mod tests {
             let program = decode_file(file_path.as_os_str().to_str().unwrap());
             let mut cpu = setup_cpu();
 
-            cpu.load_program(program);
+            cpu.load_program_from_elf(program).unwrap();
             let mut count = 0;
 
             loop {
@@ -199,15 +197,7 @@ mod tests {
         fn test_fibbonaci_program(n in 1u32..15, entry_point in 0x1000u32..0xFFFFF) {
             let mut cpu = Cpu::default();
 
-            let mut memory = VecMemory::new();
-            for (id, val) in FIB_PROGRAM_BIN.iter().enumerate() {
-                memory.write_mem_u32(entry_point + 4u32 * (id as u32), *val).unwrap();
-            }
-
-            let program_size = (FIB_PROGRAM_BIN.len() * 4) as u32;
-            cpu.load_program(
-                ProgramFile {entry_point, memory, program_memory_offset: entry_point, lines: vec![], program_size, end_of_data_addr: program_size }
-            );
+            cpu.load_program_from_opcodes(FIB_PROGRAM_BIN.to_vec(), entry_point).unwrap();
 
             cpu.write_mem_u32(0, n).unwrap();
 

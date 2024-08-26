@@ -18,10 +18,7 @@ impl ProgramCache {
             data: Vec::new(),
         }
     }
-    pub fn new<M>(start_addr: u32, end_addr: u32, memory: &M) -> Result<ProgramCache>
-    where
-        M: Memory,
-    {
+    pub fn new(start_addr: u32, end_addr: u32, memory: &mut dyn Memory) -> Result<ProgramCache> {
         let mut data = Vec::new();
         for i in (start_addr..end_addr).step_by(4) {
             data.push(decode_program_line(Word(memory.read_mem_u32(i)?))?);

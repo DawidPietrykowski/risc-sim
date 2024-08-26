@@ -61,7 +61,7 @@ fn main() -> Result<()> {
     let program = decode_file(file_path);
 
     let mut cpu = Cpu::default();
-    cpu.load_program(program);
+    cpu.load_program_from_elf(program)?;
     // cpu.set_debug_enabled(true);
 
     let start_time = std::time::Instant::now();

@@ -4,14 +4,11 @@ use criterion::{
     black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
     PlotConfiguration,
 };
-use risc_sim::{
-    asm::assembler::ProgramFile,
-    cpu::{
-        cpu_core::Cpu,
-        memory::{
-            btree_memory::BTreeMemory, hashmap_memory::FxHashMemory, memory_core::Memory,
-            vec_binsearch_memory::VecBsearchMemory, vec_memory::VecMemory,
-        },
+use risc_sim::cpu::{
+    cpu_core::Cpu,
+    memory::{
+        btree_memory::BTreeMemory, hashmap_memory::FxHashMemory, memory_core::Memory,
+        vec_binsearch_memory::VecBsearchMemory, vec_memory::VecMemory,
     },
 };
 
@@ -25,19 +22,8 @@ const FIB_PROGRAM_BIN: &[u32] = &[
 fn fibbonaci_program(n: u32) {
     let mut cpu = Cpu::default();
 
-    let mut memory = VecMemory::new();
-    for (id, val) in FIB_PROGRAM_BIN.iter().enumerate() {
-        memory.write_mem_u32(4u32 * (id as u32), *val).unwrap();
-    }
-
-    cpu.load_program(ProgramFile {
-        entry_point: 0,
-        memory,
-        program_memory_offset: 0,
-        lines: vec![],
-        program_size: (FIB_PROGRAM_BIN.len() * 4) as u32,
-        end_of_data_addr: (FIB_PROGRAM_BIN.len() * 4) as u32,
-    });
+    cpu.load_program_from_opcodes(FIB_PROGRAM_BIN.to_vec(), 0)
+        .unwrap();
 
     cpu.write_mem_u32(0, n).unwrap();
 

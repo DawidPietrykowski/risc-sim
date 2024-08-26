@@ -1,5 +1,4 @@
 use crate::cpu::memory::memory_core::Memory;
-use crate::cpu::memory::vec_memory::VecMemory;
 use crate::types::{decode_program_line, ProgramLine, Word};
 use anyhow::Result;
 use bitflags::bitflags;
@@ -198,6 +197,17 @@ impl fmt::Display for SectionFlags {
     }
 }
 
+#[allow(unused)]
+struct Section {
+    name: String,
+    section_type: SectionType,
+    flags: SectionFlags,
+    addr: usize,
+    offset: usize,
+    size: usize,
+    data: Vec<u8>,
+}
+
 #[derive(Debug, PartialEq)]
 enum ProgramHeaderType {
     Load,
@@ -224,6 +234,13 @@ struct ProgramHeader {
     file_size: u64,
     memory_size: u64,
     alignment: u64,
+    data: Vec<u8>,
+}
+
+pub struct ElfFile {
+    header: ELFHeader,
+    program_headers: Vec<ProgramHeader>,
+    section_headers: Vec<Section>,
 }
 
 impl Display for ProgramHeader {
@@ -242,14 +259,13 @@ impl Display for ProgramHeader {
 
 pub struct ProgramFile {
     pub entry_point: u32,
-    pub memory: VecMemory,
     pub program_memory_offset: u32,
     pub lines: Vec<ProgramLine>,
     pub program_size: u32,
     pub end_of_data_addr: u32,
 }
 
-pub fn decode_file(path: &str) -> ProgramFile {
+pub fn decode_file(path: &str) -> ElfFile {
     let file = fs::read(path).unwrap();
 
     let magic_value = u32::from_be_bytes(
@@ -382,11 +398,8 @@ pub fn decode_file(path: &str) -> ProgramFile {
 
     println!("{}", elf_header);
 
-    let mut program: Vec<ProgramLine> = vec![];
-    let mut text_section_addr = 0;
-    let mut text_section_size = 0;
-    let mut memory = VecMemory::new();
-    let mut end_of_data_addr = 0;
+    let mut program_headers = vec![];
+    let mut section_headers = vec![];
 
     for i in 0..elf_header.program_header_count {
         let offset = (elf_header.program_header_table_offset
@@ -499,6 +512,12 @@ pub fn decode_file(path: &str) -> ProgramFile {
             ),
         };
 
+        let segment_data = if program_header_type == ProgramHeaderType::Load {
+            &file[segment_offset as usize..(segment_offset + file_size) as usize]
+        } else {
+            &[]
+        };
+
         let program_header = ProgramHeader {
             header_type: program_header_type,
             flags,
@@ -508,22 +527,12 @@ pub fn decode_file(path: &str) -> ProgramFile {
             file_size,
             memory_size,
             alignment,
+            data: segment_data.to_vec(),
         };
 
-        println!("{}", program_header);
+        program_headers.push(program_header);
 
-        if program_header.header_type == ProgramHeaderType::Load {
-            // Load the segment into memory
-            let segment_data = &file[program_header.segment_offset as usize
-                ..(program_header.segment_offset + program_header.file_size) as usize];
-            let segment_address = program_header.virtual_address as usize;
-
-            for (i, byte) in segment_data.iter().enumerate() {
-                memory
-                    .write_mem_u8((segment_address + i) as u32, *byte)
-                    .unwrap();
-            }
-        }
+        // println!("{}", program_header);
     }
 
     // Name string table
@@ -663,59 +672,95 @@ pub fn decode_file(path: &str) -> ProgramFile {
 
         let section = &file[section_offset..(section_offset + section_size)];
 
-        if section_flags.contains(SectionFlags::SHF_ALLOC) {
-            for (i, byte) in section.iter().take(section_size).enumerate() {
+        let section_header = Section {
+            name: section_header_name.to_owned(),
+            section_type,
+            flags: section_flags,
+            addr: section_addr,
+            offset: section_offset,
+            size: section_size,
+            data: section.to_vec(),
+        };
+
+        section_headers.push(section_header);
+    }
+    ElfFile {
+        header: elf_header,
+        program_headers,
+        section_headers,
+    }
+}
+
+pub fn load_program_to_memory(elf: ElfFile, memory: &mut dyn Memory) -> Result<ProgramFile> {
+    let mut program: Vec<ProgramLine> = vec![];
+    let mut text_section_addr = 0;
+    let mut text_section_size = 0;
+    let mut end_of_data_addr = 0;
+
+    for program in elf.program_headers {
+        if program.header_type == ProgramHeaderType::Load {
+            // Load the segment into memory
+            let segment_address = program.virtual_address as usize;
+
+            for (i, byte) in program.data.iter().enumerate() {
                 memory
-                    .write_mem_u8((section_addr + i) as u32, *byte)
+                    .write_mem_u8((segment_address + i) as u32, *byte)
+                    .unwrap();
+            }
+        }
+    }
+
+    for section in elf.section_headers {
+        if section.flags.contains(SectionFlags::SHF_ALLOC) {
+            for (i, byte) in section.data.iter().take(section.size).enumerate() {
+                memory
+                    .write_mem_u8((section.addr + i) as u32, *byte)
                     .unwrap();
             }
         }
 
-        if section_flags.contains(SectionFlags::SHF_ALLOC)
-            || section_flags.contains(SectionFlags::SHF_EXECINSTR)
-            || section_flags.contains(SectionFlags::SHF_WRITE)
+        if section.flags.contains(SectionFlags::SHF_ALLOC)
+            || section.flags.contains(SectionFlags::SHF_EXECINSTR)
+            || section.flags.contains(SectionFlags::SHF_WRITE)
         {
-            end_of_data_addr = max(end_of_data_addr, section_addr + section_size);
+            end_of_data_addr = max(end_of_data_addr, section.addr + section.size);
         }
 
-        if section_header_name == ".text" {
-            println!("Found .text section at {:#x}", offset);
-            println!("Section data start at {:#x}", section_offset);
-            println!("Section Size: {:#x}", section_size);
-            println!("Section Address: {:#x}", section_addr);
-            text_section_addr = section_addr;
-            text_section_size = section_size;
+        if section.name == ".text" {
+            // println!("Found .text section at {:#x}", offset);
+            // println!("Section data start at {:#x}", section_offset);
+            // println!("Section Size: {:#x}", section_size);
+            // println!("Section Address: {:#x}", section_addr);
+            text_section_addr = section.addr;
+            text_section_size = section.size;
 
             let mut pc = 0;
-            while pc < section_size {
-                let instruction = u32::from_le_bytes(section[pc..(pc + 4)].try_into().unwrap());
+            while pc < section.size {
+                let instruction =
+                    u32::from_le_bytes(section.data[pc..(pc + 4)].try_into().unwrap());
                 // println!("{:#010x}: {:#x} ", pc + section_offset, instruction);
                 pc += 4;
 
                 let decoded_instruction = decode_program_line(Word(instruction));
                 match decoded_instruction {
                     Ok(decoded_instruction) => {
-                        // if pc < 100 {
-                        // println!("{:#010x}: {:#x} ", pc + section_addr, instruction);
-                        // println!("{}", decoded_instruction);}
                         program.push(decoded_instruction);
                     }
                     Err(e) => {
                         println!("Error decoding instruction: {}", e);
-                        // break;
                     }
                 }
             }
         }
     }
-    ProgramFile {
-        entry_point: elf_header.entry_point as u32,
+
+    Ok(ProgramFile {
+        entry_point: elf.header.entry_point as u32,
         program_memory_offset: text_section_addr as u32,
         program_size: text_section_size as u32,
         lines: program,
-        memory,
         end_of_data_addr: end_of_data_addr as u32,
-    }
+    })
 }
 
 pub fn decode_program_from_binary(binary: &[u32]) -> Result<Vec<ProgramLine>> {

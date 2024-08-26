@@ -1,8 +1,9 @@
 use std::fmt::Display;
 
 use crate::{
-    asm::assembler::ProgramFile,
+    asm::assembler::{load_program_to_memory, ElfFile},
     system::{kernel::Kernel, passthrough_kernel::PassthroughKernel},
+    types::ABIRegister,
     utils::binary_utils::*,
 };
 
@@ -42,8 +43,7 @@ impl Display for Cpu {
     }
 }
 
-const INITIAL_STACK_POINTER: u32 = 0xbfffff00;
-// const INITIAL_PROGRAM_BREAK: u32 = 0x10023000;
+const INITIAL_STACK_POINTER: u32 = 0xbfffff00; // TODO: Calculate during program load
 
 impl Default for Cpu {
     fn default() -> Self {
@@ -84,17 +84,42 @@ impl Cpu {
         }
     }
 
-    pub fn load_program(&mut self, program_file: ProgramFile) {
+    // TODO: Refactor such that this logic is done by the kernel
+    pub fn load_program_from_elf(&mut self, elf: ElfFile) -> Result<()> {
+        let program_file = load_program_to_memory(elf, self.memory.as_mut())?;
         self.reg_pc = program_file.entry_point;
         self.program_cache = ProgramCache::new(
             program_file.program_memory_offset,
             program_file.program_memory_offset + program_file.program_size,
-            &program_file.memory,
+            self.memory.as_mut(),
         )
         .unwrap();
-        self.memory = Box::new(program_file.memory);
-        self.write_x_u32(2, INITIAL_STACK_POINTER).unwrap();
+        self.write_x_u32(ABIRegister::SP.to_x_reg_id() as u8, INITIAL_STACK_POINTER)
+            .unwrap();
         self.program_brk = program_file.end_of_data_addr;
+        Ok(())
+    }
+
+    pub fn load_program_from_opcodes(&mut self, opcodes: Vec<u32>, entry_point: u32) -> Result<()> {
+        let program_size = opcodes.len() as u32 * 4;
+
+        for (id, val) in opcodes.iter().enumerate() {
+            self.memory
+                .write_mem_u32(entry_point + 4u32 * (id as u32), *val)
+                .unwrap();
+        }
+
+        self.reg_pc = entry_point;
+
+        self.program_cache = ProgramCache::new(
+            entry_point,
+            entry_point + program_size,
+            self.memory.as_mut(),
+        )
+        .unwrap();
+
+        self.program_brk = entry_point + program_size;
+        Ok(())
     }
 
     pub fn run_cycle(&mut self) -> Result<()> {
