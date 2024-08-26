@@ -54,21 +54,17 @@ impl Default for Cpu {
 
 impl Cpu {
     pub fn new() -> Cpu {
-        let stdout_buffer = Vec::<u8>::with_capacity(STDOUT_BUFFER_SIZE);
         Cpu {
             reg_x32: [0x0; 32],
             reg_pc: 0x0,
             current_instruction_pc: 0x0,
             memory: CurrentMemory::new(),
             program_cache: ProgramCache::empty(),
-            stdout_buffer,
             program_memory_offset: 0x0,
             halted: false,
             program_brk: 0,
             # [cfg(not(feature = "maxperf"))]
             debug_enabled: false,
-            stdin_buffer: Vec::new(),
-            stderr_buffer: Vec::new(),
             kernel: PassthroughKernel::default(),
         }
     }

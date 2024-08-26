@@ -385,7 +385,7 @@ pub fn decode_file(path: &str) -> ProgramFile {
     let mut program: Vec<ProgramLine> = vec![];
     let mut text_section_addr = 0;
     let mut text_section_size = 0;
-    let mut memory = M::new();
+    let mut memory = CurrentMemory::new();
     let mut end_of_data_addr = 0;
 
     for i in 0..elf_header.program_header_count {
