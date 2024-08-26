@@ -1,8 +1,10 @@
 pub const MEMORY_SIZE: u32 = u32::MAX;
 pub const MEMORY_CAPACITY: usize = 48;
+use std::fmt::Debug;
+
 use anyhow::Result;
 
-pub trait Memory {
+pub trait Memory: Debug {
     fn read_mem_u8(&self, addr: u32) -> Result<u8>;
     fn read_mem_u32(&self, addr: u32) -> Result<u32>;
     fn read_mem_u16(&self, addr: u32) -> Result<u16>;

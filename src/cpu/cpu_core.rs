@@ -37,8 +37,8 @@ impl Display for Cpu {
             f,
             "Program Memory Offset: {:#010x}",
             self.program_memory_offset
-        )
-        // writeln!(f, "Memory: {:?}", self.memory)
+        )?;
+        writeln!(f, "Memory: {:?}", self.memory)
     }
 }
 
