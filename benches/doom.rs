@@ -49,7 +49,7 @@ impl CpuBenchmark {
                 // no need to check evey cycle
                 break;
             }
-            self.cpu.run_cycle_uncheked();
+            let _ = self.cpu.run_cycle_uncheked();
         }
 
         let elapsed = start.elapsed();
@@ -70,7 +70,7 @@ impl CpuBenchmark {
                 break;
             }
             for _ in 0..COUNT_INTERVAL {
-                self.cpu.run_cycle_uncheked();
+                let _ = self.cpu.run_cycle_uncheked();
             }
         }
 

@@ -21,13 +21,20 @@ proptest = "1.5.0"
 criterion = { version = "0.5", features = ["html_reports"] }
 
 [[bench]]
-name = "benchmarks"
-harness = false
-
-[[bench]]
-name = "doom"
+name = "coremark"
 harness = false
 required-features = ["maxperf"]
+# src = "benches/coremark.rs"
+
+# [[bench]]
+# name = "memory"
+# harness = false
+
+# [[bench]]
+# name = "doom"
+# harness = false
+# required-features = ["maxperf"]
+
 
 [features]
 default = ["maxperf"]

@@ -4,31 +4,10 @@ use criterion::{
     black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
     PlotConfiguration,
 };
-use risc_sim::cpu::{
-    cpu_core::Cpu,
-    memory::{
-        btree_memory::BTreeMemory, hashmap_memory::FxHashMemory, memory_core::Memory,
-        vec_binsearch_memory::VecBsearchMemory, vec_memory::VecMemory,
-    },
+use risc_sim::cpu::memory::{
+    btree_memory::BTreeMemory, hashmap_memory::FxHashMemory, memory_core::Memory,
+    vec_binsearch_memory::VecBsearchMemory, vec_memory::VecMemory,
 };
-
-// Calculates n-th fibbonacci number and stores it in x5
-const FIB_PROGRAM_BIN: &[u32] = &[
-    0x00100093, 0x00100113, 0x00002183, // lw x3, x0 - load n from memory
-    0x00000213, 0x00010293, 0x00208133, 0x00028093, 0x00120213, 0xfe3248e3, // blt x4, x3, -16
-    0xfcdff06f,
-];
-
-fn fibbonaci_program(n: u32) {
-    let mut cpu = Cpu::default();
-
-    cpu.load_program_from_opcodes(FIB_PROGRAM_BIN.to_vec(), 0)
-        .unwrap();
-
-    cpu.write_mem_u32(0, n).unwrap();
-
-    while cpu.run_cycle().is_ok() {}
-}
 
 fn read_write_randon_mem(locations: u32, mut mem: impl Memory) {
     const RW_CYCLES: usize = 1;
@@ -44,10 +23,6 @@ fn read_write_randon_mem(locations: u32, mut mem: impl Memory) {
             }
         }
     }
-}
-
-fn bench_fibbonacci(c: &mut Criterion) {
-    c.bench_function("fibbonacci", |b| b.iter(|| fibbonaci_program(20)));
 }
 
 fn bench_mem_read_write(c: &mut Criterion) {
@@ -84,5 +59,5 @@ fn bench_mem_read_write(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_mem_read_write, bench_fibbonacci);
+criterion_group!(benches, bench_mem_read_write);
 criterion_main!(benches);
