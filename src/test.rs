@@ -4,7 +4,7 @@ mod tests {
 
     use anyhow::Result;
 
-    use asm::assembler::decode_file;
+    use elf::elf_loader::decode_file;
     use cpu::cpu_core::Cpu;
 
     use proptest::prelude::*;

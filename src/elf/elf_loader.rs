@@ -208,6 +208,18 @@ struct Section {
     data: Vec<u8>,
 }
 
+impl fmt::Display for Section {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "Section:")?;
+        writeln!(f, "  Name: {}", self.name)?;
+        writeln!(f, "  Type: {:?}", self.section_type)?;
+        writeln!(f, "  Flags: {}", self.flags)?;
+        writeln!(f, "  Address: 0x{:x}", self.addr)?;
+        writeln!(f, "  Offset: 0x{:x}", self.offset)?;
+        writeln!(f, "  Size: 0x{:x}", self.size)
+    }
+}
+
 #[derive(Debug, PartialEq)]
 enum ProgramHeaderType {
     Load,
@@ -396,8 +408,6 @@ pub fn decode_file(path: &str) -> ElfFile {
         section_header_string_table_index,
     };
 
-    println!("{}", elf_header);
-
     let mut program_headers = vec![];
     let mut section_headers = vec![];
 
@@ -531,8 +541,6 @@ pub fn decode_file(path: &str) -> ElfFile {
         };
 
         program_headers.push(program_header);
-
-        // println!("{}", program_header);
     }
 
     // Name string table
@@ -553,8 +561,6 @@ pub fn decode_file(path: &str) -> ElfFile {
                 .unwrap(),
         ),
     } as usize;
-
-    println!("Section Header String Table Offset: {:#x}", shstrtab_offset);
 
     for i in 0..elf_header.section_header_count {
         let offset = (elf_header.section_header_table_offset
@@ -657,19 +663,6 @@ pub fn decode_file(path: &str) -> ElfFile {
             ),
         } as usize;
 
-        println!(
-            "\nSection Header table offset: {:#x}",
-            elf_header.section_header_table_offset
-        );
-        println!("Section Header Name: {}", section_header_name);
-        println!("Section Header Name Offset: {:#x}", string_start);
-        println!("Section Header Offset {:#x}", offset);
-        println!("Section Address: {:#x}", section_addr);
-        println!("Section Offset: {:#x}", section_offset);
-        println!("Section Size: {:#x}", section_size);
-        println!("Section flags: {}", section_flags);
-        println!("Section type: {:?}", section_type);
-
         let section = &file[section_offset..(section_offset + section_size)];
 
         let section_header = Section {
@@ -727,10 +720,6 @@ pub fn load_program_to_memory(elf: ElfFile, memory: &mut dyn Memory) -> Result<P
         }
 
         if section.name == ".text" {
-            // println!("Found .text section at {:#x}", offset);
-            // println!("Section data start at {:#x}", section_offset);
-            // println!("Section Size: {:#x}", section_size);
-            // println!("Section Address: {:#x}", section_addr);
             text_section_addr = section.addr;
             text_section_size = section.size;
 
@@ -738,7 +727,6 @@ pub fn load_program_to_memory(elf: ElfFile, memory: &mut dyn Memory) -> Result<P
             while pc < section.size {
                 let instruction =
                     u32::from_le_bytes(section.data[pc..(pc + 4)].try_into().unwrap());
-                // println!("{:#010x}: {:#x} ", pc + section_offset, instruction);
                 pc += 4;
 
                 let decoded_instruction = decode_program_line(Word(instruction));

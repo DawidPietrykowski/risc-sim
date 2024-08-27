@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use crate::{
-    asm::assembler::{load_program_to_memory, ElfFile},
+    elf::elf_loader::{load_program_to_memory, ElfFile},
     system::{kernel::Kernel, passthrough_kernel::PassthroughKernel},
     types::ABIRegister,
     utils::binary_utils::*,
@@ -58,7 +58,7 @@ impl Default for Cpu {
             program_brk: 0,
             #[cfg(not(feature = "maxperf"))]
             debug_enabled: false,
-            kernel: Box::new(PassthroughKernel::default()),
+            kernel: Box::<PassthroughKernel>::default(),
         }
     }
 }

@@ -21,7 +21,7 @@ impl From<u32> for SeekType {
 }
 
 pub trait Kernel {
-    fn open_file(&mut self, path: &str) -> Result<u32>;
+    fn open_file(&mut self, path: &str, flags: u32) -> Result<u32>;
     fn read_fd(&mut self, fd: u32, buf: &mut [u8]) -> Result<usize>;
     fn write_fd(&mut self, fd: u32, buf: &[u8]) -> Result<usize>;
     fn close_fd(&mut self, fd: u32) -> Result<()>;

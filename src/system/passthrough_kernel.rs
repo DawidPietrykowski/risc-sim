@@ -18,6 +18,7 @@ pub struct PassthroughKernel {
     pub stdout_buffer: Vec<u8>,
     pub stdin_buffer: Vec<u8>,
     pub stderr_buffer: Vec<u8>,
+    print_stdout: bool,
 }
 
 impl Default for PassthroughKernel {
@@ -29,6 +30,7 @@ impl Default for PassthroughKernel {
             stdout_buffer,
             stdin_buffer: Vec::new(),
             stderr_buffer: Vec::new(),
+            print_stdout: true,
         }
     }
 }
@@ -39,10 +41,14 @@ impl PassthroughKernel {
             .get_mut(&fd)
             .ok_or_else(|| anyhow!("Invalid fd"))
     }
+
+    pub fn set_print_stdout(&mut self, enabled: bool) {
+        self.print_stdout = enabled;
+    }
 }
 
 impl Kernel for PassthroughKernel {
-    fn open_file(&mut self, path: &str) -> Result<u32> {
+    fn open_file(&mut self, path: &str, _flags: u32) -> Result<u32> {
         let file = File::open(path)?;
         let id = self.next_id;
         self.fd_map.insert(id, file);
@@ -112,12 +118,16 @@ impl Kernel for PassthroughKernel {
 
     fn write_stdout(&mut self, buf: &[u8]) {
         self.stdout_buffer.extend(buf);
-        print!("{}", String::from_utf8_lossy(buf));
+        if self.print_stdout {
+            print!("{}", String::from_utf8_lossy(buf));
+        }
     }
 
     fn write_stderr(&mut self, buf: &[u8]) {
         self.stderr_buffer.extend(buf);
-        print!("{}", String::from_utf8_lossy(buf));
+        if self.print_stdout {
+            print!("{}", String::from_utf8_lossy(buf));
+        }
     }
 
     fn read_and_clear_stdout_buffer(&mut self) -> String {

@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 use minifb::{Key, Window, WindowOptions};
-use risc_sim::asm::assembler::decode_file;
+use risc_sim::elf::elf_loader::decode_file;
 use risc_sim::cpu::cpu_core::Cpu;
 use risc_sim::types::ABIRegister;
 
@@ -67,15 +67,13 @@ fn main() -> Result<()> {
     let start_time = std::time::Instant::now();
 
     let mut count = 0;
+    const COUNT_INTERVAL: u64 = 5000000;
     let res = loop {
-        count += 1;
+        count += COUNT_INTERVAL;
         if count > MAX_CYCLES {
             break anyhow::anyhow!("Too many cycles");
         }
-        if SIMULATE_DISPLAY
-            && count % 5000000 == 0
-            && cpu.read_mem_u8(SCREEN_ADDR + MEMORY_BUFFER_SIZE)? != 0
-        {
+        if SIMULATE_DISPLAY && cpu.read_mem_u8(SCREEN_ADDR + MEMORY_BUFFER_SIZE)? != 0 {
             frames_written += 1;
 
             println!("Draw on cycle: {}", count);
@@ -133,7 +131,9 @@ fn main() -> Result<()> {
             }
         }
         #[cfg(feature = "maxperf")]
-        cpu.run_cycle_uncheked();
+        for _ in 0..COUNT_INTERVAL {
+            cpu.run_cycle_uncheked();
+        }
     };
 
     let elapsed_time = start_time.elapsed();

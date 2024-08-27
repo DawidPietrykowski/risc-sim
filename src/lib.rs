@@ -1,4 +1,4 @@
-pub mod asm;
+pub mod elf;
 pub mod cpu;
 pub mod isa;
 pub mod system;
