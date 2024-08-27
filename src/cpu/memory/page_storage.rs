@@ -22,7 +22,7 @@ impl<T: PageStorage> Debug for PageMemory<T> {
 }
 
 pub struct Page {
-    pub data: Box<[u32; (PAGE_SIZE / 4) as usize]>,
+    pub data: [u32; (PAGE_SIZE / 4) as usize],
     pub position: u32,
 }
 
@@ -30,7 +30,7 @@ impl Page {
     pub fn new(position: u32) -> Page {
         Page {
             position,
-            data: Box::new([0; (PAGE_SIZE / 4) as usize]),
+            data: [0; (PAGE_SIZE / 4) as usize],
         }
     }
 }

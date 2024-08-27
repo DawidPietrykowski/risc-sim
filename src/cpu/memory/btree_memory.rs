@@ -6,7 +6,7 @@ use std::{
 use super::page_storage::{Page, PageMemory, PageStorage, PAGE_SIZE};
 
 pub struct BTreeStorage {
-    pages: BTreeMap<u32, Page>,
+    pages: BTreeMap<u32, Box<Page>>,
 }
 
 impl Debug for BTreeStorage {
@@ -34,17 +34,17 @@ impl PageStorage for BTreeStorage {
     }
 
     fn get_page(&self, page_id: u32) -> Option<&Page> {
-        self.pages.get(&page_id)
+        self.pages.get(&page_id).map(|boxed_page| boxed_page.as_ref())
     }
 
     fn get_page_mut(&mut self, page_id: u32) -> Option<&mut Page> {
-        self.pages.get_mut(&page_id)
+        self.pages.get_mut(&page_id).map(|boxed_page| boxed_page.as_mut())
     }
 
     fn get_page_or_create(&mut self, page_id: u32) -> &mut Page {
         self.pages
             .entry(page_id)
-            .or_insert_with(|| Page::new(page_id * PAGE_SIZE))
+            .or_insert_with(|| Box::new(Page::new(page_id * PAGE_SIZE)))
     }
 
     fn len(&self) -> usize {
