@@ -4,8 +4,8 @@ mod tests {
 
     use anyhow::Result;
 
-    use elf::elf_loader::decode_file;
     use cpu::cpu_core::Cpu;
+    use elf::elf_loader::decode_file;
 
     use proptest::prelude::*;
     use std::result::Result::Ok;

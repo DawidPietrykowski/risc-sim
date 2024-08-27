@@ -5,8 +5,8 @@ use std::{
 };
 
 use risc_sim::{
-    elf::elf_loader::decode_file,
     cpu::{cpu_core::Cpu, memory::vec_memory::VecMemory},
+    elf::elf_loader::decode_file,
     system::passthrough_kernel::PassthroughKernel,
 };
 

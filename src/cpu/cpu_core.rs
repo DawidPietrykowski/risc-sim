@@ -147,7 +147,12 @@ impl Cpu {
     }
 
     #[cfg(feature = "maxperf")]
-    pub fn run_cycle_uncheked(&mut self) {
+    pub fn run_cycle_uncheked(&mut self) -> Result<()> {
+        // Check if CPU is halted
+        if self.halted {
+            bail!("CPU is halted");
+        }
+
         // Fetch
         let instruction = self.fetch_instruction_unchecked();
 
@@ -157,6 +162,8 @@ impl Cpu {
 
         // Execute
         let _ = self.execute_program_line(&instruction);
+
+        Ok(())
     }
 
     #[inline(always)]

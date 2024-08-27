@@ -2,8 +2,8 @@
 
 use anyhow::Result;
 use minifb::{Key, Window, WindowOptions};
-use risc_sim::elf::elf_loader::decode_file;
 use risc_sim::cpu::cpu_core::Cpu;
+use risc_sim::elf::elf_loader::decode_file;
 use risc_sim::types::ABIRegister;
 
 use std::env;
@@ -21,7 +21,7 @@ fn main() -> Result<()> {
     const MEMORY_BUFFER_SIZE: u32 = SCREEN_WIDTH * SCREEN_HEIGHT * 4;
     const SCREEN_ADDR: u32 = 0x40000000;
     const SCALE_SCREEN: u32 = 2;
-    const SIMULATE_DISPLAY: bool = true;
+    const SIMULATE_DISPLAY: bool = false;
 
     let mut frames_written = 0;
 
@@ -41,18 +41,23 @@ fn main() -> Result<()> {
         None
     };
 
-    let mut buffer: Vec<u32> = vec![
-        0;
-        (SCREEN_WIDTH * SCREEN_HEIGHT * SCALE_SCREEN * SCALE_SCREEN)
-            .try_into()
-            .unwrap()
-    ];
+    let mut buffer: Vec<u32> = if SIMULATE_DISPLAY {
+        let buf: Vec<u32> = vec![
+            0;
+            (SCREEN_WIDTH * SCREEN_HEIGHT * SCALE_SCREEN * SCALE_SCREEN)
+                .try_into()
+                .unwrap()
+        ];
 
-    window
-        .as_mut()
-        .unwrap()
-        .update_with_buffer(&buffer, SCREEN_WIDTH as usize, SCREEN_HEIGHT as usize)
-        .unwrap();
+        window
+            .as_mut()
+            .unwrap()
+            .update_with_buffer(&buf, SCREEN_WIDTH as usize, SCREEN_HEIGHT as usize)
+            .unwrap();
+        buf
+    } else {
+        Vec::new()
+    };
 
     // delay for 10s
     // std::thread::sleep(std::time::Duration::from_secs(10));
@@ -69,9 +74,25 @@ fn main() -> Result<()> {
     let mut count = 0;
     const COUNT_INTERVAL: u64 = 5000000;
     let res = loop {
-        count += COUNT_INTERVAL;
+        #[cfg(not(feature = "maxperf"))]
+        {
+            count += 1;
+        }
+        #[cfg(feature = "maxperf")]
+        {
+            count += COUNT_INTERVAL;
+        }
+
         if count > MAX_CYCLES {
             break anyhow::anyhow!("Too many cycles");
+        }
+
+        if cpu.read_mem_u8(SCREEN_ADDR + MEMORY_BUFFER_SIZE)? != 0 {
+            frames_written += 1;
+
+            println!("Draw on cycle: {}", count);
+
+            cpu.write_mem_u8(SCREEN_ADDR + MEMORY_BUFFER_SIZE, 0)?;
         }
         if SIMULATE_DISPLAY && cpu.read_mem_u8(SCREEN_ADDR + MEMORY_BUFFER_SIZE)? != 0 {
             frames_written += 1;
@@ -131,8 +152,26 @@ fn main() -> Result<()> {
             }
         }
         #[cfg(feature = "maxperf")]
-        for _ in 0..COUNT_INTERVAL {
-            cpu.run_cycle_uncheked();
+        {
+            let mut finished = false;
+            for _ in 0..COUNT_INTERVAL {
+                match cpu.run_cycle_uncheked() {
+                    Ok(_) => {
+                        // println!("Cycle: {}", count);
+                        continue;
+                    }
+                    Err(_e) => {
+                        finished = true;
+                        break;
+                    }
+                };
+            }
+            if finished {
+                break anyhow::anyhow!("Error");
+            }
+            if start_time.elapsed() > std::time::Duration::from_secs(30) {
+                break anyhow::anyhow!("Timeout");
+            }
         }
     };
 

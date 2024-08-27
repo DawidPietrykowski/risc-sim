@@ -89,7 +89,8 @@ pub const RV32I_SET_E: [Instruction; 2] = [
                     cpu.write_x_u32(ABIRegister::A(0).to_x_reg_id() as u8, 0)?;
 
                     if fd == 0 {
-                        bail!("Unsupported file descriptor: {}", fd)
+                        cpu.write_x_u32(ABIRegister::A(0).to_x_reg_id() as u8, 0)?;
+                        return Ok(());
                     }
 
                     match cpu.kernel.close_fd(fd) {
@@ -112,7 +113,7 @@ pub const RV32I_SET_E: [Instruction; 2] = [
                     cpu.debug_print(|| format!("seek: {} {} {:?}", fd, offset, seek_type));
 
                     if fd == 0 {
-                        bail!("Unsupported file descriptor: {}", fd)
+                        bail!("Seek: unsupported file descriptor: {}", fd)
                     }
 
                     let res: Result<u64> = cpu.kernel.seek_fd(fd, offset as usize, seek_type);
@@ -136,7 +137,7 @@ pub const RV32I_SET_E: [Instruction; 2] = [
                     cpu.debug_print(|| format!("read: {} {} {}", fd, buffer_addr, len));
 
                     if fd == 0 {
-                        bail!("Unsupported file descriptor: {}", fd)
+                        bail!("Read: unsupported file descriptor: {}", fd)
                     }
 
                     let mut buf = vec![0; len as usize];
@@ -161,7 +162,7 @@ pub const RV32I_SET_E: [Instruction; 2] = [
                     let len = cpu.read_x_u32(ABIRegister::A(2).to_x_reg_id() as u8)?;
 
                     if fd == 0 {
-                        bail!("Unsupported file descriptor: {}", fd)
+                        bail!("Write: unsupported file descriptor: {}", fd)
                     }
 
                     let mut buf = vec![0; len as usize];
