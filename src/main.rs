@@ -21,7 +21,7 @@ fn main() -> Result<()> {
     const MEMORY_BUFFER_SIZE: u32 = SCREEN_WIDTH * SCREEN_HEIGHT * 4;
     const SCREEN_ADDR: u32 = 0x40000000;
     const SCALE_SCREEN: u32 = 2;
-    const SIMULATE_DISPLAY: bool = false;
+    const SIMULATE_DISPLAY: bool = true;
 
     let mut frames_written = 0;
 
@@ -87,13 +87,6 @@ fn main() -> Result<()> {
             break anyhow::anyhow!("Too many cycles");
         }
 
-        if cpu.read_mem_u8(SCREEN_ADDR + MEMORY_BUFFER_SIZE)? != 0 {
-            frames_written += 1;
-
-            println!("Draw on cycle: {}", count);
-
-            cpu.write_mem_u8(SCREEN_ADDR + MEMORY_BUFFER_SIZE, 0)?;
-        }
         if SIMULATE_DISPLAY && cpu.read_mem_u8(SCREEN_ADDR + MEMORY_BUFFER_SIZE)? != 0 {
             frames_written += 1;
 
