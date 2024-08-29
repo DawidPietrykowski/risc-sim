@@ -6,25 +6,6 @@ use super::memory_core::Memory;
 pub(crate) const PAGE_SIZE_LOG2: u32 = 18;
 pub const PAGE_SIZE: u32 = 1 << PAGE_SIZE_LOG2;
 
-#[cfg(feature = "memcache")]
-const CACHE_SIZE: u32 = 64;
-#[cfg(feature = "memcache")]
-use std::cmp::min;
-
-#[cfg(feature = "memcache")]
-#[derive(Clone, Copy)]
-struct CacheEntry {
-    addr: u32,
-    data: u32,
-}
-
-#[cfg(feature = "memcache")]
-struct MemoryCache {
-    entries: [CacheEntry; CACHE_SIZE as usize],
-    next_id: u32,
-    count: u32,
-}
-
 #[allow(unused)]
 pub trait PageStorage {
     fn new() -> Self;
@@ -57,51 +38,7 @@ impl Page {
 
 impl<T: PageStorage> PageMemory<T> {
     pub fn new() -> Self {
-        #[cfg(feature = "memcache")]
-        return PageMemory {
-            storage: T::new(),
-            cache: MemoryCache {
-                entries: [CacheEntry { addr: 0, data: 0 }; CACHE_SIZE as usize],
-                next_id: 0,
-                count: 0,
-            },
-        };
-        #[cfg(not(feature = "memcache"))]
         PageMemory { storage: T::new() }
-    }
-
-    #[cfg(feature = "memcache")]
-    fn get(&self, addr: u32) -> Option<u32> {
-        for entry in self.cache.entries.iter().take(self.cache.count as usize) {
-            if entry.addr == addr {
-                return Some(entry.data);
-            }
-        }
-
-        None
-    }
-
-    #[cfg(feature = "memcache")]
-    fn set(&mut self, addr: u32, data: u32) {
-        if let Some(entry) = self
-            .cache
-            .entries
-            .iter_mut()
-            .take(self.cache.count as usize)
-            .find(|c| c.addr == addr)
-        {
-            entry.data = data;
-            return;
-        }
-
-        if self.cache.next_id < self.cache.count {
-            let entry = self.cache.entries[self.cache.next_id as usize];
-            self.write_u32_to_page(entry.addr, entry.data).unwrap();
-        }
-
-        self.cache.entries[self.cache.next_id as usize] = CacheEntry { addr, data };
-        self.cache.next_id = (self.cache.next_id + 1) % CACHE_SIZE;
-        self.cache.count = min(CACHE_SIZE, self.cache.count + 1);
     }
 
     fn write_u32_to_page(&mut self, addr: u32, value: u32) -> Result<()> {
@@ -179,9 +116,7 @@ impl<T: PageStorage> PageMemory<T> {
 }
 
 pub struct PageMemory<T: PageStorage> {
-    pub storage: T,
-    #[cfg(feature = "memcache")]
-    cache: MemoryCache,
+    storage: T,
 }
 
 impl<T: PageStorage> Memory for PageMemory<T> {
@@ -192,14 +127,7 @@ impl<T: PageStorage> Memory for PageMemory<T> {
     }
 
     fn read_mem_u32(&mut self, addr: u32) -> Result<u32> {
-        #[cfg(feature = "memcache")]
-        if let Some(res) = self.get(addr) {
-            return Ok(res);
-        }
-        let res = self.read_u32_from_page(addr)?;
-        #[cfg(feature = "memcache")]
-        self.set(addr, res);
-        Ok(res)
+        self.read_u32_from_page(addr)
     }
 
     fn read_mem_u16(&mut self, addr: u32) -> Result<u16> {
@@ -226,12 +154,6 @@ impl<T: PageStorage> Memory for PageMemory<T> {
     }
 
     fn write_mem_u32(&mut self, addr: u32, value: u32) -> Result<()> {
-        #[cfg(feature = "memcache")]
-        {
-            self.set(addr, value);
-            Ok(())
-        }
-        #[cfg(not(feature = "memcache"))]
         self.write_u32_to_page(addr, value)
     }
 

@@ -38,6 +38,6 @@ required-features = ["maxperf"]
 
 
 [features]
-default = ["maxperf"]
+default = ["maxperf", "memcache"]
 maxperf = []
 memcache = []
