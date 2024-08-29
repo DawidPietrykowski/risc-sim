@@ -43,7 +43,7 @@ impl VecU8Memory {
 }
 
 impl Memory for VecU8Memory {
-    fn read_mem_u8(&self, addr: u32) -> Result<u8> {
+    fn read_mem_u8(&mut self, addr: u32) -> Result<u8> {
         if let Some(page) = self.pages.get(&(addr / PAGE_SIZE)) {
             Ok(page.data[(addr - page.position) as usize])
         } else {
@@ -51,11 +51,11 @@ impl Memory for VecU8Memory {
         }
     }
 
-    fn read_mem_u32(&self, addr: u32) -> Result<u32> {
+    fn read_mem_u32(&mut self, addr: u32) -> Result<u32> {
         Ok((self.read_mem_u16(addr)? as u32) | (self.read_mem_u16(addr + 2)? as u32) << 16)
     }
 
-    fn read_mem_u16(&self, addr: u32) -> Result<u16> {
+    fn read_mem_u16(&mut self, addr: u32) -> Result<u16> {
         Ok((self.read_mem_u8(addr)? as u16) | (self.read_mem_u8(addr + 1)? as u16) << 8)
     }
 
@@ -91,7 +91,7 @@ impl Memory for VecU8Memory {
         Ok(())
     }
 
-    fn read_buf(&self, addr: u32, buf: &mut [u8]) -> Result<()> {
+    fn read_buf(&mut self, addr: u32, buf: &mut [u8]) -> Result<()> {
         for (i, byte) in buf.iter_mut().enumerate() {
             *byte = self.read_mem_u8(addr + i as u32)?;
         }

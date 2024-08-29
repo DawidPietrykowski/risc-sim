@@ -22,7 +22,7 @@ where
     let mut kernel = PassthroughKernel::default();
     kernel.set_print_stdout(false);
     let mut cpu = Cpu::new(mem, kernel);
-    let program = decode_file("tests/coremark");
+    let program = decode_file("tests/coremark.elf");
     cpu.load_program_from_elf(program).unwrap();
     const COUNT_INTERVAL: u64 = 50000;
     loop {

@@ -196,7 +196,7 @@ impl Cpu {
         }
     }
 
-    fn fetch_instruction(&self) -> Result<ProgramLine> {
+    fn fetch_instruction(&mut self) -> Result<ProgramLine> {
         if let Some(cache_line) = self.program_cache.try_get_line(self.reg_pc) {
             Ok(cache_line)
         } else {
@@ -213,15 +213,15 @@ impl Cpu {
         self.program_cache.get_line_unchecked(self.reg_pc)
     }
 
-    pub fn read_mem_u32(&self, addr: u32) -> Result<u32> {
+    pub fn read_mem_u32(&mut self, addr: u32) -> Result<u32> {
         self.memory.read_mem_u32(addr)
     }
 
-    pub fn read_mem_u16(&self, addr: u32) -> Result<u16> {
+    pub fn read_mem_u16(&mut self, addr: u32) -> Result<u16> {
         self.memory.read_mem_u16(addr)
     }
 
-    pub fn read_mem_u8(&self, addr: u32) -> Result<u8> {
+    pub fn read_mem_u8(&mut self, addr: u32) -> Result<u8> {
         self.memory.read_mem_u8(addr)
     }
 
@@ -299,7 +299,7 @@ impl Cpu {
         self.current_instruction_pc
     }
 
-    pub fn read_buf(&self, addr: u32, buf: &mut [u8]) -> Result<()> {
+    pub fn read_buf(&mut self, addr: u32, buf: &mut [u8]) -> Result<()> {
         self.memory.read_buf(addr, buf)
     }
 
@@ -307,7 +307,7 @@ impl Cpu {
         self.memory.write_buf(addr, buf)
     }
 
-    pub fn read_c_string(&self, addr: u32) -> Result<String> {
+    pub fn read_c_string(&mut self, addr: u32) -> Result<String> {
         let mut result = String::new();
         let mut current_addr = addr;
         loop {
