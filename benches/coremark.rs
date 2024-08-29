@@ -47,12 +47,20 @@ where
 fn bench_mem_read_write(c: &mut Criterion) {
     let mut group = c.benchmark_group("Memory");
 
-    group.warm_up_time(Duration::from_millis(100));
-    group.measurement_time(Duration::from_millis(500));
-    group.sample_size(10);
+    group.warm_up_time(Duration::from_millis(500));
+    group.measurement_time(Duration::from_millis(2000));
+    group.sample_size(100);
 
     group.bench_function("VecMemory", |b| {
-        b.iter(|| run_benchmark_with_mem(VecMemory::new()))
+        b.iter(|| run_benchmark_with_mem(mem))
+    });
+
+    group.bench_function("TableMemory", |b| {
+        b.iter(|| run_benchmark_with_mem(TableMemory::new()))
+    });
+
+    // group.bench_function("VecMemoryCache", |b| {
+    //     b.iter(|| run_benchmark_with_mem(VecMemoryCache::new()))
     });
 
     group.bench_function("VecBsearchMemory", |b| {

@@ -34,11 +34,15 @@ impl PageStorage for BTreeStorage {
     }
 
     fn get_page(&self, page_id: u32) -> Option<&Page> {
-        self.pages.get(&page_id).map(|boxed_page| boxed_page.as_ref())
+        self.pages
+            .get(&page_id)
+            .map(|boxed_page| boxed_page.as_ref())
     }
 
     fn get_page_mut(&mut self, page_id: u32) -> Option<&mut Page> {
-        self.pages.get_mut(&page_id).map(|boxed_page| boxed_page.as_mut())
+        self.pages
+            .get_mut(&page_id)
+            .map(|boxed_page| boxed_page.as_mut())
     }
 
     fn get_page_or_create(&mut self, page_id: u32) -> &mut Page {

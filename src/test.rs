@@ -39,7 +39,8 @@ mod tests {
             loop {
                 count += 1;
                 if count > MAX_CYCLES {
-                    break Err(anyhow::anyhow!("Too many cycles").context(format!("File: {:?}", file_path)));
+                    break Err(anyhow::anyhow!("Too many cycles")
+                        .context(format!("File: {:?}", file_path)));
                 }
                 match cpu.run_cycle() {
                     Ok(_) => continue,
