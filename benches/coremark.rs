@@ -7,8 +7,9 @@ use risc_sim::{
         cpu_core::Cpu,
         memory::{
             btree_memory::BTreeMemory, hashmap_memory::FxHashMemory, memory_core::Memory,
-            table_memory::TableMemory, vec_binsearch_memory::VecBsearchMemory,
-            vec_memory::VecMemory, vec_u8_memory::VecU8Memory,
+            raw_table_memory::RawTableMemory, table_memory::TableMemory,
+            vec_binsearch_memory::VecBsearchMemory, vec_memory::VecMemory,
+            vec_u8_memory::VecU8Memory,
         },
     },
     elf::elf_loader::decode_file,
@@ -51,12 +52,16 @@ fn bench_mem_read_write(c: &mut Criterion) {
     group.measurement_time(Duration::from_millis(2000));
     group.sample_size(10);
 
-    group.bench_function("VecMemory", |b| {
-        b.iter(|| run_benchmark_with_mem(VecMemory::new()))
-    });
-
     group.bench_function("TableMemory", |b| {
         b.iter(|| run_benchmark_with_mem(TableMemory::new()))
+    });
+
+    group.bench_function("RawTableMemory", |b| {
+        b.iter(|| run_benchmark_with_mem(RawTableMemory::new()))
+    });
+
+    group.bench_function("VecMemory", |b| {
+        b.iter(|| run_benchmark_with_mem(VecMemory::new()))
     });
 
     group.bench_function("VecBsearchMemory", |b| {

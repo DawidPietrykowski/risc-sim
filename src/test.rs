@@ -4,7 +4,7 @@ mod tests {
 
     use anyhow::Result;
 
-    use cpu::cpu_core::Cpu;
+    use cpu::{cpu_core::Cpu, memory::raw_page_storage::PAGE_SIZE};
     use elf::elf_loader::decode_file;
 
     use proptest::prelude::*;
@@ -183,10 +183,10 @@ mod tests {
         }
 
         #[test]
-        fn test_memory_cross_boundary_u32(addr_v in 0x0u32..((u32::MAX - 3) / (4096 * 16)), offset in 0u32..4u32) {
+        fn test_memory_cross_boundary_u32(addr_v in 1u32..10, offset in 0u32..4u32) {
             let mut cpu = setup_cpu();
             let value = 0x12345678u32;
-            let addr = addr_v * 4096 * 16 + offset;
+            let addr = addr_v * PAGE_SIZE + offset - 4;
             cpu.write_mem_u32(addr, value).unwrap();
             prop_assert_eq!(cpu.read_mem_u32(addr).unwrap(), value);
             prop_assert_eq!(cpu.read_mem_u32(addr + 1).unwrap(), 0x00123456);

@@ -7,7 +7,9 @@ use crate::{
     utils::binary_utils::*,
 };
 
-use super::memory::{memory_core::Memory, program_cache::ProgramCache, table_memory::TableMemory};
+use super::memory::{
+    memory_core::Memory, program_cache::ProgramCache, raw_table_memory::RawTableMemory,
+};
 use crate::types::{decode_program_line, ProgramLine, Word};
 use anyhow::{bail, Context, Result};
 
@@ -51,7 +53,7 @@ impl Default for Cpu {
             reg_x32: [0x0; 32],
             reg_pc: 0x0,
             current_instruction_pc: 0x0,
-            memory: Box::new(TableMemory::new()),
+            memory: Box::new(RawTableMemory::new()),
             program_cache: ProgramCache::empty(),
             program_memory_offset: 0x0,
             halted: false,
