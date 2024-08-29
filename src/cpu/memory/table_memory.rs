@@ -1,12 +1,8 @@
-use std::{
-    default,
-    fmt::{Debug, Formatter},
-    ops::DerefMut,
-};
+use std::fmt::{Debug, Formatter};
 
 use super::{
     memory_core::MEMORY_SIZE,
-    page_storage::{Page, PageMemory, PageStorage, PAGE_SIZE},
+    page_storage::{Page, PageMemory, PageStorage, PAGE_SIZE, PAGE_SIZE_LOG2},
 };
 
 pub struct TableMemoryPageStorage {
@@ -35,8 +31,7 @@ impl PageStorage for TableMemoryPageStorage {
     }
 
     fn get_page_id(&self, addr: u32) -> u32 {
-        // addr / PAGE_SIZE
-        addr >> 20 // Only works for 2^20 = 1MB page size
+        addr >> PAGE_SIZE_LOG2
     }
 
     fn get_page(&self, page_id: u32) -> Option<&Page> {

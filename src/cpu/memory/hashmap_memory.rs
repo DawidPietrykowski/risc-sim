@@ -2,7 +2,7 @@ use rustc_hash::{FxBuildHasher, FxHashMap};
 
 use super::{
     memory_core::MEMORY_CAPACITY,
-    page_storage::{Page, PageMemory, PageStorage, PAGE_SIZE},
+    page_storage::{Page, PageMemory, PageStorage, PAGE_SIZE, PAGE_SIZE_LOG2},
 };
 
 pub struct FxHashStorage {
@@ -23,7 +23,7 @@ impl PageStorage for FxHashStorage {
     }
 
     fn get_page_id(&self, addr: u32) -> u32 {
-        addr / PAGE_SIZE
+        addr >> PAGE_SIZE_LOG2
     }
 
     fn get_page(&self, page_id: u32) -> Option<&Page> {

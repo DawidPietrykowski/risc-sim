@@ -1,21 +1,24 @@
-use anyhow::{anyhow, Ok, Result};
-use std::{
-    cmp::min,
-    fmt::{Debug, Formatter},
-};
+use anyhow::{Ok, Result};
+use std::fmt::{Debug, Formatter};
 
-use super::memory_core::{Memory, MEMORY_SIZE};
+use super::memory_core::Memory;
 
-pub const PAGE_SIZE: u32 = 4096 * 256;
+pub(crate) const PAGE_SIZE_LOG2: u32 = 18;
+pub const PAGE_SIZE: u32 = 1 << PAGE_SIZE_LOG2;
 
+#[cfg(feature = "memcache")]
 const CACHE_SIZE: u32 = 64;
+#[cfg(feature = "memcache")]
+use std::cmp::min;
 
+#[cfg(feature = "memcache")]
 #[derive(Clone, Copy)]
 struct CacheEntry {
     addr: u32,
     data: u32,
 }
 
+#[cfg(feature = "memcache")]
 struct MemoryCache {
     entries: [CacheEntry; CACHE_SIZE as usize],
     next_id: u32,
@@ -104,10 +107,7 @@ impl<T: PageStorage> PageMemory<T> {
     fn write_u32_to_page(&mut self, addr: u32, value: u32) -> Result<()> {
         let reordered_value = value.swap_bytes();
 
-        let page_id = addr / PAGE_SIZE;
-        if page_id > MEMORY_SIZE / PAGE_SIZE {
-            return Err(anyhow!("Tried to access outside of memory bounds"));
-        }
+        let page_id = self.storage.get_page_id(addr);
 
         let page = self.storage.get_page_or_create(page_id);
 
@@ -140,7 +140,7 @@ impl<T: PageStorage> PageMemory<T> {
     }
 
     fn read_u32_from_page(&self, addr: u32) -> Result<u32> {
-        let page_id = addr / PAGE_SIZE;
+        let page_id = self.storage.get_page_id(addr);
         if let Some(page) = self.storage.get_page(page_id) {
             if 0 == addr & 3 {
                 Ok(page.data[(addr - page.position) as usize / 4].swap_bytes())

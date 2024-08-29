@@ -37,8 +37,14 @@ impl PageU8 {
 impl VecU8Memory {
     pub fn new() -> Self {
         VecU8Memory {
-            pages: FxHashMap::with_capacity_and_hasher(1024, FxBuildHasher::default()),
+            pages: FxHashMap::with_capacity_and_hasher(1024, FxBuildHasher),
         }
+    }
+}
+
+impl Default for VecU8Memory {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

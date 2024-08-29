@@ -7,7 +7,7 @@ use crate::{
     utils::binary_utils::*,
 };
 
-use super::memory::{memory_core::Memory, program_cache::ProgramCache, vec_memory::VecMemory};
+use super::memory::{memory_core::Memory, program_cache::ProgramCache, table_memory::TableMemory};
 use crate::types::{decode_program_line, ProgramLine, Word};
 use anyhow::{bail, Context, Result};
 
@@ -51,7 +51,7 @@ impl Default for Cpu {
             reg_x32: [0x0; 32],
             reg_pc: 0x0,
             current_instruction_pc: 0x0,
-            memory: Box::new(VecMemory::new()),
+            memory: Box::new(TableMemory::new()),
             program_cache: ProgramCache::empty(),
             program_memory_offset: 0x0,
             halted: false,
@@ -238,13 +238,19 @@ impl Cpu {
     }
 
     pub fn read_x_u32(&self, id: u8) -> Result<u32> {
-        let value = self
-            .reg_x32
-            .get(id as usize)
-            // .context(format!("Register x{} does not exist", id))?;
-            .context("Register does not exist")?;
+        #[cfg(feature = "maxperf")]
+        {
+            unsafe { return Ok(*self.reg_x32.get_unchecked(id as usize)) }
+        }
+        #[cfg(not(feature = "maxperf"))]
+        {
+            let value = self
+                .reg_x32
+                .get(id as usize)
+                .context(format!("Register x{} does not exist", id))?;
 
-        Ok(*value)
+            return Ok(*value);
+        }
     }
 
     pub fn read_x_i32(&self, id: u8) -> Result<i32> {
