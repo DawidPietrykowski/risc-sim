@@ -17,6 +17,9 @@ pub trait RawPageStorage {
     fn get_page_mut(&mut self, page_id: u32) -> Option<&mut Page>;
     fn get_page_or_create(&mut self, page_id: u32) -> &mut Page;
     fn len(&self) -> usize;
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 impl<T: RawPageStorage> Debug for RawPageMemory<T> {
@@ -36,6 +39,12 @@ impl Page {
             position,
             data: Box::new([0; PAGE_SIZE as usize]),
         }
+    }
+}
+
+impl<T: RawPageStorage> Default for RawPageMemory<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

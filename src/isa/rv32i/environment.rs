@@ -222,6 +222,7 @@ pub const RV32I_SET_E: [Instruction; 2] = [
                     let clock_id = cpu.read_x_u32(ABIRegister::A(0).to_x_reg_id() as u8)?;
                     let timespec_addr = cpu.read_x_u32(ABIRegister::A(1).to_x_reg_id() as u8)?;
 
+                    #[allow(clippy::useless_conversion)]
                     let now = clock_gettime(ClockId::from_raw(clock_id.try_into().unwrap()))
                         .context("clock_gettime")?;
 
