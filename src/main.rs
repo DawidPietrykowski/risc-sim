@@ -19,7 +19,7 @@ fn main() -> Result<()> {
     const SCREEN_WIDTH: u32 = 320;
     const SCREEN_HEIGHT: u32 = 200;
     const MEMORY_BUFFER_SIZE: u32 = SCREEN_WIDTH * SCREEN_HEIGHT * 4;
-    const SCREEN_ADDR: u32 = 0x40000000;
+    const SCREEN_ADDR_ADDR: u32 = 0x40000000;
     const SCALE_SCREEN: u32 = 2;
     const SIMULATE_DISPLAY: bool = true;
 
@@ -72,7 +72,7 @@ fn main() -> Result<()> {
     let start_time = std::time::Instant::now();
 
     let mut count = 0;
-    const COUNT_INTERVAL: u64 = 5000000;
+    const COUNT_INTERVAL: u64 = 200000;
     let res = loop {
         #[cfg(not(feature = "maxperf"))]
         {
@@ -87,12 +87,14 @@ fn main() -> Result<()> {
             break anyhow::anyhow!("Too many cycles");
         }
 
-        if SIMULATE_DISPLAY && cpu.read_mem_u8(SCREEN_ADDR + MEMORY_BUFFER_SIZE)? != 0 {
+        if SIMULATE_DISPLAY && cpu.read_mem_u32(SCREEN_ADDR_ADDR)? != 0 {
             frames_written += 1;
 
             println!("Draw on cycle: {}", count);
 
-            cpu.write_mem_u8(SCREEN_ADDR + MEMORY_BUFFER_SIZE, 0)?;
+            let screen_data_addr = cpu.read_mem_u32(SCREEN_ADDR_ADDR)?;
+            
+            cpu.write_mem_u32(SCREEN_ADDR_ADDR, 0)?;
 
             if window.as_ref().unwrap().is_key_down(Key::Escape) {
                 break anyhow::anyhow!("Escape pressed");
@@ -107,12 +109,12 @@ fn main() -> Result<()> {
                     let b;
                     let r;
                     if cmap {
-                        let val = cpu.read_mem_u8(SCREEN_ADDR + pixel_index)? as u32;
+                        let val = cpu.read_mem_u8(screen_data_addr + pixel_index)? as u32;
                         g = ((val) & 0b11) * 0xFF / 4;
                         b = ((val >> 3) & 0b11) * 0xFF / 4;
                         r = ((val >> 6) & 0b11) * 0xFF / 4;
                     } else {
-                        let val = cpu.read_mem_u32(SCREEN_ADDR + pixel_index * 4)?;
+                        let val = cpu.read_mem_u32(screen_data_addr + pixel_index * 4)?;
                         r = (val) & 0xFF;
                         g = (val >> 8) & 0xFF;
                         b = (val >> 16) & 0xFF;
