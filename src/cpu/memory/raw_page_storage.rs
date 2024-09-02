@@ -57,23 +57,24 @@ impl<T: RawPageStorage> RawPageMemory<T> {
         let page_id = self.storage.get_page_id(addr);
 
         let page = self.storage.get_page_or_create(page_id);
-        if addr as u64 + 3 - page.position as u64 >= PAGE_SIZE as u64 {
-            let offset = addr & 0b11;
+        if (addr as u64 + 3 - page.position as u64) >= PAGE_SIZE as u64 {
+            let upper_page_bytes = addr & 0b11;
+            let lower_page_bytes = 4 - upper_page_bytes;
 
             unsafe {
                 let value_bytes: [u8; 4] = value.to_le_bytes();
 
-                let lower_local_addr = addr - page.position;
-                let ptr: *mut u8 = page.data.as_mut_ptr().add(lower_local_addr as usize);
-                let bytes = slice::from_raw_parts_mut(ptr, 4 - offset as usize);
-                bytes[..4 - offset as usize].copy_from_slice(&value_bytes[offset as usize..]);
-
-                if let Some(upper_page) = self.storage.get_page_mut(page_id + 1) {
-                    let upper_local_addr = addr - upper_page.position;
-                    let ptr: *mut u8 = upper_page.data.as_mut_ptr().add(upper_local_addr as usize);
-                    let bytes = slice::from_raw_parts_mut(ptr, offset as usize);
-                    bytes[4 - offset as usize..]
-                        .copy_from_slice(&value_bytes[..4 - offset as usize]);
+                {
+                    let lower_local_addr = addr - page.position;
+                    let ptr: *mut u8 = page.data.as_mut_ptr().add(lower_local_addr as usize);
+                    let bytes = slice::from_raw_parts_mut(ptr, lower_page_bytes as usize);
+                    bytes.copy_from_slice(&value_bytes[..lower_page_bytes as usize]);
+                }
+                {
+                    let upper_page = self.storage.get_page_or_create(page_id + 1);
+                    let ptr: *mut u8 = upper_page.data.as_mut_ptr();
+                    let bytes = slice::from_raw_parts_mut(ptr, upper_page_bytes as usize);
+                    bytes.copy_from_slice(&value_bytes[lower_page_bytes as usize..]);
                 }
             }
         } else {
@@ -93,33 +94,29 @@ impl<T: RawPageStorage> RawPageMemory<T> {
         let page_id = self.storage.get_page_id(addr);
         if let Some(page) = self.storage.get_page(page_id) {
             if (addr as u64 + 3 - page.position as u64) >= PAGE_SIZE as u64 {
-                let offset = addr & 0b11;
+                let upper_page_bytes = (addr & 0b11) as usize;
+                let lower_page_bytes = 4 - upper_page_bytes;
 
                 let mut res_bytes: [u8; 4] = [0u8; 4];
 
                 unsafe {
-                    let lower_local_addr = addr - page.position;
-                    let ptr: *const u8 = page.data.as_ptr().add(lower_local_addr as usize);
-                    let bytes = slice::from_raw_parts(ptr, 4 - offset as usize);
-                    res_bytes[..4 - offset as usize].copy_from_slice(&bytes[4 - offset as usize..]);
-
+                    {
+                        let lower_local_addr = (addr - page.position) as usize;
+                        let ptr: *const u8 = page.data.as_ptr().add(lower_local_addr);
+                        let bytes = slice::from_raw_parts(ptr, lower_page_bytes);
+                        res_bytes[..lower_page_bytes].copy_from_slice(&bytes);
+                    }
                     if let Some(upper_page) = self.storage.get_page(page_id + 1) {
-                        let upper_local_addr = addr - upper_page.position;
-                        let ptr: *const u8 =
-                            upper_page.data.as_ptr().add(upper_local_addr as usize);
-                        let bytes = slice::from_raw_parts(ptr, offset as usize);
-                        res_bytes[4 - offset as usize..]
-                            .copy_from_slice(&bytes[..4 - offset as usize]);
+                        let ptr: *const u8 = upper_page.data.as_ptr();
+                        let bytes = slice::from_raw_parts(ptr, upper_page_bytes);
+                        res_bytes[lower_page_bytes..].copy_from_slice(&bytes);
                     }
 
                     Ok(u32::from_le_bytes(res_bytes))
                 }
             } else {
                 unsafe {
-                    let ptr = page
-                        .data
-                        .as_ptr()
-                        .add(addr as usize - page.position as usize);
+                    let ptr = page.data.as_ptr().add((addr - page.position) as usize);
                     let bytes = ptr as *const [u8; 4];
                     Ok(u32::from_le_bytes(bytes.read()))
                 }
