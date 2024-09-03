@@ -46,38 +46,45 @@ where
 }
 
 fn bench_mem_read_write(c: &mut Criterion) {
-    let mut group = c.benchmark_group("Memory");
+    let mut group = c.benchmark_group("Coremark Memory");
 
     group.warm_up_time(Duration::from_millis(500));
     group.measurement_time(Duration::from_millis(2000));
     group.sample_size(10);
 
     group.bench_function("TableMemory", |b| {
-        b.iter(|| run_benchmark_with_mem(TableMemory::new()))
+        let mem = TableMemory::new();
+        b.iter(|| run_benchmark_with_mem(mem.clone()))
     });
 
     group.bench_function("RawTableMemory", |b| {
-        b.iter(|| run_benchmark_with_mem(RawTableMemory::new()))
+        let mem = RawTableMemory::new();
+        b.iter(|| run_benchmark_with_mem(mem.clone()))
     });
 
     group.bench_function("VecMemory", |b| {
-        b.iter(|| run_benchmark_with_mem(VecMemory::new()))
+        let mem = VecMemory::new();
+        b.iter(|| run_benchmark_with_mem(mem.clone()))
     });
 
     group.bench_function("VecBsearchMemory", |b| {
-        b.iter(|| run_benchmark_with_mem(VecBsearchMemory::new()))
+        let mem = VecBsearchMemory::new();
+        b.iter(|| run_benchmark_with_mem(mem.clone()))
     });
 
     group.bench_function("VecU8Memory", |b| {
-        b.iter(|| run_benchmark_with_mem(VecU8Memory::new()))
+        let mem = VecU8Memory::new();
+        b.iter(|| run_benchmark_with_mem(mem.clone()))
     });
 
     group.bench_function("FxHashMemory", |b| {
-        b.iter(|| run_benchmark_with_mem(FxHashMemory::new()))
+        let mem = FxHashMemory::new();
+        b.iter(|| run_benchmark_with_mem(mem.clone()))
     });
 
     group.bench_function("BTreeMemory", |b| {
-        b.iter(|| run_benchmark_with_mem(BTreeMemory::new()))
+        let mem = BTreeMemory::new();
+        b.iter(|| run_benchmark_with_mem(mem.clone()))
     });
 
     group.finish();

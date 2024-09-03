@@ -5,6 +5,7 @@ use super::{
     page_storage::{Page, PageMemory, PageStorage, PAGE_SIZE, PAGE_SIZE_LOG2},
 };
 
+#[derive(Clone)]
 pub struct TableMemoryPageStorage {
     pages: [Option<Box<Page>>;
         (((MEMORY_SIZE as u64) + (PAGE_SIZE as u64) - 1) / (PAGE_SIZE as u64)) as usize],

@@ -4,7 +4,7 @@ mod tests {
 
     use anyhow::Result;
 
-    use cpu::{cpu_core::Cpu, memory::raw_page_storage::PAGE_SIZE};
+    use cpu::{cpu_core::Cpu, memory::page_storage::PAGE_SIZE};
     use elf::elf_loader::decode_file;
 
     use proptest::prelude::*;

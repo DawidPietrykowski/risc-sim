@@ -3,7 +3,7 @@ use std::fmt::{Debug, Formatter};
 
 use super::memory_core::Memory;
 
-pub(crate) const PAGE_SIZE_LOG2: u32 = 18;
+pub(crate) const PAGE_SIZE_LOG2: u32 = 16;
 pub const PAGE_SIZE: u32 = 1 << PAGE_SIZE_LOG2;
 
 #[allow(unused)]
@@ -22,6 +22,7 @@ impl<T: PageStorage> Debug for PageMemory<T> {
     }
 }
 
+#[derive(Clone)]
 pub struct Page {
     pub data: Box<[u32; (PAGE_SIZE / 4) as usize]>,
     pub position: u32,
@@ -115,6 +116,7 @@ impl<T: PageStorage> PageMemory<T> {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct PageMemory<T: PageStorage> {
     storage: T,
 }

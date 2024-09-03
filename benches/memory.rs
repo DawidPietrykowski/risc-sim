@@ -6,10 +6,11 @@ use criterion::{
 };
 use risc_sim::cpu::memory::{
     btree_memory::BTreeMemory, hashmap_memory::FxHashMemory, memory_core::Memory,
-    vec_binsearch_memory::VecBsearchMemory, vec_memory::VecMemory,
+    raw_table_memory::RawTableMemory, table_memory::TableMemory,
+    vec_binsearch_memory::VecBsearchMemory, vec_memory::VecMemory, vec_u8_memory::VecU8Memory,
 };
 
-fn read_write_randon_mem(locations: u32, mut mem: impl Memory) {
+fn read_write_randon_mem(locations: u32, mem: &mut impl Memory) {
     const RW_CYCLES: usize = 1;
     const BUF_SIZE: usize = 32;
     const BUF: [u32; BUF_SIZE] = [0; BUF_SIZE];
@@ -26,7 +27,7 @@ fn read_write_randon_mem(locations: u32, mut mem: impl Memory) {
 }
 
 fn bench_mem_read_write(c: &mut Criterion) {
-    let mut group = c.benchmark_group("Memory");
+    let mut group = c.benchmark_group("Synthetic Memory");
 
     let plot_config = PlotConfiguration::default().summary_scale(AxisScale::Logarithmic);
     group.plot_config(plot_config);
@@ -37,22 +38,43 @@ fn bench_mem_read_write(c: &mut Criterion) {
     let spans = vec![1, 2, 3, 5, 8, 12, 20, 40, 70, 90, 100];
 
     for &span in &spans {
-        group.bench_with_input(BenchmarkId::new("FxHashMemory", span), &span, |b, &s| {
-            b.iter(|| read_write_randon_mem(black_box(s), FxHashMemory::new()))
+        group.bench_with_input(BenchmarkId::new("TableMemory", span), &span, |b, &s| {
+            let mut mem = TableMemory::new();
+            b.iter(|| read_write_randon_mem(black_box(s), &mut mem))
+        });
+
+        group.bench_with_input(BenchmarkId::new("RawTableMemory", span), &span, |b, &s| {
+            let mut mem = RawTableMemory::new();
+            b.iter(|| read_write_randon_mem(black_box(s), &mut mem))
         });
 
         group.bench_with_input(BenchmarkId::new("VecMemory", span), &span, |b, &s| {
-            b.iter(|| read_write_randon_mem(black_box(s), VecMemory::new()))
+            let mut mem = VecMemory::new();
+            b.iter(|| read_write_randon_mem(black_box(s), &mut mem))
         });
 
         group.bench_with_input(
             BenchmarkId::new("VecBsearchMemory", span),
             &span,
-            |b, &s| b.iter(|| read_write_randon_mem(black_box(s), VecBsearchMemory::new())),
+            |b, &s| {
+                let mut mem = VecBsearchMemory::new();
+                b.iter(|| read_write_randon_mem(black_box(s), &mut mem))
+            },
         );
 
+        group.bench_with_input(BenchmarkId::new("VecU8Memory", span), &span, |b, &s| {
+            let mut mem = VecU8Memory::new();
+            b.iter(|| read_write_randon_mem(black_box(s), &mut mem))
+        });
+
+        group.bench_with_input(BenchmarkId::new("FxHashMemory", span), &span, |b, &s| {
+            let mut mem = FxHashMemory::new();
+            b.iter(|| read_write_randon_mem(black_box(s), &mut mem))
+        });
+
         group.bench_with_input(BenchmarkId::new("BTreeMemory", span), &span, |b, &s| {
-            b.iter(|| read_write_randon_mem(black_box(s), BTreeMemory::new()))
+            let mut mem = BTreeMemory::new();
+            b.iter(|| read_write_randon_mem(black_box(s), &mut mem))
         });
     }
 

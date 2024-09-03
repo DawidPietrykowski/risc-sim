@@ -93,7 +93,7 @@ fn main() -> Result<()> {
             println!("Draw on cycle: {}", count);
 
             let screen_data_addr = cpu.read_mem_u32(SCREEN_ADDR_ADDR)?;
-            
+
             cpu.write_mem_u32(SCREEN_ADDR_ADDR, 0)?;
 
             if window.as_ref().unwrap().is_key_down(Key::Escape) {

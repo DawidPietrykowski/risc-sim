@@ -10,6 +10,7 @@ const PAGE_SIZE: u32 = 4096 * 16;
 
 const MEMORY_SIZE: u32 = u32::MAX;
 
+#[derive(Clone)]
 pub struct VecU8Memory {
     pages: FxHashMap<u32, PageU8>,
 }
@@ -20,6 +21,7 @@ impl Debug for VecU8Memory {
     }
 }
 
+#[derive(Clone)]
 struct PageU8 {
     data: [u8; PAGE_SIZE as usize],
     position: u32,

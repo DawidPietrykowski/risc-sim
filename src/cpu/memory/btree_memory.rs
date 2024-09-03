@@ -5,6 +5,7 @@ use std::{
 
 use super::page_storage::{Page, PageMemory, PageStorage, PAGE_SIZE, PAGE_SIZE_LOG2};
 
+#[derive(Clone)]
 pub struct BTreeStorage {
     pages: BTreeMap<u32, Box<Page>>,
 }

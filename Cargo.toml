@@ -25,11 +25,11 @@ criterion = { version = "0.5", features = ["html_reports"] }
 name = "coremark"
 harness = false
 required-features = ["maxperf"]
-# src = "benches/coremark.rs"
 
-# [[bench]]
-# name = "memory"
-# harness = false
+[[bench]]
+name = "memory"
+harness = false
+required-features = ["maxperf"]
 
 # [[bench]]
 # name = "doom"

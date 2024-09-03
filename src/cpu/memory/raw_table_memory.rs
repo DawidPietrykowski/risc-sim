@@ -2,9 +2,11 @@ use std::fmt::{Debug, Formatter};
 
 use super::{
     memory_core::MEMORY_SIZE,
-    raw_page_storage::{Page, RawPageMemory, RawPageStorage, PAGE_SIZE, PAGE_SIZE_LOG2},
+    page_storage::{PAGE_SIZE, PAGE_SIZE_LOG2},
+    raw_page_storage::{Page, RawPageMemory, RawPageStorage},
 };
 
+#[derive(Clone)]
 pub struct RawTableMemoryPageStorage {
     pages: [Option<Box<Page>>;
         (((MEMORY_SIZE as u64) + (PAGE_SIZE as u64) - 1) / (PAGE_SIZE as u64)) as usize],

@@ -1,7 +1,7 @@
 pub mod btree_memory;
 pub mod hashmap_memory;
 pub mod memory_core;
-mod page_storage;
+pub mod page_storage;
 pub mod program_cache;
 pub mod raw_page_storage;
 pub mod raw_table_memory;

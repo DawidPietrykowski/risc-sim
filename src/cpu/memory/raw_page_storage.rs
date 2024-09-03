@@ -5,9 +5,7 @@ use std::{
 };
 
 use super::memory_core::Memory;
-
-pub(crate) const PAGE_SIZE_LOG2: u32 = 18;
-pub const PAGE_SIZE: u32 = 1 << PAGE_SIZE_LOG2;
+use super::page_storage::PAGE_SIZE;
 
 #[allow(unused)]
 pub trait RawPageStorage {
@@ -28,6 +26,7 @@ impl<T: RawPageStorage> Debug for RawPageMemory<T> {
     }
 }
 
+#[derive(Clone)]
 pub struct Page {
     pub data: Box<[u8; PAGE_SIZE as usize]>,
     pub position: u32,
@@ -127,6 +126,7 @@ impl<T: RawPageStorage> RawPageMemory<T> {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct RawPageMemory<T: RawPageStorage> {
     storage: T,
 }
