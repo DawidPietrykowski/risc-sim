@@ -195,6 +195,16 @@ mod tests {
         }
 
         #[test]
+        fn test_memory_cross_boundary_u16(addr_v in 1u32..10, offset in 0u32..2u32) {
+            let mut cpu = setup_cpu();
+            let value = 0x5678u16;
+            let addr = addr_v * PAGE_SIZE + offset - 2;
+            cpu.write_mem_u16(addr, value).unwrap();
+            prop_assert_eq!(cpu.read_mem_u16(addr).unwrap(), value);
+            prop_assert_eq!(cpu.read_mem_u16(addr + 1).unwrap(), 0x0056);
+        }
+
+        #[test]
         fn test_fibbonaci_program(n in 1u32..15, entry_point in 0x1000u32..0xFFFFF) {
             let mut cpu = Cpu::default();
 

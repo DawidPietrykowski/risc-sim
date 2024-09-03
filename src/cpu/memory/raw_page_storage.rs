@@ -4,8 +4,8 @@ use std::{
     slice,
 };
 
-use super::memory_core::Memory;
 use super::page_storage::PAGE_SIZE;
+use super::{memory_core::Memory, page_storage::PAGE_SIZE_LOG2};
 
 #[allow(unused)]
 pub trait RawPageStorage {
@@ -135,7 +135,7 @@ impl<T: RawPageStorage> Memory for RawPageMemory<T> {
     fn read_mem_u8(&mut self, addr: u32) -> Result<u8> {
         if let Some(page) = self.storage.get_page(self.storage.get_page_id(addr)) {
             let local_addr = (addr - page.position) as usize;
-            Ok(page.data[local_addr])
+            unsafe { Ok(*page.data.get_unchecked(local_addr)) }
         } else {
             Ok(0)
         }
@@ -146,10 +146,33 @@ impl<T: RawPageStorage> Memory for RawPageMemory<T> {
     }
 
     fn read_mem_u16(&mut self, addr: u32) -> Result<u16> {
-        let offset_bits = (addr & 0b1) * 8;
-        let full_value = self.read_mem_u32(addr & !(0b1))?;
-        let u16_slice = (full_value >> (offset_bits)) & 0xffff;
-        Ok(u16_slice as u16)
+        let page_id = self.storage.get_page_id(addr);
+        if let Some(page) = self.storage.get_page(page_id) {
+            if ((addr << (32 - PAGE_SIZE_LOG2)) >> 32 - PAGE_SIZE_LOG2) == PAGE_SIZE - 1 {
+                let mut res_bytes: [u8; 2] = [0u8; 2];
+
+                unsafe {
+                    {
+                        let lower_local_addr = (PAGE_SIZE - 1) as usize;
+                        *res_bytes.get_unchecked_mut(0) =
+                            *page.data.get_unchecked(lower_local_addr);
+                    }
+                    if let Some(upper_page) = self.storage.get_page(page_id + 1) {
+                        *res_bytes.get_unchecked_mut(1) = *upper_page.data.get_unchecked(0);
+                    }
+
+                    Ok(u16::from_le_bytes(res_bytes))
+                }
+            } else {
+                unsafe {
+                    let ptr = page.data.as_ptr().add((addr - page.position) as usize);
+                    let bytes = ptr as *const [u8; 2];
+                    Ok(u16::from_le_bytes(bytes.read()))
+                }
+            }
+        } else {
+            Ok(0)
+        }
     }
 
     fn write_mem_u8(&mut self, addr: u32, value: u8) -> Result<()> {
@@ -157,16 +180,38 @@ impl<T: RawPageStorage> Memory for RawPageMemory<T> {
             .storage
             .get_page_or_create(self.storage.get_page_id(addr));
         let local_addr = (addr - page.position) as usize;
-        page.data[local_addr] = value;
+        unsafe {
+            *page.data.get_unchecked_mut(local_addr) = value;
+        }
         Ok(())
     }
 
     fn write_mem_u16(&mut self, addr: u32, value: u16) -> Result<()> {
-        let offset_bits = (addr & 0b1) * 8;
-        let full_value = self.read_mem_u32(addr & !(0b1))?;
-        let cleared_value = !(0xFFFF << (offset_bits)) & full_value;
-        let filled_value = cleared_value | ((value as u32) << (offset_bits));
-        self.write_mem_u32(addr & !(0b1), filled_value)
+        let page_id = self.storage.get_page_id(addr);
+        let page = self.storage.get_page_or_create(page_id);
+        if ((addr << (32 - PAGE_SIZE_LOG2)) >> 32 - PAGE_SIZE_LOG2) == PAGE_SIZE - 1 {
+            let mut data_bytes: [u8; 2] = value.to_le_bytes();
+
+            unsafe {
+                {
+                    let lower_local_addr = (PAGE_SIZE - 1) as usize;
+                    *page.data.get_unchecked_mut(lower_local_addr) =
+                        *data_bytes.get_unchecked_mut(0);
+                }
+                {
+                    let upper_page = self.storage.get_page_or_create(page_id + 1);
+                    *upper_page.data.get_unchecked_mut(0) = *data_bytes.get_unchecked_mut(1);
+                }
+            }
+        } else {
+            unsafe {
+                let ptr = page.data.as_ptr().add((addr - page.position) as usize);
+                let bytes = ptr as *mut [u8; 2];
+                bytes.write(value.to_le_bytes());
+            }
+        }
+
+        Ok(())
     }
 
     fn write_mem_u32(&mut self, addr: u32, value: u32) -> Result<()> {
