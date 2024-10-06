@@ -16,8 +16,11 @@ use anyhow::{bail, Context, Result};
 
 pub struct Cpu {
     reg_x32: [u32; 32],
+    reg_x64: [u64; 32],
     reg_pc: u32,
+    reg_pc_64: u64,
     pub current_instruction_pc: u32,
+    pub current_instruction_pc_64: u64,
     pub memory: Box<dyn Memory>,
     program_cache: ProgramCache,
     program_memory_offset: u32,
@@ -53,8 +56,11 @@ impl Default for Cpu {
     fn default() -> Self {
         Cpu {
             reg_x32: [0x0; 32],
+            reg_x64: [0x0; 32],
             reg_pc: 0x0,
+            reg_pc_64: 0x0,
             current_instruction_pc: 0x0,
+            current_instruction_pc_64: 0x0,
             memory: Box::new(RawTableMemory::new()),
             program_cache: ProgramCache::empty(),
             program_memory_offset: 0x0,
@@ -76,8 +82,11 @@ impl Cpu {
     {
         Cpu {
             reg_x32: [0x0; 32],
+            reg_x64: [0x0; 32],
             reg_pc: 0x0,
+            reg_pc_64: 0x0,
             current_instruction_pc: 0x0,
+            current_instruction_pc_64: 0x0,
             memory: Box::new(memory),
             program_cache: ProgramCache::empty(),
             program_memory_offset: 0x0,
@@ -259,8 +268,28 @@ impl Cpu {
         }
     }
 
+    pub fn read_x_u64(&self, id: u8) -> Result<u64> {
+        #[cfg(feature = "maxperf")]
+        {
+            unsafe { return Ok(*self.reg_x64.get_unchecked(id as usize)) }
+        }
+        #[cfg(not(feature = "maxperf"))]
+        {
+            let value = self
+                .reg_x32
+                .get(id as usize)
+                .context(format!("Register x{} does not exist", id))?;
+
+            return Ok(*value);
+        }
+    }
+
     pub fn read_x_i32(&self, id: u8) -> Result<i32> {
         Ok(u32_to_i32(self.read_x_u32(id)?))
+    }
+
+    pub fn read_x_i64(&self, id: u8) -> Result<i64> {
+        Ok(u64_to_i64(self.read_x_u64(id)?))
     }
 
     pub fn write_x_i32(&mut self, id: u8, value: i32) -> Result<()> {
@@ -278,6 +307,24 @@ impl Cpu {
         let reg_value = unsafe { self.reg_x32.get_unchecked_mut(id as usize) }; // SAFETY: For properly compiled code 0 <= id < 32
 
         *reg_value = i32_to_u32(value);
+        Ok(())
+    }
+
+    pub fn write_x_i64(&mut self, id: u8, value: i64) -> Result<()> {
+        if id == 0 {
+            return Ok(()); // x0 is hardwired to 0
+        }
+
+        #[cfg(not(feature = "maxperf"))]
+        let reg_value = self
+            .reg_x64
+            .get_mut(id as usize)
+            // .context(format!("Register x{} does not exist", id))?;
+            .context("Register does not exist")?;
+        #[cfg(feature = "maxperf")]
+        let reg_value = unsafe { self.reg_x64.get_unchecked_mut(id as usize) }; // SAFETY: For properly compiled code 0 <= id < 32
+
+        *reg_value = i64_to_u64(value);
         Ok(())
     }
 
@@ -299,16 +346,46 @@ impl Cpu {
         Ok(())
     }
 
+    pub fn write_x_u64(&mut self, id: u8, value: u64) -> Result<()> {
+        if id == 0 {
+            return Ok(()); // x0 is hardwired to 0
+        }
+
+        #[cfg(not(feature = "maxperf"))]
+        let reg_value = self
+            .reg_x64
+            .get_mut(id as usize)
+            // .context(format!("Register x{} does not exist", id))?;
+            .context("Register does not exist")?;
+        #[cfg(feature = "maxperf")]
+        let reg_value = unsafe { self.reg_x64.get_unchecked_mut(id as usize) }; // SAFETY: For properly compiled code 0 <= id < 32
+
+        *reg_value = value;
+        Ok(())
+    }
+
     pub fn read_pc_u32(&self) -> u32 {
         self.reg_pc
+    }
+
+    pub fn read_pc_u64(&self) -> u64 {
+        self.reg_pc_64
     }
 
     pub fn write_pc_u32(&mut self, val: u32) {
         self.reg_pc = val;
     }
 
+    pub fn write_pc_u64(&mut self, val: u64) {
+        self.reg_pc_64 = val;
+    }
+
     pub fn read_current_instruction_addr_u32(&self) -> u32 {
         self.current_instruction_pc
+    }
+
+    pub fn read_current_instruction_addr_u64(&self) -> u64 {
+        self.current_instruction_pc_64
     }
 
     pub fn read_buf(&mut self, addr: u32, buf: &mut [u8]) -> Result<()> {

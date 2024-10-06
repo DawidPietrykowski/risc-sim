@@ -22,12 +22,24 @@ pub fn i32_to_u32(value: i32) -> u32 {
     u32::from_ne_bytes(value.to_ne_bytes())
 }
 
+pub fn u64_to_i64(value: u64) -> i64 {
+    i64::from_ne_bytes(value.to_ne_bytes())
+}
+
+pub fn i64_to_u64(value: i64) -> u64 {
+    u64::from_ne_bytes(value.to_ne_bytes())
+}
+
 pub fn sign_extend_12bit_to_16bit(value: u16) -> i16 {
     ((value << 4) as i16) >> 4
 }
 
 pub fn sign_extend_12bit_to_32bit(value: u16) -> i32 {
     (((value as u32) << 20) as i32) >> 20
+}
+
+pub fn sign_extend_12bit_to_64bit(value: u16) -> i64 {
+    ((((value as u32) << 20) as i32) >> 20).into()
 }
 
 pub fn sign_extend_5bit_to_32bit(value: u8) -> u32 {

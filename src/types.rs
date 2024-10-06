@@ -95,6 +95,10 @@ impl UJImmediate {
     pub fn as_i32(&self) -> i32 {
         ((self.0 << 11) as i32) >> 11
     }
+
+    pub fn as_i64(&self) -> i64 {
+        self.as_i32() as i64
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Debug, Default)]
@@ -115,6 +119,10 @@ impl SImmediate {
 
     pub fn as_i32(&self) -> i32 {
         self.0.as_i32()
+    }
+
+    pub fn as_i64(&self) -> i64 {
+        self.0.as_i64()
     }
 }
 
@@ -143,8 +151,16 @@ impl SBImmediate {
         ((self.0 << 19) as i32) >> 19
     }
 
+    pub fn as_i64(&self) -> i64 {
+        self.as_i32() as i64
+    }
+
     pub fn as_u32(&self) -> u32 {
         self.0
+    }
+
+    pub fn as_u64(&self) -> u64 {
+        self.0 as u64
     }
 }
 
@@ -408,6 +424,10 @@ impl BitValue<u16> for U12 {
 impl U12 {
     pub fn as_i32(&self) -> i32 {
         (((self.0 << 4) as i16) >> 4) as i32
+    }
+
+    pub fn as_i64(&self) -> i64 {
+        self.as_i32() as i64
     }
 }
 
