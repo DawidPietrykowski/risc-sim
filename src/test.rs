@@ -804,6 +804,130 @@ mod tests {
         }
 
         #[test]
+        fn test_csrrw(rd in 1u8..30, rs1 in 1u8..30, csr in 0u16..0xFFF, rs1_val in u32::MIN..u32::MAX, csr_val in u32::MIN..u32::MAX) {
+            let mut cpu = Cpu::default();
+            let csrrw_instruction = IInstructionData {
+                rd: U5(rd),
+                rs1: U5(rs1),
+                imm: U12(csr),
+                ..Default::default()
+            };
+
+            cpu.write_x_u32(rs1, rs1_val).unwrap();
+            cpu.csr_table.write(U12::new(csr), csr_val);
+
+            let op = encode_program_line("CSRRW", InstructionData::I(csrrw_instruction)).unwrap();
+
+            prop_assert!(cpu.execute_word(op).is_ok());
+
+            prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), csr_val);
+            prop_assert_eq!(cpu.csr_table.read(U12::new(csr)), rs1_val);
+        }
+
+
+        #[test]
+        fn test_csrrs(rd in 1u8..30, rs1 in 1u8..30, csr in 0u16..0xFFF, rs1_val in u32::MIN..u32::MAX, csr_val in u32::MIN..u32::MAX) {
+            let mut cpu = Cpu::default();
+            let csrrs_instruction = IInstructionData {
+                rd: U5(rd),
+                rs1: U5(rs1),
+                imm: U12(csr),
+                ..Default::default()
+            };
+
+            cpu.write_x_u32(rs1, rs1_val).unwrap();
+            cpu.csr_table.write(U12::new(csr), csr_val);
+
+            let op = encode_program_line("CSRRS", InstructionData::I(csrrs_instruction)).unwrap();
+
+            prop_assert!(cpu.execute_word(op).is_ok());
+
+            prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), csr_val);
+            prop_assert_eq!(cpu.csr_table.read(U12::new(csr)), csr_val | rs1_val);
+        }
+
+        #[test]
+        fn test_csrrc(rd in 1u8..30, rs1 in 1u8..30, csr in 0u16..0xFFF, rs1_val in u32::MIN..u32::MAX, csr_val in u32::MIN..u32::MAX) {
+            let mut cpu = Cpu::default();
+            let csrrc_instruction = IInstructionData {
+                rd: U5(rd),
+                rs1: U5(rs1),
+                imm: U12(csr),
+                ..Default::default()
+            };
+
+            cpu.write_x_u32(rs1, rs1_val).unwrap();
+            cpu.csr_table.write(U12::new(csr), csr_val);
+
+            let op = encode_program_line("CSRRC", InstructionData::I(csrrc_instruction)).unwrap();
+
+            prop_assert!(cpu.execute_word(op).is_ok());
+
+            prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), csr_val);
+            prop_assert_eq!(cpu.csr_table.read(U12::new(csr)), csr_val & !rs1_val);
+        }
+
+        #[test]
+        fn test_csrrwi(rd in 1u8..30, zimm in 0i8..31, csr in 0u16..0xFFF, csr_val in u32::MIN..u32::MAX) {
+            let mut cpu = Cpu::default();
+            let csrrwi_instruction = IInstructionData {
+                rd: U5(rd),
+                rs1: U5(zimm as u8), // Using rs1 field for zimm
+                imm: U12(csr),
+                ..Default::default()
+            };
+
+            cpu.csr_table.write(U12::new(csr), csr_val);
+
+            let op = encode_program_line("CSRRWI", InstructionData::I(csrrwi_instruction)).unwrap();
+
+            prop_assert!(cpu.execute_word(op).is_ok());
+
+            prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), csr_val);
+            prop_assert_eq!(cpu.csr_table.read(U12::new(csr)), zimm as u32);
+        }
+
+        #[test]
+        fn test_csrrsi(rd in 1u8..30, zimm in 0u8..31, csr in 0u16..0xFFF, csr_val in u32::MIN..u32::MAX) {
+            let mut cpu = Cpu::default();
+            let csrrsi_instruction = IInstructionData {
+                rd: U5(rd),
+                rs1: U5(zimm), // Using rs1 field for zimm
+                imm: U12(csr),
+                ..Default::default()
+            };
+
+            cpu.csr_table.write(U12::new(csr), csr_val);
+
+            let op = encode_program_line("CSRRSI", InstructionData::I(csrrsi_instruction)).unwrap();
+
+            prop_assert!(cpu.execute_word(op).is_ok());
+
+            prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), csr_val);
+            prop_assert_eq!(cpu.csr_table.read(U12::new(csr)), csr_val | (zimm as u32));
+        }
+
+        #[test]
+        fn test_csrrci(rd in 1u8..30, zimm in 0u8..31, csr in 0u16..0xFFF, csr_val in u32::MIN..u32::MAX) {
+            let mut cpu = Cpu::default();
+            let csrrci_instruction = IInstructionData {
+                rd: U5(rd),
+                rs1: U5(zimm), // Using rs1 field for zimm
+                imm: U12(csr),
+                ..Default::default()
+            };
+
+            cpu.csr_table.write(U12::new(csr), csr_val);
+
+            let op = encode_program_line("CSRRCI", InstructionData::I(csrrci_instruction)).unwrap();
+
+            prop_assert!(cpu.execute_word(op).is_ok());
+
+            prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), csr_val);
+            prop_assert_eq!(cpu.csr_table.read(U12::new(csr)), csr_val & !(zimm as u32));
+        }
+
+        #[test]
         fn test_12bit_sign_extend_to_16bit(imm in -2048i16..2047){
             let imm = sign_extend_12bit_to_16bit(i16_to_u16(imm));
             prop_assert_eq!(imm, imm as i16);

@@ -3,10 +3,13 @@ use std::fmt;
 use crate::{
     cpu::cpu_core::Cpu,
     isa::{
-        rv32_zifencei::rv32_zifencei::RV32_ZIFENCEI_SET, rv32i::{
+        rv32_zicsr::rv32_zicsr::RV32_ZICSR_SET,
+        rv32_zifencei::rv32_zifencei::RV32_ZIFENCEI_SET,
+        rv32i::{
             control_transfer::RV32I_SET_UJ, environment::RV32I_SET_E, immediate::RV32I_SET_I,
             integer_reg_reg::RV32I_SET_R, load_store::RV32I_SET_LS,
-        }, rv32m::muldiv_reg_reg::RV32M_SET_R
+        },
+        rv32m::muldiv_reg_reg::RV32M_SET_R,
     },
 };
 use anyhow::{anyhow, Context, Ok, Result};
@@ -433,6 +436,7 @@ lazy_static! {
         all.extend_from_slice(&RV32I_SET_E);
         all.extend_from_slice(&RV32M_SET_R);
         all.extend_from_slice(&RV32_ZIFENCEI_SET);
+        all.extend_from_slice(&RV32_ZICSR_SET);
         all
     };
 }

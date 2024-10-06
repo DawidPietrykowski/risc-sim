@@ -29,3 +29,7 @@ pub fn sign_extend_12bit_to_16bit(value: u16) -> i16 {
 pub fn sign_extend_12bit_to_32bit(value: u16) -> i32 {
     (((value as u32) << 20) as i32) >> 20
 }
+
+pub fn sign_extend_5bit_to_32bit(value: u8) -> u32 {
+    ((((value as u32) << 27) as i32) >> 27) as u32
+}

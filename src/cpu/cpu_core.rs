@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use crate::{
     elf::elf_loader::{load_program_to_memory, ElfFile},
+    isa::csr::csr::CSRTable,
     system::{kernel::Kernel, passthrough_kernel::PassthroughKernel},
     types::ABIRegister,
     utils::binary_utils::*,
@@ -25,6 +26,7 @@ pub struct Cpu {
     #[cfg(not(feature = "maxperf"))]
     pub debug_enabled: bool,
     pub kernel: Box<dyn Kernel>,
+    pub csr_table: CSRTable,
 }
 
 impl Display for Cpu {
@@ -61,6 +63,7 @@ impl Default for Cpu {
             #[cfg(not(feature = "maxperf"))]
             debug_enabled: false,
             kernel: Box::<PassthroughKernel>::default(),
+            csr_table: CSRTable::new(),
         }
     }
 }
@@ -83,6 +86,7 @@ impl Cpu {
             #[cfg(not(feature = "maxperf"))]
             debug_enabled: false,
             kernel: Box::new(kernel),
+            csr_table: CSRTable::new(),
         }
     }
 
