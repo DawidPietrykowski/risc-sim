@@ -103,12 +103,12 @@ impl<T: RawPageStorage> RawPageMemory<T> {
                         let lower_local_addr = (addr - page.position) as usize;
                         let ptr: *const u8 = page.data.as_ptr().add(lower_local_addr);
                         let bytes = slice::from_raw_parts(ptr, lower_page_bytes);
-                        res_bytes[..lower_page_bytes].copy_from_slice(&bytes);
+                        res_bytes[..lower_page_bytes].copy_from_slice(bytes);
                     }
                     if let Some(upper_page) = self.storage.get_page(page_id + 1) {
                         let ptr: *const u8 = upper_page.data.as_ptr();
                         let bytes = slice::from_raw_parts(ptr, upper_page_bytes);
-                        res_bytes[lower_page_bytes..].copy_from_slice(&bytes);
+                        res_bytes[lower_page_bytes..].copy_from_slice(bytes);
                     }
 
                     Ok(u32::from_le_bytes(res_bytes))
@@ -148,7 +148,7 @@ impl<T: RawPageStorage> Memory for RawPageMemory<T> {
     fn read_mem_u16(&mut self, addr: u32) -> Result<u16> {
         let page_id = self.storage.get_page_id(addr);
         if let Some(page) = self.storage.get_page(page_id) {
-            if ((addr << (32 - PAGE_SIZE_LOG2)) >> 32 - PAGE_SIZE_LOG2) == PAGE_SIZE - 1 {
+            if (addr << (32 - PAGE_SIZE_LOG2)) >> (32 - PAGE_SIZE_LOG2) == PAGE_SIZE - 1 {
                 let mut res_bytes: [u8; 2] = [0u8; 2];
 
                 unsafe {
@@ -189,7 +189,7 @@ impl<T: RawPageStorage> Memory for RawPageMemory<T> {
     fn write_mem_u16(&mut self, addr: u32, value: u16) -> Result<()> {
         let page_id = self.storage.get_page_id(addr);
         let page = self.storage.get_page_or_create(page_id);
-        if ((addr << (32 - PAGE_SIZE_LOG2)) >> 32 - PAGE_SIZE_LOG2) == PAGE_SIZE - 1 {
+        if (addr << (32 - PAGE_SIZE_LOG2)) >> (32 - PAGE_SIZE_LOG2) == PAGE_SIZE - 1 {
             let mut data_bytes: [u8; 2] = value.to_le_bytes();
 
             unsafe {

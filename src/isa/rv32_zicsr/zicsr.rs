@@ -1,5 +1,4 @@
 use crate::types::*;
-use crate::utils::binary_utils::*;
 
 use anyhow::Ok;
 

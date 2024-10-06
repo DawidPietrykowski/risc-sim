@@ -3,8 +3,8 @@ use std::fmt;
 use crate::{
     cpu::cpu_core::Cpu,
     isa::{
-        rv32_zicsr::rv32_zicsr::RV32_ZICSR_SET,
-        rv32_zifencei::rv32_zifencei::RV32_ZIFENCEI_SET,
+        rv32_zicsr::zicsr::RV32_ZICSR_SET,
+        rv32_zifencei::zifencei::RV32_ZIFENCEI_SET,
         rv32i::{
             control_transfer::RV32I_SET_UJ, environment::RV32I_SET_E, immediate::RV32I_SET_I,
             integer_reg_reg::RV32I_SET_R, load_store::RV32I_SET_LS,

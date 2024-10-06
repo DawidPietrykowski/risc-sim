@@ -7,6 +7,7 @@ pub(crate) const PAGE_SIZE_LOG2: u32 = 18;
 pub const PAGE_SIZE: u32 = 1 << PAGE_SIZE_LOG2;
 
 #[allow(unused)]
+#[allow(clippy::len_without_is_empty)]
 pub trait PageStorage {
     fn new() -> Self;
     fn get_page_id(&self, addr: u32) -> u32;

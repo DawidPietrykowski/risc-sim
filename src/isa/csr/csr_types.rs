@@ -105,3 +105,9 @@ impl CSRTable {
         self.csrs[addr.value() as usize] = value;
     }
 }
+
+impl Default for CSRTable {
+    fn default() -> Self {
+        Self::new()
+    }
+}

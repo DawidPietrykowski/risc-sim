@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::{
     elf::elf_loader::{load_program_to_memory, ElfFile},
-    isa::csr::csr::CSRTable,
+    isa::csr::csr_types::CSRTable,
     system::{kernel::Kernel, passthrough_kernel::PassthroughKernel},
     types::ABIRegister,
     utils::binary_utils::*,

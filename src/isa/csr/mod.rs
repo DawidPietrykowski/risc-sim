@@ -1,1 +1,1 @@
-pub mod csr;
+pub mod csr_types;

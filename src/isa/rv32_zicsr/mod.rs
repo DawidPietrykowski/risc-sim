@@ -1,1 +1,1 @@
-pub mod rv32_zicsr;
+pub mod zicsr;

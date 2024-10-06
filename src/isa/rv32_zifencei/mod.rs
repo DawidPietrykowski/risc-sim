@@ -1,1 +1,1 @@
-pub mod rv32_zifencei;
+pub mod zifencei;
