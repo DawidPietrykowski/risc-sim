@@ -89,20 +89,32 @@ pub enum CSRAddress {
 }
 
 pub struct CSRTable {
-    pub csrs: [u32; 4096],
+    pub csrs32: [u32; 4096],
+    pub csrs64: [u64; 4096],
 }
 
 impl CSRTable {
     pub fn new() -> Self {
-        CSRTable { csrs: [0; 4096] }
+        CSRTable {
+            csrs32: [0; 4096],
+            csrs64: [0; 4096],
+        }
     }
 
-    pub fn read(&self, addr: U12) -> u32 {
-        self.csrs[addr.value() as usize]
+    pub fn read32(&self, addr: U12) -> u32 {
+        self.csrs32[addr.value() as usize]
     }
 
-    pub fn write(&mut self, addr: U12, value: u32) {
-        self.csrs[addr.value() as usize] = value;
+    pub fn write32(&mut self, addr: U12, value: u32) {
+        self.csrs32[addr.value() as usize] = value;
+    }
+
+    pub fn read64(&self, addr: U12) -> u64 {
+        self.csrs64[addr.value() as usize]
+    }
+
+    pub fn write64(&mut self, addr: U12, value: u64) {
+        self.csrs64[addr.value() as usize] = value;
     }
 }
 

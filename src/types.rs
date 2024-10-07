@@ -319,16 +319,20 @@ pub const FUNC3_MASK: u32 = (U3_MASK as u32) << FUNC3_POS;
 pub const FUNC3_POS: u32 = 12;
 pub const FUNC7_MASK: u32 = (U7_MASK as u32) << FUNC7_POS;
 pub const FUNC7_POS: u32 = 25;
+pub const TOP6_MASK: u32 = (U6_MASK as u32) << TOP6_POS;
+pub const TOP6_POS: u32 = 26;
 pub const FUNC12_MASK: u32 = (U12_MASK as u32) << 20;
 pub const FUNC12_POS: u32 = 20;
 
-const U7_MASK: u8 = 0b1111111;
+pub const U7_MASK: u8 = 0b1111111;
 
-const U5_MASK: u8 = 0b11111;
+pub const U6_MASK: u8 = 0b111111;
 
-const U3_MASK: u8 = 0b111;
+pub const U5_MASK: u8 = 0b11111;
 
-const U12_MASK: u16 = 0b111111111111;
+pub const U3_MASK: u8 = 0b111;
+
+pub const U12_MASK: u16 = 0b111111111111;
 
 pub const FUNC3_ORI: u8 = 0b110;
 pub const FUNC3_XORI: u8 = 0b100;

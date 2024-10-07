@@ -12,10 +12,10 @@ pub const RV32_ZICSR_SET: [Instruction; 6] = [
             let instruction = parse_instruction_i(word);
             let rs1_value = cpu.read_x_u32(instruction.rs1.value())?;
             let csr_addr = instruction.imm;
-            let old_csr_value = cpu.csr_table.read(csr_addr);
+            let old_csr_value = cpu.csr_table.read32(csr_addr);
 
             cpu.write_x_u32(instruction.rd.value(), old_csr_value)?;
-            cpu.csr_table.write(csr_addr, rs1_value);
+            cpu.csr_table.write32(csr_addr, rs1_value);
 
             Ok(())
         },
@@ -28,11 +28,11 @@ pub const RV32_ZICSR_SET: [Instruction; 6] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let rs1_value = cpu.read_x_u32(instruction.rs1.value())?;
-            let old_csr_value = cpu.csr_table.read(instruction.imm);
+            let old_csr_value = cpu.csr_table.read32(instruction.imm);
 
             cpu.write_x_u32(instruction.rd.value(), old_csr_value)?;
             cpu.csr_table
-                .write(instruction.imm, old_csr_value | rs1_value);
+                .write32(instruction.imm, old_csr_value | rs1_value);
 
             Ok(())
         },
@@ -45,11 +45,11 @@ pub const RV32_ZICSR_SET: [Instruction; 6] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let rs1_value = cpu.read_x_u32(instruction.rs1.value())?;
-            let old_csr_value = cpu.csr_table.read(instruction.imm);
+            let old_csr_value = cpu.csr_table.read32(instruction.imm);
 
             cpu.write_x_u32(instruction.rd.value(), old_csr_value)?;
             cpu.csr_table
-                .write(instruction.imm, old_csr_value & !rs1_value);
+                .write32(instruction.imm, old_csr_value & !rs1_value);
 
             Ok(())
         },
@@ -62,10 +62,10 @@ pub const RV32_ZICSR_SET: [Instruction; 6] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let imm_value = instruction.rs1.value() as u32;
-            let old_csr_value = cpu.csr_table.read(instruction.imm);
+            let old_csr_value = cpu.csr_table.read32(instruction.imm);
 
             cpu.write_x_u32(instruction.rd.value(), old_csr_value)?;
-            cpu.csr_table.write(instruction.imm, imm_value);
+            cpu.csr_table.write32(instruction.imm, imm_value);
 
             Ok(())
         },
@@ -78,11 +78,11 @@ pub const RV32_ZICSR_SET: [Instruction; 6] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let imm_value = instruction.rs1.value() as u32;
-            let old_csr_value = cpu.csr_table.read(instruction.imm);
+            let old_csr_value = cpu.csr_table.read32(instruction.imm);
 
             cpu.write_x_u32(instruction.rd.value(), old_csr_value)?;
             cpu.csr_table
-                .write(instruction.imm, old_csr_value | imm_value);
+                .write32(instruction.imm, old_csr_value | imm_value);
 
             Ok(())
         },
@@ -95,11 +95,11 @@ pub const RV32_ZICSR_SET: [Instruction; 6] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let imm_value = instruction.rs1.value() as u32;
-            let old_csr_value = cpu.csr_table.read(instruction.imm);
+            let old_csr_value = cpu.csr_table.read32(instruction.imm);
 
             cpu.write_x_u32(instruction.rd.value(), old_csr_value)?;
             cpu.csr_table
-                .write(instruction.imm, old_csr_value & !imm_value);
+                .write32(instruction.imm, old_csr_value & !imm_value);
 
             Ok(())
         },

@@ -121,7 +121,7 @@ pub const RV64I_SET_E: [Instruction; 2] = [
 
                     match res {
                         Ok(len) => {
-                            cpu.write_x_u64(ABIRegister::A(0).to_x_reg_id() as u8, len as u64)?;
+                            cpu.write_x_u64(ABIRegister::A(0).to_x_reg_id() as u8, len)?;
                         }
                         Err(_e) => {
                             cpu.write_x_i32(ABIRegister::A(0).to_x_reg_id() as u8, -1)?;
@@ -212,12 +212,9 @@ pub const RV64I_SET_E: [Instruction; 2] = [
                     let addr = cpu.read_x_u64(ABIRegister::A(0).to_x_reg_id() as u8)?;
                     cpu.debug_print(|| format!("brk call: {:#x}", addr));
                     if addr != 0 {
-                        cpu.program_brk = addr as u64;
+                        cpu.program_brk = addr;
                     }
-                    cpu.write_x_u64(
-                        ABIRegister::A(0).to_x_reg_id() as u8,
-                        cpu.program_brk as u64,
-                    )?;
+                    cpu.write_x_u64(ABIRegister::A(0).to_x_reg_id() as u8, cpu.program_brk)?;
                     cpu.debug_print(|| format!("brk: {:#x}", cpu.program_brk));
                 }
                 403 => {

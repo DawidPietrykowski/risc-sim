@@ -814,14 +814,14 @@ mod tests {
             };
 
             cpu.write_x_u32(rs1, rs1_val).unwrap();
-            cpu.csr_table.write(U12::new(csr), csr_val);
+            cpu.csr_table.write32(U12::new(csr), csr_val);
 
             let op = encode_program_line("CSRRW", InstructionData::I(csrrw_instruction)).unwrap();
 
             prop_assert!(cpu.execute_word(op).is_ok());
 
             prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), csr_val);
-            prop_assert_eq!(cpu.csr_table.read(U12::new(csr)), rs1_val);
+            prop_assert_eq!(cpu.csr_table.read32(U12::new(csr)), rs1_val);
         }
 
 
@@ -836,14 +836,14 @@ mod tests {
             };
 
             cpu.write_x_u32(rs1, rs1_val).unwrap();
-            cpu.csr_table.write(U12::new(csr), csr_val);
+            cpu.csr_table.write32(U12::new(csr), csr_val);
 
             let op = encode_program_line("CSRRS", InstructionData::I(csrrs_instruction)).unwrap();
 
             prop_assert!(cpu.execute_word(op).is_ok());
 
             prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), csr_val);
-            prop_assert_eq!(cpu.csr_table.read(U12::new(csr)), csr_val | rs1_val);
+            prop_assert_eq!(cpu.csr_table.read32(U12::new(csr)), csr_val | rs1_val);
         }
 
         #[test]
@@ -857,14 +857,14 @@ mod tests {
             };
 
             cpu.write_x_u32(rs1, rs1_val).unwrap();
-            cpu.csr_table.write(U12::new(csr), csr_val);
+            cpu.csr_table.write32(U12::new(csr), csr_val);
 
             let op = encode_program_line("CSRRC", InstructionData::I(csrrc_instruction)).unwrap();
 
             prop_assert!(cpu.execute_word(op).is_ok());
 
             prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), csr_val);
-            prop_assert_eq!(cpu.csr_table.read(U12::new(csr)), csr_val & !rs1_val);
+            prop_assert_eq!(cpu.csr_table.read32(U12::new(csr)), csr_val & !rs1_val);
         }
 
         #[test]
@@ -877,14 +877,14 @@ mod tests {
                 ..Default::default()
             };
 
-            cpu.csr_table.write(U12::new(csr), csr_val);
+            cpu.csr_table.write32(U12::new(csr), csr_val);
 
             let op = encode_program_line("CSRRWI", InstructionData::I(csrrwi_instruction)).unwrap();
 
             prop_assert!(cpu.execute_word(op).is_ok());
 
             prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), csr_val);
-            prop_assert_eq!(cpu.csr_table.read(U12::new(csr)), zimm as u32);
+            prop_assert_eq!(cpu.csr_table.read32(U12::new(csr)), zimm as u32);
         }
 
         #[test]
@@ -897,14 +897,14 @@ mod tests {
                 ..Default::default()
             };
 
-            cpu.csr_table.write(U12::new(csr), csr_val);
+            cpu.csr_table.write32(U12::new(csr), csr_val);
 
             let op = encode_program_line("CSRRSI", InstructionData::I(csrrsi_instruction)).unwrap();
 
             prop_assert!(cpu.execute_word(op).is_ok());
 
             prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), csr_val);
-            prop_assert_eq!(cpu.csr_table.read(U12::new(csr)), csr_val | (zimm as u32));
+            prop_assert_eq!(cpu.csr_table.read32(U12::new(csr)), csr_val | (zimm as u32));
         }
 
         #[test]
@@ -917,14 +917,14 @@ mod tests {
                 ..Default::default()
             };
 
-            cpu.csr_table.write(U12::new(csr), csr_val);
+            cpu.csr_table.write32(U12::new(csr), csr_val);
 
             let op = encode_program_line("CSRRCI", InstructionData::I(csrrci_instruction)).unwrap();
 
             prop_assert!(cpu.execute_word(op).is_ok());
 
             prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), csr_val);
-            prop_assert_eq!(cpu.csr_table.read(U12::new(csr)), csr_val & !(zimm as u32));
+            prop_assert_eq!(cpu.csr_table.read32(U12::new(csr)), csr_val & !(zimm as u32));
         }
 
         #[test]

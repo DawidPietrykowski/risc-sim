@@ -173,4 +173,15 @@ impl<T: PageStorage> Memory for PageMemory<T> {
         }
         Ok(())
     }
+
+    fn read_mem_u64(&mut self, addr: u64) -> Result<u64> {
+        let lower_value = self.read_mem_u32(addr)?;
+        let upper_value = self.read_mem_u32(addr + 4)?;
+        Ok((upper_value as u64) << 32 | lower_value as u64)
+    }
+
+    fn write_mem_u64(&mut self, addr: u64, value: u64) -> Result<()> {
+        self.write_mem_u32(addr, value as u32)?;
+        self.write_mem_u32(addr + 4, (value >> 32) as u32)
+    }
 }

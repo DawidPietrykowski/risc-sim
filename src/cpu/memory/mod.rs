@@ -5,6 +5,7 @@ pub mod page_storage;
 pub mod program_cache;
 pub mod raw_page_storage;
 pub mod raw_table_memory;
+pub mod raw_vec_memory;
 pub mod table_memory;
 pub mod vec_binsearch_memory;
 pub mod vec_memory;

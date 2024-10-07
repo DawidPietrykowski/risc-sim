@@ -45,3 +45,7 @@ pub fn sign_extend_12bit_to_64bit(value: u16) -> i64 {
 pub fn sign_extend_5bit_to_32bit(value: u8) -> u32 {
     ((((value as u32) << 27) as i32) >> 27) as u32
 }
+
+pub fn sign_extend_32bit_to_64bit(value: u32) -> i64 {
+    (value as i32).into()
+}

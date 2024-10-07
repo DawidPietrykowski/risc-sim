@@ -4,8 +4,8 @@ use std::{
     slice,
 };
 
-use super::page_storage::PAGE_SIZE;
 use super::memory_core::Memory;
+use super::page_storage::PAGE_SIZE;
 
 #[allow(unused)]
 pub trait RawPageStorage {
@@ -56,7 +56,7 @@ impl<T: RawPageStorage> RawPageMemory<T> {
         let page_id = self.storage.get_page_id(addr);
 
         let page = self.storage.get_page_or_create(page_id);
-        if (addr as u64 + 3 - page.position as u64) >= PAGE_SIZE as u64 {
+        if (addr + 3 - page.position) >= PAGE_SIZE {
             let upper_page_bytes = addr & 0b11;
             let lower_page_bytes = 4 - upper_page_bytes;
 
@@ -92,7 +92,7 @@ impl<T: RawPageStorage> RawPageMemory<T> {
     fn read_u32_from_page(&mut self, addr: u64) -> Result<u32> {
         let page_id = self.storage.get_page_id(addr);
         if let Some(page) = self.storage.get_page(page_id) {
-            if (addr as u64 + 3 - page.position as u64) >= PAGE_SIZE as u64 {
+            if (addr + 3 - page.position) >= PAGE_SIZE {
                 let upper_page_bytes = (addr & 0b11) as usize;
                 let lower_page_bytes = 4 - upper_page_bytes;
 
@@ -230,5 +230,19 @@ impl<T: RawPageStorage> Memory for RawPageMemory<T> {
             self.write_mem_u8(addr + i as u64, *byte)?;
         }
         Ok(())
+    }
+
+    fn read_mem_u64(&mut self, addr: u64) -> Result<u64> {
+        let lower_u32 = self.read_u32_from_page(addr)? as u64;
+        let upper_u32 = self.read_u32_from_page(addr + 4)? as u64;
+        Ok(lower_u32 | (upper_u32 << 32))
+        // TODO: implement more optimized u64 read
+    }
+
+    fn write_mem_u64(&mut self, addr: u64, value: u64) -> Result<()> {
+        self.write_u32_to_page(addr, (value & 0xFFFF_FFFF) as u32)?;
+        self.write_u32_to_page(addr + 4, (value >> 32) as u32)?;
+        Ok(())
+        // TODO: implement more optimized u64 write
     }
 }

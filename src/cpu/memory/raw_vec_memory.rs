@@ -2,30 +2,31 @@ use std::{fmt::Debug, fmt::Formatter};
 
 use super::{
     memory_core::MEMORY_CAPACITY,
-    page_storage::{Page, PageMemory, PageStorage, PAGE_SIZE, PAGE_SIZE_LOG2},
+    page_storage::{PAGE_SIZE, PAGE_SIZE_LOG2},
+    raw_page_storage::{Page, RawPageMemory, RawPageStorage},
 };
 
 #[derive(Clone)]
-pub struct VecPageStorage {
-    pub(crate) pages: Vec<(u64, Page)>,
+pub struct RawVecPageStorage {
+    pages: Vec<(u64, Page)>,
 }
 
-impl Debug for VecPageStorage {
+impl Debug for RawVecPageStorage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "Memory {{ pages: {} }}", self.pages.len())
     }
 }
 
-impl Default for VecPageStorage {
+impl Default for RawVecPageStorage {
     fn default() -> Self {
         Self::new()
     }
 }
 
 #[allow(dead_code)]
-impl PageStorage for VecPageStorage {
+impl RawPageStorage for RawVecPageStorage {
     fn new() -> Self {
-        VecPageStorage {
+        RawVecPageStorage {
             pages: Vec::with_capacity(MEMORY_CAPACITY),
         }
     }
@@ -61,4 +62,4 @@ impl PageStorage for VecPageStorage {
     }
 }
 
-pub type VecMemory = PageMemory<VecPageStorage>;
+pub type RawVecMemory = RawPageMemory<RawVecPageStorage>;

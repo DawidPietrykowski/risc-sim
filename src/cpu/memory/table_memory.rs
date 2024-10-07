@@ -7,8 +7,7 @@ use super::{
 
 #[derive(Clone)]
 pub struct TableMemoryPageStorage {
-    pages: [Option<Box<Page>>;
-        (((MEMORY_SIZE as u64) + (PAGE_SIZE as u64) - 1) / (PAGE_SIZE as u64)) as usize],
+    pages: [Option<Box<Page>>; (((MEMORY_SIZE) + (PAGE_SIZE) - 1) / (PAGE_SIZE)) as usize],
 }
 
 impl Debug for TableMemoryPageStorage {

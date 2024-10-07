@@ -743,7 +743,7 @@ pub fn load_program_to_memory(elf: ElfFile, memory: &mut dyn Memory) -> Result<P
     }
 
     Ok(ProgramFile {
-        entry_point: elf.header.entry_point as u64,
+        entry_point: elf.header.entry_point,
         program_memory_offset: text_section_addr as u64,
         program_size: text_section_size as u64,
         lines: program,

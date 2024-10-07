@@ -9,7 +9,7 @@ use crate::{
 };
 
 use super::memory::{
-    memory_core::Memory, program_cache::ProgramCache, raw_table_memory::RawTableMemory,
+    memory_core::Memory, program_cache::ProgramCache, raw_vec_memory::RawVecMemory,
 };
 use crate::types::{decode_program_line, ProgramLine, Word};
 use anyhow::{bail, Context, Result};
@@ -68,7 +68,7 @@ impl Default for Cpu {
             reg_pc_64: 0x0,
             current_instruction_pc: 0x0,
             current_instruction_pc_64: 0x0,
-            memory: Box::new(RawTableMemory::new()),
+            memory: Box::new(RawVecMemory::new()),
             program_cache: ProgramCache::empty(),
             program_memory_offset: 0x0,
             halted: false,
@@ -230,7 +230,7 @@ impl Cpu {
         }
     }
 
-    pub fn read_pc(self: &Self) -> u64 {
+    pub fn read_pc(&self) -> u64 {
         if self.mode == CpuMode::RV32 {
             self.reg_pc as u64
         } else {
@@ -256,6 +256,10 @@ impl Cpu {
         self.program_cache.get_line_unchecked(self.read_pc())
     }
 
+    pub fn read_mem_u64(&mut self, addr: u64) -> Result<u64> {
+        self.memory.read_mem_u64(addr)
+    }
+
     pub fn read_mem_u32(&mut self, addr: u64) -> Result<u32> {
         self.memory.read_mem_u32(addr)
     }
@@ -278,6 +282,10 @@ impl Cpu {
 
     pub fn write_mem_u32(&mut self, addr: u64, value: u32) -> Result<()> {
         self.memory.write_mem_u32(addr, value)
+    }
+
+    pub fn write_mem_u64(&mut self, addr: u64, value: u64) -> Result<()> {
+        self.memory.write_mem_u64(addr, value)
     }
 
     pub fn read_x_u32(&self, id: u8) -> Result<u32> {

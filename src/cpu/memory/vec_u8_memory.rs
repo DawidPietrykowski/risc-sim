@@ -107,4 +107,14 @@ impl Memory for VecU8Memory {
         }
         Ok(())
     }
+
+    fn read_mem_u64(&mut self, addr: u64) -> Result<u64> {
+        Ok((self.read_mem_u32(addr)? as u64) | (self.read_mem_u32(addr + 4)? as u64) << 32)
+    }
+
+    fn write_mem_u64(&mut self, addr: u64, value: u64) -> Result<()> {
+        self.write_mem_u32(addr, value as u32)?;
+        self.write_mem_u32(addr + 4, (value >> 32) as u32)?;
+        Ok(())
+    }
 }

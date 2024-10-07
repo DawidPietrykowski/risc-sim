@@ -1,11 +1,11 @@
 use crate::{
     types::*,
-    utils::binary_utils::{u16_to_i16, u8_to_i8},
+    utils::binary_utils::{sign_extend_32bit_to_64bit, u16_to_i16, u8_to_i8},
 };
 
 use anyhow::Ok;
 
-pub const RV64I_SET_LS: [Instruction; 8] = [
+pub const RV64I_SET_LS: [Instruction; 11] = [
     Instruction {
         mask: OPCODE_MASK | FUNC3_MASK,
         bits: 0b0000011 | 0b000 << FUNC3_POS,
@@ -48,6 +48,64 @@ pub const RV64I_SET_LS: [Instruction; 8] = [
         mask: OPCODE_MASK | FUNC3_MASK,
         bits: 0b0000011 | 0b010 << FUNC3_POS,
         name: "LW",
+        instruction_type: InstructionType::I,
+        operation: |cpu, word| {
+            let instruction = parse_instruction_i(word);
+
+            let extended_offset = instruction.imm.as_i64();
+            let moved_addr = cpu
+                .read_x_u64(instruction.rs1.value())?
+                .wrapping_add_signed(extended_offset);
+
+            cpu.debug_print(|| {
+                format!(
+                    "LW: r{}({:#x}) = mem[r{:#x} + {:#x}] (addr: {:#x})",
+                    instruction.rd.value(),
+                    instruction.rs1.value(),
+                    cpu.read_x_u64(instruction.rs1.value()).unwrap(),
+                    extended_offset,
+                    moved_addr
+                )
+            });
+
+            let read_value = cpu.read_mem_u32(moved_addr)?;
+
+            cpu.debug_print(|| format!("LW: {:#x}", read_value));
+
+            cpu.write_x_i64(
+                instruction.rd.value(),
+                sign_extend_32bit_to_64bit(read_value),
+            )?;
+
+            Ok(())
+        },
+    },
+    Instruction {
+        mask: OPCODE_MASK | FUNC3_MASK,
+        bits: 0b0000011 | 0b011 << FUNC3_POS,
+        name: "LD",
+        instruction_type: InstructionType::I,
+        operation: |cpu, word| {
+            let instruction = parse_instruction_i(word);
+
+            let extended_offset = instruction.imm.as_i64();
+            let moved_addr = cpu
+                .read_x_u64(instruction.rs1.value())?
+                .wrapping_add_signed(extended_offset);
+
+            let read_value = cpu.read_mem_u64(moved_addr)?;
+
+            cpu.debug_print(|| format!("LD: {:#x}", read_value));
+
+            cpu.write_x_u64(instruction.rd.value(), read_value)?;
+
+            Ok(())
+        },
+    },
+    Instruction {
+        mask: OPCODE_MASK | FUNC3_MASK,
+        bits: 0b0000011 | 0b110 << FUNC3_POS,
+        name: "LWU",
         instruction_type: InstructionType::I,
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
@@ -138,6 +196,33 @@ pub const RV64I_SET_LS: [Instruction; 8] = [
             });
 
             cpu.write_mem_u32(moved_addr, read_value as u32)?;
+
+            Ok(())
+        },
+    },
+    Instruction {
+        mask: OPCODE_MASK | FUNC3_MASK,
+        bits: 0b0100011 | 0b011 << FUNC3_POS,
+        name: "SD",
+        instruction_type: InstructionType::S,
+        operation: |cpu, word| {
+            let instruction = parse_instruction_s(word);
+
+            let extended_offset = instruction.imm.as_i64();
+            let rs1 = cpu.read_x_u64(instruction.rs1.value())?;
+            let moved_addr = cpu
+                .read_x_u64(instruction.rs1.value())?
+                .wrapping_add_signed(extended_offset);
+            let read_value = cpu.read_x_u64(instruction.rs2.value())?;
+
+            cpu.debug_print(|| {
+                format!(
+                    "SD: {:#x} = {:#x} (addr: {:#x} + {}) dword: {:#x}",
+                    moved_addr, read_value, rs1, extended_offset, word.0
+                )
+            });
+
+            cpu.write_mem_u64(moved_addr, read_value)?;
 
             Ok(())
         },

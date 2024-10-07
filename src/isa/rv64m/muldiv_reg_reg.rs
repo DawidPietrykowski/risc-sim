@@ -2,7 +2,7 @@ use crate::types::*;
 
 use anyhow::Ok;
 
-pub const RV32M_SET_R: [Instruction; 8] = [
+pub const RV64M_SET_R: [Instruction; 8] = [
     Instruction {
         mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
         bits: 0b0110011 | 0b000 << FUNC3_POS | 0b0000001 << FUNC7_POS,
