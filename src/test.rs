@@ -95,7 +95,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn test_memory_mapping_u32(addr in 0x0u32..(u32::MAX - 3 - 3)) {
+        fn test_memory_mapping_u32(addr in 0x0u64..(u32::MAX as u64 - 3 - 3)) {
             let mut cpu = setup_cpu();
             let value = 0x12345678u32;
             cpu.write_mem_u32(addr, value).unwrap();
@@ -106,7 +106,7 @@ mod tests {
         }
 
         #[test]
-        fn test_memory_mapping_u8(addr in 0x0u32..(u32::MAX)) {
+        fn test_memory_mapping_u8(addr in 0x0u64..(u32::MAX as u64)) {
             let mut cpu = setup_cpu();
             let value = 0x12u8;
             cpu.write_mem_u8(addr, value).unwrap();
@@ -114,7 +114,7 @@ mod tests {
         }
 
         #[test]
-        fn test_memory_mapping_u16_edge_case(addr in 0x0u32..(u32::MAX - 1 - 3)) {
+        fn test_memory_mapping_u16_edge_case(addr in 0x0u64..(u32::MAX as u64 - 1 - 3)) {
             let mut cpu = setup_cpu();
             let value = u32::MAX;
 
@@ -135,7 +135,7 @@ mod tests {
         }
 
         #[test]
-        fn test_memory_mapping_u16(addr in 0x0u32..(u32::MAX - 2)) {
+        fn test_memory_mapping_u16(addr in 0x0u64..(u32::MAX as u64 - 2)) {
             let mut cpu = setup_cpu();
             let value = 0x1234u16;
             cpu.write_mem_u16(addr, value).unwrap();
@@ -143,7 +143,7 @@ mod tests {
         }
 
         #[test]
-        fn test_memory_mapping_u16_misaligned(addr in 0x0u32..(u32::MAX - 3)) {
+        fn test_memory_mapping_u16_misaligned(addr in 0x0u64..(u32::MAX as u64 - 3)) {
             let mut cpu = setup_cpu();
             let value = 0x1234u16;
             cpu.write_mem_u16(addr + 1, value).unwrap();
@@ -151,7 +151,7 @@ mod tests {
         }
 
         #[test]
-        fn test_memory_mapping_mixed(addr in 0x0u32..(u32::MAX - 3)) {
+        fn test_memory_mapping_mixed(addr in 0x0u64..(u32::MAX as u64 - 3)) {
             let mut cpu = setup_cpu();
             let value = 0x12345678u32;
             cpu.write_mem_u32(addr, value).unwrap();
@@ -183,7 +183,7 @@ mod tests {
         }
 
         #[test]
-        fn test_memory_cross_boundary_u32(addr_v in 1u32..10, offset in 0u32..4u32) {
+        fn test_memory_cross_boundary_u32(addr_v in 1u64..10, offset in 0u64..4u64) {
             let mut cpu = setup_cpu();
             let value = 0x12345678u32;
             let addr = addr_v * PAGE_SIZE + offset - 4;
@@ -195,7 +195,7 @@ mod tests {
         }
 
         #[test]
-        fn test_memory_cross_boundary_u16(addr_v in 1u32..10, offset in 0u32..2u32) {
+        fn test_memory_cross_boundary_u16(addr_v in 1u64..10, offset in 0u64..2u64) {
             let mut cpu = setup_cpu();
             let value = 0x5678u16;
             let addr = addr_v * PAGE_SIZE + offset - 2;
@@ -205,7 +205,7 @@ mod tests {
         }
 
         #[test]
-        fn test_fibbonaci_program(n in 1u32..15, entry_point in 0x1000u32..0xFFFFF) {
+        fn test_fibbonaci_program(n in 1u32..15, entry_point in 0x1000u64..0xFFFFF) {
             let mut cpu = Cpu::default();
 
             cpu.load_program_from_opcodes(FIB_PROGRAM_BIN.to_vec(), entry_point).unwrap();
@@ -227,7 +227,7 @@ mod tests {
             let mut cpu = setup_cpu();
             let addr = 1000u32;
             cpu.write_x_u32(rs1, addr).unwrap();
-            cpu.write_mem_u8(addr.wrapping_add_signed(imm as i16 as i32), value as u8).unwrap();
+            cpu.write_mem_u8(addr.wrapping_add_signed(imm as i16 as i32) as u64, value as u8).unwrap();
 
             execute_i_instruction(&mut cpu, "LB", rd, rs1, imm).unwrap();
 
@@ -242,7 +242,7 @@ mod tests {
             let mut cpu = setup_cpu();
             let addr = 1000u32;
             cpu.write_x_u32(rs1, addr).unwrap();
-            cpu.write_mem_u16(addr.wrapping_add_signed(imm as i16 as i32), value as u16).unwrap();
+            cpu.write_mem_u16(addr.wrapping_add_signed(imm as i16 as i32) as u64, value as u16).unwrap();
 
             execute_i_instruction(&mut cpu, "LH", rd, rs1, imm).unwrap();
 
@@ -257,7 +257,7 @@ mod tests {
             let mut cpu = setup_cpu();
             let addr = 1000u32;
             cpu.write_x_u32(rs1, addr).unwrap();
-            cpu.write_mem_u32(addr.wrapping_add_signed(0), value as u32).unwrap();
+            cpu.write_mem_u32(addr.wrapping_add_signed(0) as u64, value as u32).unwrap();
 
             execute_i_instruction(&mut cpu, "LW", rd, rs1, 0).unwrap();
 
@@ -272,7 +272,7 @@ mod tests {
             let mut cpu = setup_cpu();
             let addr = 1000u32;
             cpu.write_x_u32(rs1, addr).unwrap();
-            cpu.write_mem_u8(addr.wrapping_add_signed(imm as i16 as i32), value).unwrap();
+            cpu.write_mem_u8(addr.wrapping_add_signed(imm as i16 as i32) as u64, value).unwrap();
 
             execute_i_instruction(&mut cpu, "LBU", rd, rs1, imm).unwrap();
 
@@ -288,7 +288,7 @@ mod tests {
             let addr = 1000u32;
 
             cpu.write_x_u32(rs1, addr).unwrap();
-            cpu.write_mem_u16(addr.wrapping_add_signed(imm as i16 as i32), value).unwrap();
+            cpu.write_mem_u16(addr.wrapping_add_signed(imm as i16 as i32) as u64, value).unwrap();
 
             execute_i_instruction(&mut cpu, "LHU", rd, rs1, imm).unwrap();
 
@@ -307,7 +307,7 @@ mod tests {
 
             execute_s_instruction(&mut cpu, "SB", rs1, rs2, imm).unwrap();
 
-            prop_assert_eq!(cpu.read_mem_u8(addr.wrapping_add_signed(imm as i16 as i32)).unwrap(), value as u8);
+            prop_assert_eq!(cpu.read_mem_u8(addr.wrapping_add_signed(imm as i16 as i32) as u64).unwrap(), value as u8);
         }
 
         #[test]
@@ -322,7 +322,7 @@ mod tests {
 
             execute_s_instruction(&mut cpu, "SH", rs1, rs2, imm).unwrap();
 
-            prop_assert_eq!(cpu.read_mem_u16(addr.wrapping_add_signed(imm as i16 as i32)).unwrap(), value as u16);
+            prop_assert_eq!(cpu.read_mem_u16(addr.wrapping_add_signed(imm as i16 as i32) as u64).unwrap(), value as u16);
         }
 
         #[test]
@@ -337,7 +337,7 @@ mod tests {
 
             execute_s_instruction(&mut cpu, "SW", rs1, rs2, imm).unwrap();
 
-            prop_assert_eq!(cpu.read_mem_u32(addr.wrapping_add_signed(imm as i16 as i32)).unwrap(), value as u32);
+            prop_assert_eq!(cpu.read_mem_u32(addr.wrapping_add_signed(imm as i16 as i32) as u64).unwrap(), value as u32);
         }
     }
 

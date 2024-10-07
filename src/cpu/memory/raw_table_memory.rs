@@ -32,15 +32,15 @@ impl RawPageStorage for RawTableMemoryPageStorage {
         }
     }
 
-    fn get_page_id(&self, addr: u32) -> u32 {
+    fn get_page_id(&self, addr: u64) -> u64 {
         addr >> PAGE_SIZE_LOG2
     }
 
-    fn get_page(&self, page_id: u32) -> Option<&Page> {
+    fn get_page(&self, page_id: u64) -> Option<&Page> {
         unsafe { self.pages.get_unchecked(page_id as usize).as_deref() }
     }
 
-    fn get_page_mut(&mut self, page_id: u32) -> Option<&mut Page> {
+    fn get_page_mut(&mut self, page_id: u64) -> Option<&mut Page> {
         unsafe {
             self.pages
                 .get_unchecked_mut(page_id as usize)
@@ -48,7 +48,7 @@ impl RawPageStorage for RawTableMemoryPageStorage {
         }
     }
 
-    fn get_page_or_create(&mut self, page_id: u32) -> &mut Page {
+    fn get_page_or_create(&mut self, page_id: u64) -> &mut Page {
         unsafe {
             if self.pages.get_unchecked_mut(page_id as usize).is_some() {
                 return self

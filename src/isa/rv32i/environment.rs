@@ -146,7 +146,7 @@ pub const RV32I_SET_E: [Instruction; 2] = [
 
                     match res {
                         Ok(len) => {
-                            cpu.write_buf(buffer_addr, buf.as_mut_slice())?;
+                            cpu.write_buf(buffer_addr as u64, buf.as_mut_slice())?;
                             cpu.write_x_u32(ABIRegister::A(0).to_x_reg_id() as u8, len as u32)?;
                         }
                         Err(_e) => {
@@ -166,7 +166,7 @@ pub const RV32I_SET_E: [Instruction; 2] = [
                     }
 
                     let mut buf = vec![0; len as usize];
-                    cpu.read_buf(buffer_addr, buf.as_mut_slice())?;
+                    cpu.read_buf(buffer_addr as u64, buf.as_mut_slice())?;
 
                     let res: Result<u32> = match fd {
                         1 => {
@@ -199,7 +199,7 @@ pub const RV32I_SET_E: [Instruction; 2] = [
                     let stat = cpu.kernel.fstat_fd(fd)?;
 
                     cpu.write_x_u32(ABIRegister::A(0).to_x_reg_id() as u8, 0)?;
-                    cpu.write_buf(stat_addr, &stat.to_bytes() as &[u8])?;
+                    cpu.write_buf(stat_addr as u64, &stat.to_bytes() as &[u8])?;
                 }
                 93 => {
                     // Exit syscall
@@ -211,9 +211,12 @@ pub const RV32I_SET_E: [Instruction; 2] = [
                     let addr = cpu.read_x_u32(ABIRegister::A(0).to_x_reg_id() as u8)?;
                     cpu.debug_print(|| format!("brk call: {:#x}", addr));
                     if addr != 0 {
-                        cpu.program_brk = addr;
+                        cpu.program_brk = addr as u64;
                     }
-                    cpu.write_x_u32(ABIRegister::A(0).to_x_reg_id() as u8, cpu.program_brk)?;
+                    cpu.write_x_u32(
+                        ABIRegister::A(0).to_x_reg_id() as u8,
+                        cpu.program_brk as u32,
+                    )?;
                     cpu.debug_print(|| format!("brk: {:#x}", cpu.program_brk));
                 }
                 403 => {
@@ -234,7 +237,7 @@ pub const RV32I_SET_E: [Instruction; 2] = [
                         nsec: nanos,
                     };
 
-                    cpu.write_buf(timespec_addr, &time_t.to_bytes() as &[u8])?;
+                    cpu.write_buf(timespec_addr as u64, &time_t.to_bytes() as &[u8])?;
 
                     cpu.write_x_u32(ABIRegister::A(0).to_x_reg_id() as u8, 0)?;
 
@@ -244,7 +247,7 @@ pub const RV32I_SET_E: [Instruction; 2] = [
                     // open
 
                     let path_addr = cpu.read_x_u32(ABIRegister::A(0).to_x_reg_id() as u8)?;
-                    let path = cpu.read_c_string(path_addr)?;
+                    let path = cpu.read_c_string(path_addr as u64)?;
                     let flags = cpu.read_x_u32(ABIRegister::A(1).to_x_reg_id() as u8)?;
 
                     match cpu.kernel.open_file(&path, flags) {

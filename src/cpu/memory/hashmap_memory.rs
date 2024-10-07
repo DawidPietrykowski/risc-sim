@@ -7,7 +7,7 @@ use super::{
 
 #[derive(Clone)]
 pub struct FxHashStorage {
-    pages: FxHashMap<u32, Page>,
+    pages: FxHashMap<u64, Page>,
 }
 
 impl Default for FxHashStorage {
@@ -23,19 +23,19 @@ impl PageStorage for FxHashStorage {
         }
     }
 
-    fn get_page_id(&self, addr: u32) -> u32 {
+    fn get_page_id(&self, addr: u64) -> u64 {
         addr >> PAGE_SIZE_LOG2
     }
 
-    fn get_page(&self, page_id: u32) -> Option<&Page> {
+    fn get_page(&self, page_id: u64) -> Option<&Page> {
         self.pages.get(&page_id)
     }
 
-    fn get_page_mut(&mut self, page_id: u32) -> Option<&mut Page> {
+    fn get_page_mut(&mut self, page_id: u64) -> Option<&mut Page> {
         self.pages.get_mut(&page_id)
     }
 
-    fn get_page_or_create(&mut self, page_id: u32) -> &mut Page {
+    fn get_page_or_create(&mut self, page_id: u64) -> &mut Page {
         self.pages
             .entry(page_id)
             .or_insert_with(|| Page::new(page_id * PAGE_SIZE))

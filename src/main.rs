@@ -16,11 +16,11 @@ fn main() -> Result<()> {
         return Err(anyhow::anyhow!("Usage: {} <path_to_file>", args[0]));
     }
 
-    const SCREEN_WIDTH: u32 = 320;
-    const SCREEN_HEIGHT: u32 = 200;
-    const MEMORY_BUFFER_SIZE: u32 = SCREEN_WIDTH * SCREEN_HEIGHT * 4;
-    const SCREEN_ADDR_ADDR: u32 = 0x40000000;
-    const SCALE_SCREEN: u32 = 2;
+    const SCREEN_WIDTH: u64 = 320;
+    const SCREEN_HEIGHT: u64 = 200;
+    const MEMORY_BUFFER_SIZE: u64 = SCREEN_WIDTH * SCREEN_HEIGHT * 4;
+    const SCREEN_ADDR_ADDR: u64 = 0x40000000;
+    const SCALE_SCREEN: u64 = 2;
     const SIMULATE_DISPLAY: bool = true;
 
     let mut frames_written = 0;
@@ -92,7 +92,7 @@ fn main() -> Result<()> {
 
             println!("Draw on cycle: {}", count);
 
-            let screen_data_addr = cpu.read_mem_u32(SCREEN_ADDR_ADDR)?;
+            let screen_data_addr = cpu.read_mem_u32(SCREEN_ADDR_ADDR)? as u64;
 
             cpu.write_mem_u32(SCREEN_ADDR_ADDR, 0)?;
 

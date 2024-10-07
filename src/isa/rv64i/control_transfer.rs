@@ -63,7 +63,7 @@ pub const RV64I_SET_UJ: [Instruction; 8] = [
             cpu.debug_print(|| format!("imm: {:#x}", instruction.imm.as_u64()));
             cpu.debug_print(|| format!("ext: {:#x}", instruction.imm.as_i64() as u64));
             cpu.debug_print(|| format!("exti64: {}", instruction.imm.as_i64()));
-            cpu.debug_print(|| format!("pc: {:#x}", cpu.read_pc_u32()));
+            cpu.debug_print(|| format!("pc: {:#x}", cpu.read_pc_u64()));
             cpu.debug_print(|| {
                 format!(
                     "pc+ext: {:#x}",

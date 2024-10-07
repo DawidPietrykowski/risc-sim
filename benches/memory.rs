@@ -10,7 +10,7 @@ use risc_sim::cpu::memory::{
     vec_binsearch_memory::VecBsearchMemory, vec_memory::VecMemory, vec_u8_memory::VecU8Memory,
 };
 
-fn read_write_randon_mem(locations: u32, mem: &mut impl Memory) {
+fn read_write_randon_mem(locations: u64, mem: &mut impl Memory) {
     const RW_CYCLES: usize = 1;
     const BUF_SIZE: usize = 32;
     const BUF: [u32; BUF_SIZE] = [0; BUF_SIZE];
@@ -18,9 +18,9 @@ fn read_write_randon_mem(locations: u32, mem: &mut impl Memory) {
     for _ in 0..RW_CYCLES {
         for (j, data) in BUF.iter().enumerate().take(BUF_SIZE) {
             for i in 0..locations {
-                let addr = (u32::MAX / locations) * i;
-                mem.write_mem_u32(addr + (j * 4) as u32, *data).unwrap();
-                mem.read_mem_u32(addr + (j * 4) as u32).unwrap();
+                let addr: u64 = (u32::MAX as u64 / locations) * i;
+                mem.write_mem_u32(addr + (j * 4) as u64, *data).unwrap();
+                mem.read_mem_u32(addr + (j * 4) as u64).unwrap();
             }
         }
     }

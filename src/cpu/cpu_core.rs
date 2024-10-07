@@ -14,6 +14,12 @@ use super::memory::{
 use crate::types::{decode_program_line, ProgramLine, Word};
 use anyhow::{bail, Context, Result};
 
+#[derive(PartialEq)]
+pub enum CpuMode {
+    RV32,
+    RV64,
+}
+
 pub struct Cpu {
     reg_x32: [u32; 32],
     reg_x64: [u64; 32],
@@ -25,11 +31,12 @@ pub struct Cpu {
     program_cache: ProgramCache,
     program_memory_offset: u32,
     halted: bool,
-    pub program_brk: u32,
+    pub program_brk: u64,
     #[cfg(not(feature = "maxperf"))]
     pub debug_enabled: bool,
     pub kernel: Box<dyn Kernel>,
     pub csr_table: CSRTable,
+    pub mode: CpuMode,
 }
 
 impl Display for Cpu {
@@ -70,6 +77,7 @@ impl Default for Cpu {
             debug_enabled: false,
             kernel: Box::<PassthroughKernel>::default(),
             csr_table: CSRTable::new(),
+            mode: CpuMode::RV32,
         }
     }
 }
@@ -96,13 +104,20 @@ impl Cpu {
             debug_enabled: false,
             kernel: Box::new(kernel),
             csr_table: CSRTable::new(),
+            mode: CpuMode::RV32,
         }
     }
 
     // TODO: Refactor such that this logic is done by the kernel
     pub fn load_program_from_elf(&mut self, elf: ElfFile) -> Result<()> {
         let program_file = load_program_to_memory(elf, self.memory.as_mut())?;
-        self.reg_pc = program_file.entry_point;
+
+        if self.mode == CpuMode::RV64 {
+            self.reg_pc_64 = program_file.entry_point;
+        } else {
+            self.reg_pc = program_file.entry_point as u32;
+        }
+
         self.program_cache = ProgramCache::new(
             program_file.program_memory_offset,
             program_file.program_memory_offset + program_file.program_size,
@@ -115,16 +130,20 @@ impl Cpu {
         Ok(())
     }
 
-    pub fn load_program_from_opcodes(&mut self, opcodes: Vec<u32>, entry_point: u32) -> Result<()> {
-        let program_size = opcodes.len() as u32 * 4;
+    pub fn load_program_from_opcodes(&mut self, opcodes: Vec<u32>, entry_point: u64) -> Result<()> {
+        let program_size = opcodes.len() as u64 * 4;
 
         for (id, val) in opcodes.iter().enumerate() {
             self.memory
-                .write_mem_u32(entry_point + 4u32 * (id as u32), *val)
+                .write_mem_u32(entry_point + 4u64 * (id as u64), *val)
                 .unwrap();
         }
 
-        self.reg_pc = entry_point;
+        if self.mode == CpuMode::RV64 {
+            self.reg_pc_64 = entry_point;
+        } else {
+            self.reg_pc = entry_point as u32;
+        }
 
         self.program_cache = ProgramCache::new(
             entry_point,
@@ -211,13 +230,22 @@ impl Cpu {
         }
     }
 
+    pub fn read_pc(self: &Self) -> u64 {
+        if self.mode == CpuMode::RV32 {
+            self.reg_pc as u64
+        } else {
+            self.reg_pc_64
+        }
+    }
+
     fn fetch_instruction(&mut self) -> Result<ProgramLine> {
-        if let Some(cache_line) = self.program_cache.try_get_line(self.reg_pc) {
+        let pc = self.read_pc();
+        if let Some(cache_line) = self.program_cache.try_get_line(pc) {
             Ok(cache_line)
         } else {
             decode_program_line(Word(
                 self.memory
-                    .read_mem_u32(self.read_pc_u32())
+                    .read_mem_u32(pc)
                     .context("No instruction at pc")?,
             ))
         }
@@ -225,30 +253,30 @@ impl Cpu {
 
     #[cfg(feature = "maxperf")]
     fn fetch_instruction_unchecked(&self) -> ProgramLine {
-        self.program_cache.get_line_unchecked(self.reg_pc)
+        self.program_cache.get_line_unchecked(self.read_pc())
     }
 
-    pub fn read_mem_u32(&mut self, addr: u32) -> Result<u32> {
+    pub fn read_mem_u32(&mut self, addr: u64) -> Result<u32> {
         self.memory.read_mem_u32(addr)
     }
 
-    pub fn read_mem_u16(&mut self, addr: u32) -> Result<u16> {
+    pub fn read_mem_u16(&mut self, addr: u64) -> Result<u16> {
         self.memory.read_mem_u16(addr)
     }
 
-    pub fn read_mem_u8(&mut self, addr: u32) -> Result<u8> {
+    pub fn read_mem_u8(&mut self, addr: u64) -> Result<u8> {
         self.memory.read_mem_u8(addr)
     }
 
-    pub fn write_mem_u8(&mut self, addr: u32, value: u8) -> Result<()> {
+    pub fn write_mem_u8(&mut self, addr: u64, value: u8) -> Result<()> {
         self.memory.write_mem_u8(addr, value)
     }
 
-    pub fn write_mem_u16(&mut self, addr: u32, value: u16) -> Result<()> {
+    pub fn write_mem_u16(&mut self, addr: u64, value: u16) -> Result<()> {
         self.memory.write_mem_u16(addr, value)
     }
 
-    pub fn write_mem_u32(&mut self, addr: u32, value: u32) -> Result<()> {
+    pub fn write_mem_u32(&mut self, addr: u64, value: u32) -> Result<()> {
         self.memory.write_mem_u32(addr, value)
     }
 
@@ -388,15 +416,15 @@ impl Cpu {
         self.current_instruction_pc_64
     }
 
-    pub fn read_buf(&mut self, addr: u32, buf: &mut [u8]) -> Result<()> {
+    pub fn read_buf(&mut self, addr: u64, buf: &mut [u8]) -> Result<()> {
         self.memory.read_buf(addr, buf)
     }
 
-    pub fn write_buf(&mut self, addr: u32, buf: &[u8]) -> Result<()> {
+    pub fn write_buf(&mut self, addr: u64, buf: &[u8]) -> Result<()> {
         self.memory.write_buf(addr, buf)
     }
 
-    pub fn read_c_string(&mut self, addr: u32) -> Result<String> {
+    pub fn read_c_string(&mut self, addr: u64) -> Result<String> {
         let mut result = String::new();
         let mut current_addr = addr;
         loop {

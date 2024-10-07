@@ -270,11 +270,11 @@ impl Display for ProgramHeader {
 }
 
 pub struct ProgramFile {
-    pub entry_point: u32,
-    pub program_memory_offset: u32,
+    pub entry_point: u64,
+    pub program_memory_offset: u64,
     pub lines: Vec<ProgramLine>,
-    pub program_size: u32,
-    pub end_of_data_addr: u32,
+    pub program_size: u64,
+    pub end_of_data_addr: u64,
 }
 
 pub fn decode_file(path: &str) -> ElfFile {
@@ -697,7 +697,7 @@ pub fn load_program_to_memory(elf: ElfFile, memory: &mut dyn Memory) -> Result<P
 
             for (i, byte) in program.data.iter().enumerate() {
                 memory
-                    .write_mem_u8((segment_address + i) as u32, *byte)
+                    .write_mem_u8((segment_address + i) as u64, *byte)
                     .unwrap();
             }
         }
@@ -707,7 +707,7 @@ pub fn load_program_to_memory(elf: ElfFile, memory: &mut dyn Memory) -> Result<P
         if section.flags.contains(SectionFlags::SHF_ALLOC) {
             for (i, byte) in section.data.iter().take(section.size).enumerate() {
                 memory
-                    .write_mem_u8((section.addr + i) as u32, *byte)
+                    .write_mem_u8((section.addr + i) as u64, *byte)
                     .unwrap();
             }
         }
@@ -743,11 +743,11 @@ pub fn load_program_to_memory(elf: ElfFile, memory: &mut dyn Memory) -> Result<P
     }
 
     Ok(ProgramFile {
-        entry_point: elf.header.entry_point as u32,
-        program_memory_offset: text_section_addr as u32,
-        program_size: text_section_size as u32,
+        entry_point: elf.header.entry_point as u64,
+        program_memory_offset: text_section_addr as u64,
+        program_size: text_section_size as u64,
         lines: program,
-        end_of_data_addr: end_of_data_addr as u32,
+        end_of_data_addr: end_of_data_addr as u64,
     })
 }
 

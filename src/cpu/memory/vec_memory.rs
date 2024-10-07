@@ -7,7 +7,7 @@ use super::{
 
 #[derive(Clone)]
 pub struct VecPageStorage {
-    pages: Vec<(u32, Page)>,
+    pages: Vec<(u64, Page)>,
 }
 
 impl Debug for VecPageStorage {
@@ -30,22 +30,22 @@ impl PageStorage for VecPageStorage {
         }
     }
 
-    fn get_page_id(&self, addr: u32) -> u32 {
+    fn get_page_id(&self, addr: u64) -> u64 {
         addr >> PAGE_SIZE_LOG2
     }
 
-    fn get_page(&self, page_id: u32) -> Option<&Page> {
+    fn get_page(&self, page_id: u64) -> Option<&Page> {
         self.pages.iter().find(|p| p.0 == page_id).map(|p| &p.1)
     }
 
-    fn get_page_mut(&mut self, page_id: u32) -> Option<&mut Page> {
+    fn get_page_mut(&mut self, page_id: u64) -> Option<&mut Page> {
         self.pages
             .iter_mut()
             .find(|p| p.0 == page_id)
             .map(|p| &mut p.1)
     }
 
-    fn get_page_or_create(&mut self, page_id: u32) -> &mut Page {
+    fn get_page_or_create(&mut self, page_id: u64) -> &mut Page {
         if let Some(i) = self.pages.iter_mut().position(|p| p.0 == page_id) {
             return &mut self.pages[i].1;
         }

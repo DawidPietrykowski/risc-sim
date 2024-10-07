@@ -7,7 +7,7 @@ use super::{
 
 #[derive(Clone)]
 pub struct VecBSearchPageStorage {
-    pages: Vec<(u32, Page)>,
+    pages: Vec<(u64, Page)>,
 }
 
 impl Debug for VecBSearchPageStorage {
@@ -30,11 +30,11 @@ impl PageStorage for VecBSearchPageStorage {
         }
     }
 
-    fn get_page_id(&self, addr: u32) -> u32 {
+    fn get_page_id(&self, addr: u64) -> u64 {
         addr >> PAGE_SIZE_LOG2
     }
 
-    fn get_page(&self, page_id: u32) -> Option<&Page> {
+    fn get_page(&self, page_id: u64) -> Option<&Page> {
         let index = self.pages.binary_search_by(|p| p.0.cmp(&page_id));
         match index {
             Ok(i) => Some(&self.pages[i].1),
@@ -42,7 +42,7 @@ impl PageStorage for VecBSearchPageStorage {
         }
     }
 
-    fn get_page_mut(&mut self, page_id: u32) -> Option<&mut Page> {
+    fn get_page_mut(&mut self, page_id: u64) -> Option<&mut Page> {
         let index = self.pages.binary_search_by(|p| p.0.cmp(&page_id));
         match index {
             Ok(i) => Some(&mut self.pages[i].1),
@@ -50,7 +50,7 @@ impl PageStorage for VecBSearchPageStorage {
         }
     }
 
-    fn get_page_or_create(&mut self, page_id: u32) -> &mut Page {
+    fn get_page_or_create(&mut self, page_id: u64) -> &mut Page {
         let res = self.pages.binary_search_by(|p| p.0.cmp(&page_id));
         if let Ok(i) = res {
             return &mut self.pages[i].1;

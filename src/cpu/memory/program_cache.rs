@@ -5,8 +5,8 @@ use super::memory_core::Memory;
 use anyhow::Result;
 
 pub struct ProgramCache {
-    start_addr: u32,
-    end_addr: u32,
+    start_addr: u64,
+    end_addr: u64,
     data: Vec<ProgramLine>,
 }
 
@@ -18,7 +18,7 @@ impl ProgramCache {
             data: Vec::new(),
         }
     }
-    pub fn new(start_addr: u32, end_addr: u32, memory: &mut dyn Memory) -> Result<ProgramCache> {
+    pub fn new(start_addr: u64, end_addr: u64, memory: &mut dyn Memory) -> Result<ProgramCache> {
         let mut data = Vec::new();
         for i in (start_addr..end_addr).step_by(4) {
             data.push(decode_program_line(Word(memory.read_mem_u32(i)?))?);
@@ -30,14 +30,14 @@ impl ProgramCache {
         })
     }
 
-    pub fn try_get_line(&self, addr: u32) -> Option<ProgramLine> {
+    pub fn try_get_line(&self, addr: u64) -> Option<ProgramLine> {
         if addr < self.start_addr || addr >= self.end_addr {
             return None;
         }
         Some(self.data[((addr - self.start_addr) / 4) as usize])
     }
 
-    pub fn get_line_unchecked(&self, addr: u32) -> ProgramLine {
+    pub fn get_line_unchecked(&self, addr: u64) -> ProgramLine {
         unsafe {
             *self
                 .data

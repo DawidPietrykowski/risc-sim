@@ -7,7 +7,7 @@ use super::page_storage::{Page, PageMemory, PageStorage, PAGE_SIZE, PAGE_SIZE_LO
 
 #[derive(Clone)]
 pub struct BTreeStorage {
-    pages: BTreeMap<u32, Box<Page>>,
+    pages: BTreeMap<u64, Box<Page>>,
 }
 
 impl Debug for BTreeStorage {
@@ -30,23 +30,23 @@ impl PageStorage for BTreeStorage {
         }
     }
 
-    fn get_page_id(&self, addr: u32) -> u32 {
+    fn get_page_id(&self, addr: u64) -> u64 {
         addr >> PAGE_SIZE_LOG2
     }
 
-    fn get_page(&self, page_id: u32) -> Option<&Page> {
+    fn get_page(&self, page_id: u64) -> Option<&Page> {
         self.pages
             .get(&page_id)
             .map(|boxed_page| boxed_page.as_ref())
     }
 
-    fn get_page_mut(&mut self, page_id: u32) -> Option<&mut Page> {
+    fn get_page_mut(&mut self, page_id: u64) -> Option<&mut Page> {
         self.pages
             .get_mut(&page_id)
             .map(|boxed_page| boxed_page.as_mut())
     }
 
-    fn get_page_or_create(&mut self, page_id: u32) -> &mut Page {
+    fn get_page_or_create(&mut self, page_id: u64) -> &mut Page {
         self.pages
             .entry(page_id)
             .or_insert_with(|| Box::new(Page::new(page_id * PAGE_SIZE)))

@@ -10,10 +10,10 @@ use super::{memory_core::Memory, page_storage::PAGE_SIZE_LOG2};
 #[allow(unused)]
 pub trait RawPageStorage {
     fn new() -> Self;
-    fn get_page_id(&self, addr: u32) -> u32;
-    fn get_page(&self, page_id: u32) -> Option<&Page>;
-    fn get_page_mut(&mut self, page_id: u32) -> Option<&mut Page>;
-    fn get_page_or_create(&mut self, page_id: u32) -> &mut Page;
+    fn get_page_id(&self, addr: u64) -> u64;
+    fn get_page(&self, page_id: u64) -> Option<&Page>;
+    fn get_page_mut(&mut self, page_id: u64) -> Option<&mut Page>;
+    fn get_page_or_create(&mut self, page_id: u64) -> &mut Page;
     fn len(&self) -> usize;
     fn is_empty(&self) -> bool {
         self.len() == 0
@@ -29,11 +29,11 @@ impl<T: RawPageStorage> Debug for RawPageMemory<T> {
 #[derive(Clone)]
 pub struct Page {
     pub data: Box<[u8; PAGE_SIZE as usize]>,
-    pub position: u32,
+    pub position: u64,
 }
 
 impl Page {
-    pub fn new(position: u32) -> Page {
+    pub fn new(position: u64) -> Page {
         Page {
             position,
             data: Box::new([0; PAGE_SIZE as usize]),
@@ -52,7 +52,7 @@ impl<T: RawPageStorage> RawPageMemory<T> {
         RawPageMemory { storage: T::new() }
     }
 
-    fn write_u32_to_page(&mut self, addr: u32, value: u32) -> Result<()> {
+    fn write_u32_to_page(&mut self, addr: u64, value: u32) -> Result<()> {
         let page_id = self.storage.get_page_id(addr);
 
         let page = self.storage.get_page_or_create(page_id);
@@ -89,7 +89,7 @@ impl<T: RawPageStorage> RawPageMemory<T> {
         Ok(())
     }
 
-    fn read_u32_from_page(&mut self, addr: u32) -> Result<u32> {
+    fn read_u32_from_page(&mut self, addr: u64) -> Result<u32> {
         let page_id = self.storage.get_page_id(addr);
         if let Some(page) = self.storage.get_page(page_id) {
             if (addr as u64 + 3 - page.position as u64) >= PAGE_SIZE as u64 {
@@ -132,7 +132,7 @@ pub struct RawPageMemory<T: RawPageStorage> {
 }
 
 impl<T: RawPageStorage> Memory for RawPageMemory<T> {
-    fn read_mem_u8(&mut self, addr: u32) -> Result<u8> {
+    fn read_mem_u8(&mut self, addr: u64) -> Result<u8> {
         if let Some(page) = self.storage.get_page(self.storage.get_page_id(addr)) {
             let local_addr = (addr - page.position) as usize;
             unsafe { Ok(*page.data.get_unchecked(local_addr)) }
@@ -141,11 +141,11 @@ impl<T: RawPageStorage> Memory for RawPageMemory<T> {
         }
     }
 
-    fn read_mem_u32(&mut self, addr: u32) -> Result<u32> {
+    fn read_mem_u32(&mut self, addr: u64) -> Result<u32> {
         self.read_u32_from_page(addr)
     }
 
-    fn read_mem_u16(&mut self, addr: u32) -> Result<u16> {
+    fn read_mem_u16(&mut self, addr: u64) -> Result<u16> {
         let page_id = self.storage.get_page_id(addr);
         if let Some(page) = self.storage.get_page(page_id) {
             if (addr << (32 - PAGE_SIZE_LOG2)) >> (32 - PAGE_SIZE_LOG2) == PAGE_SIZE - 1 {
@@ -175,7 +175,7 @@ impl<T: RawPageStorage> Memory for RawPageMemory<T> {
         }
     }
 
-    fn write_mem_u8(&mut self, addr: u32, value: u8) -> Result<()> {
+    fn write_mem_u8(&mut self, addr: u64, value: u8) -> Result<()> {
         let page = self
             .storage
             .get_page_or_create(self.storage.get_page_id(addr));
@@ -186,7 +186,7 @@ impl<T: RawPageStorage> Memory for RawPageMemory<T> {
         Ok(())
     }
 
-    fn write_mem_u16(&mut self, addr: u32, value: u16) -> Result<()> {
+    fn write_mem_u16(&mut self, addr: u64, value: u16) -> Result<()> {
         let page_id = self.storage.get_page_id(addr);
         let page = self.storage.get_page_or_create(page_id);
         if (addr << (32 - PAGE_SIZE_LOG2)) >> (32 - PAGE_SIZE_LOG2) == PAGE_SIZE - 1 {
@@ -214,20 +214,20 @@ impl<T: RawPageStorage> Memory for RawPageMemory<T> {
         Ok(())
     }
 
-    fn write_mem_u32(&mut self, addr: u32, value: u32) -> Result<()> {
+    fn write_mem_u32(&mut self, addr: u64, value: u32) -> Result<()> {
         self.write_u32_to_page(addr, value)
     }
 
-    fn read_buf(&mut self, addr: u32, buf: &mut [u8]) -> Result<()> {
+    fn read_buf(&mut self, addr: u64, buf: &mut [u8]) -> Result<()> {
         for (i, byte) in buf.iter_mut().enumerate() {
-            *byte = self.read_mem_u8(addr + i as u32)?;
+            *byte = self.read_mem_u8(addr + i as u64)?;
         }
         Ok(())
     }
 
-    fn write_buf(&mut self, addr: u32, buf: &[u8]) -> Result<()> {
+    fn write_buf(&mut self, addr: u64, buf: &[u8]) -> Result<()> {
         for (i, byte) in buf.iter().enumerate() {
-            self.write_mem_u8(addr + i as u32, *byte)?;
+            self.write_mem_u8(addr + i as u64, *byte)?;
         }
         Ok(())
     }
