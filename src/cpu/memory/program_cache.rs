@@ -1,4 +1,7 @@
-use crate::types::{decode_program_line, ProgramLine, Word};
+use crate::{
+    cpu::cpu_core::CpuMode,
+    types::{decode_program_line, ProgramLine, Word},
+};
 
 use super::memory_core::Memory;
 
@@ -18,10 +21,15 @@ impl ProgramCache {
             data: Vec::new(),
         }
     }
-    pub fn new(start_addr: u64, end_addr: u64, memory: &mut dyn Memory) -> Result<ProgramCache> {
+    pub fn new(
+        start_addr: u64,
+        end_addr: u64,
+        memory: &mut dyn Memory,
+        mode: CpuMode,
+    ) -> Result<ProgramCache> {
         let mut data = Vec::new();
         for i in (start_addr..end_addr).step_by(4) {
-            data.push(decode_program_line(Word(memory.read_mem_u32(i)?))?);
+            data.push(decode_program_line(Word(memory.read_mem_u32(i)?), mode)?);
         }
         Ok(ProgramCache {
             start_addr,

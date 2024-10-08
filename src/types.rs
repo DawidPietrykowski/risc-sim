@@ -1,7 +1,7 @@
 use std::fmt;
 
 use crate::{
-    cpu::cpu_core::Cpu,
+    cpu::cpu_core::{Cpu, CpuMode},
     isa::{
         rv32_zicsr::zicsr::RV32_ZICSR_SET,
         rv32_zifencei::zifencei::RV32_ZIFENCEI_SET,
@@ -10,6 +10,13 @@ use crate::{
             integer_reg_reg::RV32I_SET_R, load_store::RV32I_SET_LS,
         },
         rv32m::muldiv_reg_reg::RV32M_SET_R,
+        rv64_zicsr::zicsr::RV64_ZICSR_SET,
+        rv64_zifencei::zifencei::RV64_ZIFENCEI_SET,
+        rv64i::{
+            control_transfer::RV64I_SET_UJ, environment::RV64I_SET_E, immediate::RV64I_SET_I,
+            integer_reg_reg::RV64I_SET_R, load_store::RV64I_SET_LS,
+        },
+        rv64m::muldiv_reg_reg::RV64M_SET_R,
     },
 };
 use anyhow::{anyhow, Context, Ok, Result};
@@ -273,12 +280,20 @@ pub fn parse_instruction_r(word: &Word) -> RInstructionData {
     }
 }
 
-pub fn decode_program_line(word: Word) -> Result<ProgramLine> {
-    let instruction = *(ALL_INSTRUCTIONS
-        .iter()
-        .find(|ins| (word.0 & ins.mask) == ins.bits)
-        // .context(format!("Instruction {:#x} not found", word.0))?);
-        .context("Instruction not found")?);
+pub fn decode_program_line(word: Word, mode: CpuMode) -> Result<ProgramLine> {
+    let instruction = if mode == CpuMode::RV32 {
+        *(ALL_INSTRUCTIONS_32
+            .iter()
+            .find(|ins| (word.0 & ins.mask) == ins.bits)
+            .context(format!("Instruction {:#x} not found", word.0))?)
+        // .context("Instruction not found")?);
+    } else {
+        *(ALL_INSTRUCTIONS_64
+            .iter()
+            .find(|ins| (word.0 & ins.mask) == ins.bits)
+            .context(format!("Instruction {:#x} not found", word.0))?)
+        // .context("Instruction not found")?);
+    };
     Ok(ProgramLine { instruction, word })
 }
 
@@ -443,7 +458,7 @@ pub trait BitValue<S> {
 }
 
 pub fn find_instruction_by_name(name: &str) -> Result<Instruction> {
-    Ok(*ALL_INSTRUCTIONS
+    Ok(*ALL_INSTRUCTIONS_32
         .iter()
         .find(|ins| ins.name == name)
         .context("Function not found")?)
@@ -451,7 +466,7 @@ pub fn find_instruction_by_name(name: &str) -> Result<Instruction> {
 use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref ALL_INSTRUCTIONS: Vec<Instruction> = {
+    static ref ALL_INSTRUCTIONS_32: Vec<Instruction> = {
         let mut all = Vec::new();
         all.extend_from_slice(&RV32I_SET_I);
         all.extend_from_slice(&RV32I_SET_R);
@@ -461,6 +476,18 @@ lazy_static! {
         all.extend_from_slice(&RV32M_SET_R);
         all.extend_from_slice(&RV32_ZIFENCEI_SET);
         all.extend_from_slice(&RV32_ZICSR_SET);
+        all
+    };
+    static ref ALL_INSTRUCTIONS_64: Vec<Instruction> = {
+        let mut all = Vec::new();
+        all.extend_from_slice(&RV64I_SET_I);
+        all.extend_from_slice(&RV64I_SET_R);
+        all.extend_from_slice(&RV64I_SET_UJ);
+        all.extend_from_slice(&RV64I_SET_LS);
+        all.extend_from_slice(&RV64I_SET_E);
+        all.extend_from_slice(&RV64M_SET_R);
+        all.extend_from_slice(&RV64_ZIFENCEI_SET);
+        all.extend_from_slice(&RV64_ZICSR_SET);
         all
     };
 }

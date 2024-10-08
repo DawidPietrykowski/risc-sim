@@ -1,3 +1,4 @@
+use crate::cpu::cpu_core::CpuMode;
 use crate::cpu::memory::memory_core::Memory;
 use crate::types::{decode_program_line, ProgramLine, Word};
 use anyhow::Result;
@@ -6,28 +7,28 @@ use std::cmp::max;
 use std::fmt::{Display, Formatter};
 use std::{fmt, fs};
 
-#[derive(Debug, Clone)]
-enum WordSize {
+#[derive(Debug, Clone, PartialEq)]
+pub enum WordSize {
     W32,
     W64,
 }
 
 #[derive(Debug)]
-enum Endian {
+pub enum Endian {
     Little,
     Big,
 }
 
 #[derive(Debug)]
 #[allow(clippy::upper_case_acronyms)]
-enum ABI {
+pub enum ABI {
     SystemV,
     Other,
 }
 
 #[derive(Debug)]
 #[allow(clippy::upper_case_acronyms)]
-enum ELFType {
+pub enum ELFType {
     Relocatable,
     Executable,
     Shared,
@@ -37,7 +38,7 @@ enum ELFType {
 
 #[derive(Debug)]
 #[allow(clippy::upper_case_acronyms)]
-enum ISA {
+pub enum ISA {
     RISCV,
     X86,
     ARM,
@@ -48,22 +49,22 @@ enum ISA {
 }
 
 #[derive(Debug)]
-struct ELFHeader {
-    word_size: WordSize,
-    endian: Endian,
-    version: u8,
-    abi: ABI,
-    elf_type: ELFType,
-    isa: ISA,
-    entry_point: u64,
-    program_header_table_offset: u64,
-    section_header_table_offset: u64,
-    header_size: u16,
-    program_header_size: u16,
-    program_header_count: u16,
-    section_header_size: u16,
-    section_header_count: u16,
-    section_header_string_table_index: u16,
+pub struct ELFHeader {
+    pub word_size: WordSize,
+    pub endian: Endian,
+    pub version: u8,
+    pub abi: ABI,
+    pub elf_type: ELFType,
+    pub isa: ISA,
+    pub entry_point: u64,
+    pub program_header_table_offset: u64,
+    pub section_header_table_offset: u64,
+    pub header_size: u16,
+    pub program_header_size: u16,
+    pub program_header_count: u16,
+    pub section_header_size: u16,
+    pub section_header_count: u16,
+    pub section_header_string_table_index: u16,
 }
 
 impl Display for ELFHeader {
@@ -198,7 +199,7 @@ impl fmt::Display for SectionFlags {
 }
 
 #[allow(unused)]
-struct Section {
+pub struct Section {
     name: String,
     section_type: SectionType,
     flags: SectionFlags,
@@ -221,7 +222,7 @@ impl fmt::Display for Section {
 }
 
 #[derive(Debug, PartialEq)]
-enum ProgramHeaderType {
+pub enum ProgramHeaderType {
     Load,
     Dynamic,
     Interp,
@@ -237,9 +238,9 @@ enum ProgramHeaderType {
 }
 
 #[derive(Debug)]
-struct ProgramHeader {
+pub struct ProgramHeader {
     header_type: ProgramHeaderType,
-    flags: u32,
+    flags: u64,
     segment_offset: u64,
     virtual_address: u64,
     physical_address: u64,
@@ -250,9 +251,9 @@ struct ProgramHeader {
 }
 
 pub struct ElfFile {
-    header: ELFHeader,
-    program_headers: Vec<ProgramHeader>,
-    section_headers: Vec<Section>,
+    pub header: ELFHeader,
+    pub program_headers: Vec<ProgramHeader>,
+    pub section_headers: Vec<Section>,
 }
 
 impl Display for ProgramHeader {
@@ -436,8 +437,8 @@ pub fn decode_file(path: &str) -> ElfFile {
                 file[(offset + 0x18)..(offset + 0x18 + 0x4)]
                     .try_into()
                     .unwrap(),
-            ),
-            WordSize::W64 => u32::from_le_bytes(
+            ) as u64,
+            WordSize::W64 => u64::from_le_bytes(
                 file[(offset + 0x4)..(offset + 0x4 + 0x8)]
                     .try_into()
                     .unwrap(),
@@ -684,7 +685,11 @@ pub fn decode_file(path: &str) -> ElfFile {
     }
 }
 
-pub fn load_program_to_memory(elf: ElfFile, memory: &mut dyn Memory) -> Result<ProgramFile> {
+pub fn load_program_to_memory(
+    elf: ElfFile,
+    memory: &mut dyn Memory,
+    mode: CpuMode,
+) -> Result<ProgramFile> {
     let mut program: Vec<ProgramLine> = vec![];
     let mut text_section_addr = 0;
     let mut text_section_size = 0;
@@ -729,7 +734,7 @@ pub fn load_program_to_memory(elf: ElfFile, memory: &mut dyn Memory) -> Result<P
                     u32::from_le_bytes(section.data[pc..(pc + 4)].try_into().unwrap());
                 pc += 4;
 
-                let decoded_instruction = decode_program_line(Word(instruction));
+                let decoded_instruction = decode_program_line(Word(instruction), mode);
                 match decoded_instruction {
                     Ok(decoded_instruction) => {
                         program.push(decoded_instruction);
@@ -751,9 +756,9 @@ pub fn load_program_to_memory(elf: ElfFile, memory: &mut dyn Memory) -> Result<P
     })
 }
 
-pub fn decode_program_from_binary(binary: &[u32]) -> Result<Vec<ProgramLine>> {
+pub fn decode_program_from_binary(binary: &[u32], mode: CpuMode) -> Result<Vec<ProgramLine>> {
     Ok(binary
         .iter()
-        .map(|word| decode_program_line(Word(*word)).unwrap())
+        .map(|word| decode_program_line(Word(*word), mode).unwrap())
         .collect())
 }

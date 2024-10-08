@@ -2,8 +2,10 @@
 
 use anyhow::Result;
 use minifb::{Key, Window, WindowOptions};
-use risc_sim::cpu::cpu_core::Cpu;
-use risc_sim::elf::elf_loader::decode_file;
+use risc_sim::cpu::cpu_core::{Cpu, CpuMode};
+use risc_sim::cpu::memory::raw_vec_memory::RawVecMemory;
+use risc_sim::elf::elf_loader::{decode_file, WordSize};
+use risc_sim::system::passthrough_kernel::PassthroughKernel;
 use risc_sim::types::ABIRegister;
 
 use std::env;
@@ -21,7 +23,7 @@ fn main() -> Result<()> {
     const MEMORY_BUFFER_SIZE: u64 = SCREEN_WIDTH * SCREEN_HEIGHT * 4;
     const SCREEN_ADDR_ADDR: u64 = 0x40000000;
     const SCALE_SCREEN: u64 = 2;
-    const SIMULATE_DISPLAY: bool = true;
+    const SIMULATE_DISPLAY: bool = false;
 
     let mut frames_written = 0;
 
@@ -65,7 +67,12 @@ fn main() -> Result<()> {
     let file_path = &args[1];
     let program = decode_file(file_path);
 
-    let mut cpu = Cpu::default();
+    let mode = if program.header.word_size == WordSize::W32 {
+        CpuMode::RV32
+    } else {
+        CpuMode::RV64
+    };
+    let mut cpu = Cpu::new(RawVecMemory::default(), PassthroughKernel::default(), mode);
     cpu.load_program_from_elf(program)?;
     // cpu.set_debug_enabled(true);
 

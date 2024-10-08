@@ -83,7 +83,7 @@ pub const RV64I_SET_E: [Instruction; 2] = [
             match syscall_num {
                 57 => {
                     // Close syscall
-                    let fd = cpu.read_x_u32(ABIRegister::A(0).to_x_reg_id() as u8)?;
+                    let fd = cpu.read_x_u64(ABIRegister::A(0).to_x_reg_id() as u8)? as u32;
                     cpu.debug_print(|| format!("close: {}", fd));
 
                     cpu.write_x_u64(ABIRegister::A(0).to_x_reg_id() as u8, 0)?;
@@ -105,7 +105,7 @@ pub const RV64I_SET_E: [Instruction; 2] = [
                 }
                 62 => {
                     // Seek syscall
-                    let fd = cpu.read_x_u32(ABIRegister::A(0).to_x_reg_id() as u8)?;
+                    let fd = cpu.read_x_u64(ABIRegister::A(0).to_x_reg_id() as u8)? as u32;
                     let offset = cpu.read_x_u64(ABIRegister::A(1).to_x_reg_id() as u8)?;
                     let seek_type = SeekType::from(
                         cpu.read_x_u64(ABIRegister::A(2).to_x_reg_id() as u8)? as u32,
@@ -124,14 +124,14 @@ pub const RV64I_SET_E: [Instruction; 2] = [
                             cpu.write_x_u64(ABIRegister::A(0).to_x_reg_id() as u8, len)?;
                         }
                         Err(_e) => {
-                            cpu.write_x_i32(ABIRegister::A(0).to_x_reg_id() as u8, -1)?;
+                            cpu.write_x_i64(ABIRegister::A(0).to_x_reg_id() as u8, -1)?;
                             cpu.write_x_u64(ABIRegister::A(10).to_x_reg_id() as u8, 1)?;
                         }
                     }
                 }
                 63 => {
                     // Read syscall
-                    let fd = cpu.read_x_u32(ABIRegister::A(0).to_x_reg_id() as u8)?;
+                    let fd = cpu.read_x_u64(ABIRegister::A(0).to_x_reg_id() as u8)? as u32;
                     let buffer_addr = cpu.read_x_u64(ABIRegister::A(1).to_x_reg_id() as u8)?;
                     let len = cpu.read_x_u64(ABIRegister::A(2).to_x_reg_id() as u8)?;
 
@@ -151,14 +151,14 @@ pub const RV64I_SET_E: [Instruction; 2] = [
                             cpu.write_x_u64(ABIRegister::A(0).to_x_reg_id() as u8, len as u64)?;
                         }
                         Err(_e) => {
-                            cpu.write_x_i32(ABIRegister::A(0).to_x_reg_id() as u8, -1)?;
+                            cpu.write_x_i64(ABIRegister::A(0).to_x_reg_id() as u8, -1)?;
                             cpu.write_x_u64(ABIRegister::A(10).to_x_reg_id() as u8, 1)?;
                         }
                     }
                 }
                 64 => {
                     // Write syscall
-                    let fd = cpu.read_x_u32(ABIRegister::A(0).to_x_reg_id() as u8)?;
+                    let fd = cpu.read_x_u64(ABIRegister::A(0).to_x_reg_id() as u8)? as u32;
                     let buffer_addr = cpu.read_x_u64(ABIRegister::A(1).to_x_reg_id() as u8)?;
                     let len = cpu.read_x_u64(ABIRegister::A(2).to_x_reg_id() as u8)?;
 
@@ -186,7 +186,7 @@ pub const RV64I_SET_E: [Instruction; 2] = [
                             cpu.write_x_u64(ABIRegister::A(0).to_x_reg_id() as u8, len as u64)?;
                         }
                         Err(_e) => {
-                            cpu.write_x_i32(ABIRegister::A(0).to_x_reg_id() as u8, -1)?;
+                            cpu.write_x_i64(ABIRegister::A(0).to_x_reg_id() as u8, -1)?;
                             cpu.write_x_u64(ABIRegister::A(10).to_x_reg_id() as u8, 1)?;
                         }
                     }
@@ -194,10 +194,10 @@ pub const RV64I_SET_E: [Instruction; 2] = [
                 }
                 80 => {
                     // fstat
-                    let fd = cpu.read_x_u32(ABIRegister::A(0).to_x_reg_id() as u8)?;
+                    let fd = cpu.read_x_u64(ABIRegister::A(0).to_x_reg_id() as u8)?;
                     let stat_addr = cpu.read_x_u64(ABIRegister::A(1).to_x_reg_id() as u8)?;
                     cpu.debug_print(|| format!("fstat: {} addr: {:#x}", fd, stat_addr));
-                    let stat = cpu.kernel.fstat_fd(fd)?;
+                    let stat = cpu.kernel.fstat_fd(fd as u32)?;
 
                     cpu.write_x_u64(ABIRegister::A(0).to_x_reg_id() as u8, 0)?;
                     cpu.write_buf(stat_addr, &stat.to_bytes() as &[u8])?;
@@ -246,7 +246,7 @@ pub const RV64I_SET_E: [Instruction; 2] = [
 
                     let path_addr = cpu.read_x_u64(ABIRegister::A(0).to_x_reg_id() as u8)?;
                     let path = cpu.read_c_string(path_addr)?;
-                    let flags = cpu.read_x_u32(ABIRegister::A(1).to_x_reg_id() as u8)?;
+                    let flags = cpu.read_x_u64(ABIRegister::A(1).to_x_reg_id() as u8)? as u32;
 
                     match cpu.kernel.open_file(&path, flags) {
                         Ok(fd) => {
@@ -254,7 +254,7 @@ pub const RV64I_SET_E: [Instruction; 2] = [
                             // filed opened succssfully
                         }
                         Err(_e) => {
-                            cpu.write_x_i32(ABIRegister::A(0).to_x_reg_id() as u8, -1)?; // error opening file
+                            cpu.write_x_i64(ABIRegister::A(0).to_x_reg_id() as u8, -1)?; // error opening file
                             cpu.write_x_u64(ABIRegister::A(1).to_x_reg_id() as u8, 1)?;
                         }
                     }

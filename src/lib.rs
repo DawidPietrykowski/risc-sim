@@ -2,6 +2,7 @@ pub mod cpu;
 pub mod elf;
 pub mod isa;
 pub mod system;
-pub mod test;
+#[cfg(test)]
+pub mod tests;
 pub mod types;
 pub mod utils;

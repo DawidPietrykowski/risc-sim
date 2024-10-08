@@ -5,7 +5,10 @@ use std::{
 };
 
 use risc_sim::{
-    cpu::{cpu_core::Cpu, memory::vec_memory::VecMemory},
+    cpu::{
+        cpu_core::{Cpu, CpuMode},
+        memory::vec_memory::VecMemory,
+    },
     elf::elf_loader::decode_file,
     system::passthrough_kernel::PassthroughKernel,
 };
@@ -33,7 +36,7 @@ impl CpuBenchmark {
     fn new() -> Self {
         let mut kernel = PassthroughKernel::default();
         kernel.set_print_stdout(false);
-        let mut cpu = Cpu::new(VecMemory::new(), kernel);
+        let mut cpu = Cpu::new(VecMemory::new(), kernel, CpuMode::RV32);
         let program = decode_file("doomgeneric"); // TODO: set with env var (?)
         cpu.load_program_from_elf(program).unwrap();
         CpuBenchmark { cpu }

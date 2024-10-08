@@ -4,7 +4,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 
 use risc_sim::{
     cpu::{
-        cpu_core::Cpu,
+        cpu_core::{Cpu, CpuMode},
         memory::{
             btree_memory::BTreeMemory, hashmap_memory::FxHashMemory, memory_core::Memory,
             raw_table_memory::RawTableMemory, table_memory::TableMemory,
@@ -22,7 +22,7 @@ where
 {
     let mut kernel = PassthroughKernel::default();
     kernel.set_print_stdout(false);
-    let mut cpu = Cpu::new(mem, kernel);
+    let mut cpu = Cpu::new(mem, kernel, CpuMode::RV32);
     let program = decode_file("tests/coremark.elf");
     cpu.load_program_from_elf(program).unwrap();
     const COUNT_INTERVAL: u64 = 50000;

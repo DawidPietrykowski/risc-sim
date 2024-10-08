@@ -11,10 +11,15 @@ for c_file in "$TEST_DIR"/*.c; do
         name_no_ext="${filename%.*}"
 
         # Compile the C program
+        
+        # 32 bit
         riscv32-unknown-elf-gcc -march=rv32im -mabi=ilp32 -o "$TEST_DIR/$name_no_ext" "$c_file"
+        # 64 bit
+        riscv64-unknown-elf-gcc -march=rv64im -mabi=lp64 -o "$TEST_DIR/$name_no_ext"_64 "$c_file"
 
         # Run the program and save output to .res file
         qemu-riscv32 "$TEST_DIR/$name_no_ext" > "$TEST_DIR/$name_no_ext.res"
+        qemu-riscv64 "$TEST_DIR/$name_no_ext"_64 > "$TEST_DIR/$name_no_ext"_64.res
 
         echo "Processed: $filename"
     fi

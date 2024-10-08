@@ -14,7 +14,7 @@ use super::memory::{
 use crate::types::{decode_program_line, ProgramLine, Word};
 use anyhow::{bail, Context, Result};
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy)]
 pub enum CpuMode {
     RV32,
     RV64,
@@ -29,7 +29,7 @@ pub struct Cpu {
     pub current_instruction_pc_64: u64,
     pub memory: Box<dyn Memory>,
     program_cache: ProgramCache,
-    program_memory_offset: u32,
+    program_memory_offset: u64,
     halted: bool,
     pub program_brk: u64,
     #[cfg(not(feature = "maxperf"))]
@@ -57,7 +57,8 @@ impl Display for Cpu {
     }
 }
 
-const INITIAL_STACK_POINTER: u32 = 0xbfffff00; // TODO: Calculate during program load
+const INITIAL_STACK_POINTER_32: u32 = 0xbfffff00; // TODO: Calculate during program load
+const INITIAL_STACK_POINTER_64: u64 = 0x7ffffffffffff000; // TODO: Calculate during program load
 
 impl Default for Cpu {
     fn default() -> Self {
@@ -83,7 +84,7 @@ impl Default for Cpu {
 }
 
 impl Cpu {
-    pub fn new<M, K>(memory: M, kernel: K) -> Cpu
+    pub fn new<M, K>(memory: M, kernel: K, mode: CpuMode) -> Cpu
     where
         M: Memory + 'static,
         K: Kernel + 'static,
@@ -104,13 +105,13 @@ impl Cpu {
             debug_enabled: false,
             kernel: Box::new(kernel),
             csr_table: CSRTable::new(),
-            mode: CpuMode::RV32,
+            mode,
         }
     }
 
     // TODO: Refactor such that this logic is done by the kernel
     pub fn load_program_from_elf(&mut self, elf: ElfFile) -> Result<()> {
-        let program_file = load_program_to_memory(elf, self.memory.as_mut())?;
+        let program_file = load_program_to_memory(elf, self.memory.as_mut(), self.mode)?;
 
         if self.mode == CpuMode::RV64 {
             self.reg_pc_64 = program_file.entry_point;
@@ -122,15 +123,32 @@ impl Cpu {
             program_file.program_memory_offset,
             program_file.program_memory_offset + program_file.program_size,
             self.memory.as_mut(),
+            self.mode,
         )
         .unwrap();
-        self.write_x_u32(ABIRegister::SP.to_x_reg_id() as u8, INITIAL_STACK_POINTER)
+        if self.mode == CpuMode::RV64 {
+            self.write_x_u64(
+                ABIRegister::SP.to_x_reg_id() as u8,
+                INITIAL_STACK_POINTER_64,
+            )
             .unwrap();
+        } else {
+            self.write_x_u32(
+                ABIRegister::SP.to_x_reg_id() as u8,
+                INITIAL_STACK_POINTER_32,
+            )
+            .unwrap();
+        }
         self.program_brk = program_file.end_of_data_addr;
         Ok(())
     }
 
-    pub fn load_program_from_opcodes(&mut self, opcodes: Vec<u32>, entry_point: u64) -> Result<()> {
+    pub fn load_program_from_opcodes(
+        &mut self,
+        opcodes: Vec<u32>,
+        entry_point: u64,
+        mode: CpuMode,
+    ) -> Result<()> {
         let program_size = opcodes.len() as u64 * 4;
 
         for (id, val) in opcodes.iter().enumerate() {
@@ -149,6 +167,7 @@ impl Cpu {
             entry_point,
             entry_point + program_size,
             self.memory.as_mut(),
+            mode,
         )
         .unwrap();
 
@@ -171,8 +190,13 @@ impl Cpu {
         }
 
         // Increase PC
-        self.current_instruction_pc = self.reg_pc;
-        self.reg_pc += 4;
+        if self.mode == CpuMode::RV64 {
+            self.current_instruction_pc_64 = self.reg_pc_64;
+            self.reg_pc_64 += 4;
+        } else {
+            self.current_instruction_pc = self.reg_pc;
+            self.reg_pc += 4;
+        }
 
         // Execute
         self.execute_program_line(&instruction)?;
@@ -191,8 +215,13 @@ impl Cpu {
         let instruction = self.fetch_instruction_unchecked();
 
         // Increase PC
-        self.current_instruction_pc = self.reg_pc;
-        self.reg_pc += 4;
+        if self.mode == CpuMode::RV64 {
+            self.current_instruction_pc_64 = self.reg_pc_64;
+            self.reg_pc_64 += 4;
+        } else {
+            self.current_instruction_pc = self.reg_pc;
+            self.reg_pc += 4;
+        }
 
         // Execute
         let _ = self.execute_program_line(&instruction);
@@ -206,7 +235,7 @@ impl Cpu {
     }
 
     pub fn execute_word(&mut self, word: Word) -> Result<()> {
-        let program_line = decode_program_line(word)?;
+        let program_line = decode_program_line(word, self.mode)?;
         (program_line.instruction.operation)(self, &program_line.word)
     }
 
@@ -243,11 +272,14 @@ impl Cpu {
         if let Some(cache_line) = self.program_cache.try_get_line(pc) {
             Ok(cache_line)
         } else {
-            decode_program_line(Word(
-                self.memory
-                    .read_mem_u32(pc)
-                    .context("No instruction at pc")?,
-            ))
+            decode_program_line(
+                Word(
+                    self.memory
+                        .read_mem_u32(pc)
+                        .context("No instruction at pc")?,
+                ),
+                self.mode,
+            )
         }
     }
 
@@ -312,7 +344,7 @@ impl Cpu {
         #[cfg(not(feature = "maxperf"))]
         {
             let value = self
-                .reg_x32
+                .reg_x64
                 .get(id as usize)
                 .context(format!("Register x{} does not exist", id))?;
 

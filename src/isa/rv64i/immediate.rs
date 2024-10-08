@@ -145,8 +145,8 @@ pub const RV64I_SET_I: [Instruction; 15] = [
         },
     },
     Instruction {
-        mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
-        bits: 0b0000000 << FUNC7_POS | 0b001 << FUNC3_POS | 0b0011011,
+        mask: OPCODE_MASK | FUNC3_MASK | TOP6_MASK,
+        bits: 0b000000 << TOP6_POS | 0b001 << FUNC3_POS | 0b0011011,
         name: "SLLIW",
         instruction_type: InstructionType::I,
         operation: |cpu, word| {
@@ -171,8 +171,8 @@ pub const RV64I_SET_I: [Instruction; 15] = [
         },
     },
     Instruction {
-        mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
-        bits: 0b0000000 << FUNC7_POS | 0b101 << FUNC3_POS | 0b0011011,
+        mask: OPCODE_MASK | FUNC3_MASK | TOP6_MASK,
+        bits: 0b000000 << TOP6_POS | 0b101 << FUNC3_POS | 0b0011011,
         name: "SRLIW",
         instruction_type: InstructionType::I,
         operation: |cpu, word| {
@@ -197,8 +197,8 @@ pub const RV64I_SET_I: [Instruction; 15] = [
         },
     },
     Instruction {
-        mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
-        bits: 0b010000 << FUNC7_POS | 0b101 << FUNC3_POS | 0b0011011,
+        mask: OPCODE_MASK | FUNC3_MASK | TOP6_MASK,
+        bits: 0b010000 << TOP6_POS | 0b101 << FUNC3_POS | 0b0011011,
         name: "SRAIW",
         instruction_type: InstructionType::I,
         operation: |cpu, word| {
