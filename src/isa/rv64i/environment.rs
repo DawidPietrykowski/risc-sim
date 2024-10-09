@@ -1,9 +1,12 @@
-use std::{fs::Metadata, mem, os::unix::fs::MetadataExt};
+use std::{fs::Metadata, mem, os::unix::fs::MetadataExt, ptr::null_mut};
 
 use crate::{isa, system::kernel::SeekType, types::*};
 
 use anyhow::{bail, Context, Result};
-use nix::time::{clock_gettime, ClockId};
+use nix::{
+    libc::{gettimeofday, timeval},
+    time::{clock_gettime, ClockId},
+};
 
 #[repr(C)]
 pub struct Stat {
@@ -216,6 +219,30 @@ pub const RV64I_SET_E: [Instruction; 2] = [
                     }
                     cpu.write_x_u64(ABIRegister::A(0).to_x_reg_id() as u8, cpu.program_brk)?;
                     cpu.debug_print(|| format!("brk: {:#x}", cpu.program_brk));
+                }
+                169 => {
+                    // gettimeofday
+                    let timeval_addr = cpu.read_x_u64(ABIRegister::A(0).to_x_reg_id() as u8)?;
+
+                    let mut timeval_s: timeval = timeval {
+                        tv_sec: 0,
+                        tv_usec: 0,
+                    };
+                    unsafe { gettimeofday(&mut timeval_s, null_mut()) };
+
+                    let data = unsafe {
+                        let bytes_ptr: *const u8 = &timeval_s as *const timeval as *const u8;
+                        Vec::from(std::slice::from_raw_parts(
+                            bytes_ptr,
+                            mem::size_of::<timeval>(),
+                        ))
+                    };
+
+                    cpu.write_buf(timeval_addr, &data as &[u8])?;
+
+                    cpu.write_x_u64(ABIRegister::A(0).to_x_reg_id() as u8, 0)?;
+
+                    cpu.debug_print(|| format!("gettimeofday: {:#x}", timeval_addr));
                 }
                 403 => {
                     // clock_gettime

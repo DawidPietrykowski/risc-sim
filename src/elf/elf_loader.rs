@@ -7,7 +7,7 @@ use std::cmp::max;
 use std::fmt::{Display, Formatter};
 use std::{fmt, fs};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum WordSize {
     W32,
     W64,
@@ -100,7 +100,7 @@ impl Display for ELFHeader {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 #[allow(non_camel_case_types)]
 enum SectionType {
     SHT_NULL,
@@ -344,55 +344,28 @@ pub fn decode_file(path: &str) -> ElfFile {
 
     // Ignore ABI Version
 
-    let entry_point: u64 = match word_size {
-        WordSize::W32 => u32::from_le_bytes(file[0x18..0x1C].try_into().unwrap()) as u64,
-        WordSize::W64 => u64::from_le_bytes(file[0x18..0x20].try_into().unwrap()),
-    };
+    let entry_point = read_file_word_size(&file, 0, word_size, 0x18, 0x18);
 
-    let program_header_table_offset: u64 = match word_size {
-        WordSize::W32 => u32::from_le_bytes(file[0x1C..0x20].try_into().unwrap()) as u64,
-        WordSize::W64 => u64::from_le_bytes(file[0x20..0x28].try_into().unwrap()),
-    };
+    let program_header_table_offset = read_file_word_size(&file, 0, word_size, 0x1C, 0x20);
 
-    let section_header_table_offset: u64 = match word_size {
-        WordSize::W32 => u32::from_le_bytes(file[0x20..0x24].try_into().unwrap()) as u64,
-        WordSize::W64 => u64::from_le_bytes(file[0x28..0x30].try_into().unwrap()),
-    };
+    let section_header_table_offset = read_file_word_size(&file, 0, word_size, 0x20, 0x28);
 
     // Ignore flags
 
-    let header_size: u16 = match word_size {
-        WordSize::W32 => u16::from_le_bytes(file[0x28..0x2A].try_into().unwrap()),
-        WordSize::W64 => u16::from_le_bytes(file[0x34..0x36].try_into().unwrap()),
-    };
+    let header_size = read_file_u16(&file, word_size, 0x28, 0x34);
 
-    let program_header_size: u16 = match word_size {
-        WordSize::W32 => u16::from_le_bytes(file[0x2A..0x2C].try_into().unwrap()),
-        WordSize::W64 => u16::from_le_bytes(file[0x36..0x38].try_into().unwrap()),
-    };
+    let program_header_size = read_file_u16(&file, word_size, 0x2A, 0x36);
 
-    let program_header_count: u16 = match word_size {
-        WordSize::W32 => u16::from_le_bytes(file[0x2C..0x2E].try_into().unwrap()),
-        WordSize::W64 => u16::from_le_bytes(file[0x38..0x3A].try_into().unwrap()),
-    };
+    let program_header_count = read_file_u16(&file, word_size, 0x2C, 0x38);
 
-    let section_header_size: u16 = match word_size {
-        WordSize::W32 => u16::from_le_bytes(file[0x2E..0x30].try_into().unwrap()),
-        WordSize::W64 => u16::from_le_bytes(file[0x3A..0x3C].try_into().unwrap()),
-    };
+    let section_header_size = read_file_u16(&file, word_size, 0x2E, 0x3A);
 
-    let section_header_count: u16 = match word_size {
-        WordSize::W32 => u16::from_le_bytes(file[0x30..0x32].try_into().unwrap()),
-        WordSize::W64 => u16::from_le_bytes(file[0x3C..0x3E].try_into().unwrap()),
-    };
+    let section_header_count = read_file_u16(&file, word_size, 0x30, 0x3C);
 
-    let section_header_string_table_index: u16 = match word_size {
-        WordSize::W32 => u16::from_le_bytes(file[0x32..0x34].try_into().unwrap()),
-        WordSize::W64 => u16::from_le_bytes(file[0x3E..0x40].try_into().unwrap()),
-    };
+    let section_header_string_table_index = read_file_u16(&file, word_size, 0x32, 0x3E);
 
     let elf_header = ELFHeader {
-        word_size: word_size.clone(),
+        word_size,
         endian,
         version,
         abi,
@@ -432,96 +405,19 @@ pub fn decode_file(path: &str) -> ElfFile {
                 other => ProgramHeaderType::Unknown(other),
             };
 
-        let flags = match word_size {
-            WordSize::W32 => u32::from_le_bytes(
-                file[(offset + 0x18)..(offset + 0x18 + 0x4)]
-                    .try_into()
-                    .unwrap(),
-            ) as u64,
-            WordSize::W64 => u64::from_le_bytes(
-                file[(offset + 0x4)..(offset + 0x4 + 0x8)]
-                    .try_into()
-                    .unwrap(),
-            ),
-        };
+        let flags = read_file_u32(&file, word_size, offset + 0x18, offset + 0x4) as u64;
 
-        let segment_offset = match word_size {
-            WordSize::W32 => u32::from_le_bytes(
-                file[(offset + 0x4)..(offset + 0x4 + 0x4)]
-                    .try_into()
-                    .unwrap(),
-            ) as u64,
-            WordSize::W64 => u64::from_le_bytes(
-                file[(offset + 0x8)..(offset + 0x8 + 0x8)]
-                    .try_into()
-                    .unwrap(),
-            ),
-        };
+        let segment_offset = read_file_word_size(&file, offset, word_size, 0x4, 0x8);
 
-        let virtual_address = match word_size {
-            WordSize::W32 => u32::from_le_bytes(
-                file[(offset + 0x8)..(offset + 0x8 + 0x4)]
-                    .try_into()
-                    .unwrap(),
-            ) as u64,
-            WordSize::W64 => u64::from_le_bytes(
-                file[(offset + 0x10)..(offset + 0x10 + 0x8)]
-                    .try_into()
-                    .unwrap(),
-            ),
-        };
+        let virtual_address = read_file_word_size(&file, offset, word_size, 0x8, 0x10);
 
-        let physical_address = match word_size {
-            WordSize::W32 => u32::from_le_bytes(
-                file[(offset + 0xC)..(offset + 0xC + 0x4)]
-                    .try_into()
-                    .unwrap(),
-            ) as u64,
-            WordSize::W64 => u64::from_le_bytes(
-                file[(offset + 0x18)..(offset + 0x18 + 0x8)]
-                    .try_into()
-                    .unwrap(),
-            ),
-        };
+        let physical_address = read_file_word_size(&file, offset, word_size, 0xC, 0x18);
 
-        let file_size = match word_size {
-            WordSize::W32 => u32::from_le_bytes(
-                file[(offset + 0x10)..(offset + 0x10 + 0x4)]
-                    .try_into()
-                    .unwrap(),
-            ) as u64,
-            WordSize::W64 => u64::from_le_bytes(
-                file[(offset + 0x20)..(offset + 0x20 + 0x8)]
-                    .try_into()
-                    .unwrap(),
-            ),
-        };
+        let file_size = read_file_word_size(&file, offset, word_size, 0x10, 0x20);
 
-        let memory_size = match word_size {
-            WordSize::W32 => u32::from_le_bytes(
-                file[(offset + 0x14)..(offset + 0x14 + 0x4)]
-                    .try_into()
-                    .unwrap(),
-            ) as u64,
-            WordSize::W64 => u64::from_le_bytes(
-                file[(offset + 0x28)..(offset + 0x28 + 0x8)]
-                    .try_into()
-                    .unwrap(),
-            ),
-        };
+        let memory_size = read_file_word_size(&file, offset, word_size, 0x14, 0x28);
 
-        let alignment = match word_size {
-            WordSize::W32 => u32::from_le_bytes(
-                file[(offset + 0x1C)..(offset + 0x1C + 0x4)]
-                    .try_into()
-                    .unwrap(),
-            ) as u64,
-            WordSize::W64 => u64::from_le_bytes(
-                file[(offset + 0x30)..(offset + 0x30 + 0x8)]
-                    .try_into()
-                    .unwrap(),
-            ),
-        };
+        let alignment = read_file_word_size(&file, offset, word_size, 0x1C, 0x30);
 
         let segment_data = if program_header_type == ProgramHeaderType::Load {
             &file[segment_offset as usize..(segment_offset + file_size) as usize]
@@ -550,18 +446,7 @@ pub fn decode_file(path: &str) -> ElfFile {
         + elf_header.section_header_string_table_index as u64
             * elf_header.section_header_size as u64) as usize;
 
-    let shstrtab_offset = match word_size {
-        WordSize::W32 => u32::from_le_bytes(
-            file[(offset + 0x10)..(offset + 0x10 + 0x4)]
-                .try_into()
-                .unwrap(),
-        ) as u64,
-        WordSize::W64 => u64::from_le_bytes(
-            file[(offset + 0x18)..(offset + 0x18 + 0x8)]
-                .try_into()
-                .unwrap(),
-        ),
-    } as usize;
+    let shstrtab_offset = read_file_word_size(&file, offset, word_size, 0x10, 0x18) as usize;
 
     for i in 0..elf_header.section_header_count {
         let offset = (elf_header.section_header_table_offset
@@ -610,61 +495,23 @@ pub fn decode_file(path: &str) -> ElfFile {
             _ => SectionType::SHT_NUM,
         };
 
-        let section_flags_raw = match word_size {
-            WordSize::W32 => u32::from_le_bytes(
-                file[(offset + 0x08)..(offset + 0x08 + 0x4)]
-                    .try_into()
-                    .unwrap(),
-            ) as u64,
-            WordSize::W64 => u64::from_le_bytes(
-                file[(offset + 0x08)..(offset + 0x08 + 0x8)]
-                    .try_into()
-                    .unwrap(),
-            ),
-        };
+        let section_flags_raw = read_file_word_size(&file, offset, word_size, 0x08, 0x08);
 
         let section_flags = SectionFlags::from_bits_truncate(section_flags_raw);
 
-        let section_addr = match word_size {
-            WordSize::W32 => u32::from_le_bytes(
-                file[(offset + 0x0C)..(offset + 0x0C + 0x4)]
-                    .try_into()
-                    .unwrap(),
-            ) as u64,
-            WordSize::W64 => u64::from_le_bytes(
-                file[(offset + 0x10)..(offset + 0x10 + 0x8)]
-                    .try_into()
-                    .unwrap(),
-            ),
-        } as usize;
+        let section_addr = read_file_word_size(&file, offset, word_size, 0x0C, 0x10) as usize;
 
-        let section_offset = match word_size {
-            WordSize::W32 => u32::from_le_bytes(
-                file[(offset + 0x10)..(offset + 0x10 + 0x4)]
-                    .try_into()
-                    .unwrap(),
-            ) as u64,
-            WordSize::W64 => u64::from_le_bytes(
-                file[(offset + 0x18)..(offset + 0x18 + 0x8)]
-                    .try_into()
-                    .unwrap(),
-            ),
-        } as usize;
+        let section_offset = read_file_word_size(&file, offset, word_size, 0x10, 0x18) as usize;
 
-        let section_size = match word_size {
-            WordSize::W32 => u32::from_le_bytes(
-                file[(offset + 0x14)..(offset + 0x14 + 0x4)]
-                    .try_into()
-                    .unwrap(),
-            ) as u64,
-            WordSize::W64 => u64::from_le_bytes(
-                file[(offset + 0x20)..(offset + 0x20 + 0x8)]
-                    .try_into()
-                    .unwrap(),
-            ),
-        } as usize;
+        let section_size = read_file_word_size(&file, offset, word_size, 0x14, 0x20) as usize;
 
-        let section = &file[section_offset..(section_offset + section_size)];
+        let section: &[u8] = if section_flags.contains(SectionFlags::SHF_ALLOC)
+            && section_type != SectionType::SHT_NOBITS
+        {
+            &file[section_offset..(section_offset + section_size)]
+        } else {
+            &[]
+        };
 
         let section_header = Section {
             name: section_header_name.to_owned(),
@@ -682,6 +529,45 @@ pub fn decode_file(path: &str) -> ElfFile {
         header: elf_header,
         program_headers,
         section_headers,
+    }
+}
+
+fn read_file_u16(file: &[u8], word_size: WordSize, position_32: usize, position_64: usize) -> u16 {
+    let position = match word_size {
+        WordSize::W32 => position_32,
+        WordSize::W64 => position_64,
+    };
+
+    u16::from_le_bytes(file[(position)..(position + 0x2)].try_into().unwrap())
+}
+
+fn read_file_u32(file: &[u8], word_size: WordSize, position_32: usize, position_64: usize) -> u32 {
+    let position = match word_size {
+        WordSize::W32 => position_32,
+        WordSize::W64 => position_64,
+    };
+
+    u32::from_le_bytes(file[(position)..(position + 0x4)].try_into().unwrap())
+}
+
+fn read_file_word_size(
+    file: &[u8],
+    offset: usize,
+    word_size: WordSize,
+    position_32: usize,
+    position_64: usize,
+) -> u64 {
+    match word_size {
+        WordSize::W32 => u32::from_le_bytes(
+            file[(offset + position_32)..(offset + position_32 + 0x4)]
+                .try_into()
+                .unwrap(),
+        ) as u64,
+        WordSize::W64 => u64::from_le_bytes(
+            file[(offset + position_64)..(offset + position_64 + 0x8)]
+                .try_into()
+                .unwrap(),
+        ),
     }
 }
 
@@ -709,7 +595,9 @@ pub fn load_program_to_memory(
     }
 
     for section in elf.section_headers {
-        if section.flags.contains(SectionFlags::SHF_ALLOC) {
+        if section.flags.contains(SectionFlags::SHF_ALLOC)
+            && section.section_type != SectionType::SHT_NOBITS
+        {
             for (i, byte) in section.data.iter().take(section.size).enumerate() {
                 memory
                     .write_mem_u8((section.addr + i) as u64, *byte)
