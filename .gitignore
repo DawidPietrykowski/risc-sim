@@ -2,6 +2,7 @@
 *
 !*.*
 !*/
+!tests/*
 
 /target
 proptest-regressions
