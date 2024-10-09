@@ -88,6 +88,12 @@ pub enum CSRAddress {
     Mhpmevent4 = 0x324,
 }
 
+impl CSRAddress {
+    pub fn as_u12(self) -> U12 {
+        U12::new(self as u16)
+    }
+}
+
 pub struct CSRTable {
     pub csrs32: [u32; 4096],
     pub csrs64: [u64; 4096],

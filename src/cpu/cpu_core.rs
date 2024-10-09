@@ -2,14 +2,15 @@ use std::fmt::Display;
 
 use crate::{
     elf::elf_loader::{load_program_to_memory, ElfFile},
-    isa::csr::csr_types::CSRTable,
+    isa::csr::csr_types::{CSRAddress, CSRTable},
     system::{kernel::Kernel, passthrough_kernel::PassthroughKernel},
     types::ABIRegister,
     utils::binary_utils::*,
 };
 
 use super::memory::{
-    memory_core::Memory, program_cache::ProgramCache, raw_vec_memory::RawVecMemory,
+    memory_core::Memory, mmu::walk_page_table_sv39, program_cache::ProgramCache,
+    raw_vec_memory::RawVecMemory,
 };
 use crate::types::{decode_program_line, ProgramLine, Word};
 use anyhow::{bail, Context, Result};
@@ -58,7 +59,7 @@ impl Display for Cpu {
 }
 
 const INITIAL_STACK_POINTER_32: u32 = 0xbfffff00; // TODO: Calculate during program load
-const INITIAL_STACK_POINTER_64: u64 = 0x7ffffffffffff000; // TODO: Calculate during program load
+const INITIAL_STACK_POINTER_64: u64 = 0x00007FFFFFFFFFFF; // TODO: Calculate during program load
 
 impl Default for Cpu {
     fn default() -> Self {
@@ -288,35 +289,52 @@ impl Cpu {
         self.program_cache.get_line_unchecked(self.read_pc())
     }
 
+    fn translate_address_if_needed(&mut self, addr: u64) -> Result<u64> {
+        let satp = self.csr_table.read64(CSRAddress::Satp.as_u12());
+        if satp != 0 {
+            walk_page_table_sv39(addr, satp, self)
+        } else {
+            Ok(addr)
+        }
+    }
+
     pub fn read_mem_u64(&mut self, addr: u64) -> Result<u64> {
+        let addr = self.translate_address_if_needed(addr)?;
         self.memory.read_mem_u64(addr)
     }
 
     pub fn read_mem_u32(&mut self, addr: u64) -> Result<u32> {
+        let addr = self.translate_address_if_needed(addr)?;
         self.memory.read_mem_u32(addr)
     }
 
     pub fn read_mem_u16(&mut self, addr: u64) -> Result<u16> {
+        let addr = self.translate_address_if_needed(addr)?;
         self.memory.read_mem_u16(addr)
     }
 
     pub fn read_mem_u8(&mut self, addr: u64) -> Result<u8> {
+        let addr = self.translate_address_if_needed(addr)?;
         self.memory.read_mem_u8(addr)
     }
 
     pub fn write_mem_u8(&mut self, addr: u64, value: u8) -> Result<()> {
+        let addr = self.translate_address_if_needed(addr)?;
         self.memory.write_mem_u8(addr, value)
     }
 
     pub fn write_mem_u16(&mut self, addr: u64, value: u16) -> Result<()> {
+        let addr = self.translate_address_if_needed(addr)?;
         self.memory.write_mem_u16(addr, value)
     }
 
     pub fn write_mem_u32(&mut self, addr: u64, value: u32) -> Result<()> {
+        let addr = self.translate_address_if_needed(addr)?;
         self.memory.write_mem_u32(addr, value)
     }
 
     pub fn write_mem_u64(&mut self, addr: u64, value: u64) -> Result<()> {
+        let addr = self.translate_address_if_needed(addr)?;
         self.memory.write_mem_u64(addr, value)
     }
 
@@ -457,10 +475,12 @@ impl Cpu {
     }
 
     pub fn read_buf(&mut self, addr: u64, buf: &mut [u8]) -> Result<()> {
+        let addr = self.translate_address_if_needed(addr)?;
         self.memory.read_buf(addr, buf)
     }
 
     pub fn write_buf(&mut self, addr: u64, buf: &[u8]) -> Result<()> {
+        let addr = self.translate_address_if_needed(addr)?;
         self.memory.write_buf(addr, buf)
     }
 
