@@ -3,6 +3,7 @@ pub mod rv32_zicsr;
 pub mod rv32_zifencei;
 pub mod rv32i;
 pub mod rv32m;
+pub mod rv64_privileged;
 pub mod rv64_zicsr;
 pub mod rv64_zifencei;
 pub mod rv64i;

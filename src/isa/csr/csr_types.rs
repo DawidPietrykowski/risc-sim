@@ -1,4 +1,9 @@
-use crate::types::{BitValue, U12};
+use crate::{
+    cpu::cpu_core::{CpuMode, PrivilegeMode},
+    types::{BitValue, U12},
+};
+use bitfield::bitfield;
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum CSRAddress {
     // User Trap Setup
@@ -88,6 +93,44 @@ pub enum CSRAddress {
     Mhpmevent4 = 0x324,
 }
 
+bitfield! {
+    pub struct MisaCSR(u64);
+    impl Debug;
+    pub mxl_32, set_mxl_32: 31, 30;
+    pub mxl_64, set_mxl_64: 63, 62;
+    pub extension_a, set_extension_a: 0;
+    pub extension_c, set_extension_c: 2;
+    pub extension_d, set_extension_d: 3;
+    pub extension_f, set_extension_f: 5;
+    pub extension_i, set_extension_i: 8;
+    pub extension_m, set_extension_m: 12;
+    pub extension_s, set_extension_s: 18;
+    pub extension_u, set_extension_u: 20;
+}
+
+bitfield! {
+    pub struct MstatusCSR(u64);
+    impl Debug;
+    pub sie, set_sie: 1;
+    pub mie, set_mie: 3;
+    pub spie, set_spie: 5;
+    pub ube, set_ube: 6;
+    pub mpie, set_mpie: 7;
+    pub spp, set_spp: 8;
+    pub vs, set_vs: 10, 9;
+    pub mpp, set_mpp: 12, 11;
+    pub fs, set_fs: 14, 13;
+    pub xs, set_xs: 16, 15;
+    pub mprv, set_mprv: 17;
+    pub sum, set_sum: 18;
+    pub mxr, set_mxr: 19;
+    pub tvm, set_tvm: 20;
+    pub tw, set_tw: 21;
+    pub tsr, set_tsr: 22;
+    pub sd_32, set_sd_32: 31;
+    pub sd_64, set_sd_64: 63;
+}
+
 impl CSRAddress {
     pub fn as_u12(self) -> U12 {
         U12::new(self as u16)
@@ -121,6 +164,76 @@ impl CSRTable {
 
     pub fn write64(&mut self, addr: U12, value: u64) {
         self.csrs64[addr.value() as usize] = value;
+    }
+
+    pub fn write_xlen(&mut self, addr: U12, value: u64, mode: CpuMode) {
+        match mode {
+            CpuMode::RV32 => self.write32(addr, value as u32),
+            CpuMode::RV64 => self.write64(addr, value),
+        }
+    }
+
+    pub fn read_xlen(&self, addr: U12, mode: CpuMode) -> u64 {
+        match mode {
+            CpuMode::RV32 => self.read32(addr) as u64,
+            CpuMode::RV64 => self.read64(addr),
+        }
+    }
+
+    pub fn read_xlen_tvec(&self, mode: CpuMode, privilege_mode: PrivilegeMode) -> u64 {
+        match privilege_mode {
+            PrivilegeMode::Machine => self.read_xlen(CSRAddress::Mtvec.as_u12(), mode),
+            PrivilegeMode::Supervisor => self.read_xlen(CSRAddress::Stvec.as_u12(), mode),
+            PrivilegeMode::User => panic!(),
+        }
+    }
+
+    pub fn write_xlen_tvec(&mut self, value: u64, mode: CpuMode, privilege_mode: PrivilegeMode) {
+        match privilege_mode {
+            PrivilegeMode::Machine => self.write_xlen(CSRAddress::Mtvec.as_u12(), value, mode),
+            PrivilegeMode::Supervisor => self.write_xlen(CSRAddress::Stvec.as_u12(), value, mode),
+            PrivilegeMode::User => panic!(),
+        }
+    }
+
+    pub fn read_xlen_tval(&self, mode: CpuMode, privilege_mode: PrivilegeMode) -> u64 {
+        match privilege_mode {
+            PrivilegeMode::Machine => self.read_xlen(CSRAddress::Mtval.as_u12(), mode),
+            PrivilegeMode::Supervisor => self.read_xlen(CSRAddress::Stval.as_u12(), mode),
+            PrivilegeMode::User => panic!(),
+        }
+    }
+
+    pub fn write_xlen_tval(&mut self, value: u64, mode: CpuMode, privilege_mode: PrivilegeMode) {
+        match privilege_mode {
+            PrivilegeMode::Machine => self.write_xlen(CSRAddress::Mtval.as_u12(), value, mode),
+            PrivilegeMode::Supervisor => self.write_xlen(CSRAddress::Stval.as_u12(), value, mode),
+            PrivilegeMode::User => panic!(),
+        }
+    }
+
+    pub fn read_xlen_status(&self, mode: CpuMode, privilege_mode: PrivilegeMode) -> u64 {
+        match privilege_mode {
+            PrivilegeMode::Machine => self.read_xlen(CSRAddress::Mstatus.as_u12(), mode),
+            PrivilegeMode::Supervisor => self.read_xlen(CSRAddress::Sstatus.as_u12(), mode),
+            PrivilegeMode::User => self.read_xlen(CSRAddress::Ustatus.as_u12(), mode),
+        }
+    }
+
+    pub fn write_xlen_epc(&mut self, value: u64, mode: CpuMode, privilege_mode: PrivilegeMode) {
+        match privilege_mode {
+            PrivilegeMode::Machine => self.write_xlen(CSRAddress::Mepc.as_u12(), value, mode),
+            PrivilegeMode::Supervisor => self.write_xlen(CSRAddress::Sepc.as_u12(), value, mode),
+            PrivilegeMode::User => panic!(),
+        }
+    }
+
+    pub fn read_xlen_epc(&self, mode: CpuMode, privilege_mode: PrivilegeMode) -> u64 {
+        match privilege_mode {
+            PrivilegeMode::Machine => self.read_xlen(CSRAddress::Mepc.as_u12(), mode),
+            PrivilegeMode::Supervisor => self.read_xlen(CSRAddress::Sepc.as_u12(), mode),
+            PrivilegeMode::User => panic!(),
+        }
     }
 }
 

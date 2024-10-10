@@ -246,7 +246,7 @@ proptest! {
     fn test_fibbonaci_program(n in 1u32..15, entry_point in 0x1000u64..0xFFFFF) {
         let mut cpu = Cpu::default();
 
-        cpu.load_program_from_opcodes(FIB_PROGRAM_BIN.to_vec(), entry_point, cpu.mode).unwrap();
+        cpu.load_program_from_opcodes(FIB_PROGRAM_BIN.to_vec(), entry_point, cpu.arch_mode).unwrap();
 
         cpu.write_mem_u32(0, n).unwrap();
 

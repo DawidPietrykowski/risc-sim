@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::{
     elf::elf_loader::{load_program_to_memory, ElfFile},
-    isa::csr::csr_types::{CSRAddress, CSRTable},
+    isa::csr::csr_types::{CSRAddress, CSRTable, MisaCSR},
     system::{kernel::Kernel, passthrough_kernel::PassthroughKernel},
     types::ABIRegister,
     utils::binary_utils::*,
@@ -21,6 +21,13 @@ pub enum CpuMode {
     RV64,
 }
 
+#[derive(PartialEq, Clone, Copy)]
+pub enum PrivilegeMode {
+    User,
+    Supervisor,
+    Machine,
+}
+
 pub struct Cpu {
     reg_x32: [u32; 32],
     reg_x64: [u64; 32],
@@ -37,7 +44,9 @@ pub struct Cpu {
     pub debug_enabled: bool,
     pub kernel: Box<dyn Kernel>,
     pub csr_table: CSRTable,
-    pub mode: CpuMode,
+    pub arch_mode: CpuMode,
+    pub simulate_kernel: bool,
+    pub privilege_mode: PrivilegeMode,
 }
 
 impl Display for Cpu {
@@ -63,7 +72,7 @@ const INITIAL_STACK_POINTER_64: u64 = 0x00007FFFFFFFFFFF; // TODO: Calculate dur
 
 impl Default for Cpu {
     fn default() -> Self {
-        Cpu {
+        let mut cpu = Cpu {
             reg_x32: [0x0; 32],
             reg_x64: [0x0; 32],
             reg_pc: 0x0,
@@ -79,8 +88,12 @@ impl Default for Cpu {
             debug_enabled: false,
             kernel: Box::<PassthroughKernel>::default(),
             csr_table: CSRTable::new(),
-            mode: CpuMode::RV32,
-        }
+            arch_mode: CpuMode::RV32,
+            simulate_kernel: true,
+            privilege_mode: PrivilegeMode::Machine,
+        };
+        cpu.setup_csrs();
+        cpu
     }
 }
 
@@ -90,7 +103,7 @@ impl Cpu {
         M: Memory + 'static,
         K: Kernel + 'static,
     {
-        Cpu {
+        let mut cpu = Cpu {
             reg_x32: [0x0; 32],
             reg_x64: [0x0; 32],
             reg_pc: 0x0,
@@ -106,15 +119,19 @@ impl Cpu {
             debug_enabled: false,
             kernel: Box::new(kernel),
             csr_table: CSRTable::new(),
-            mode,
-        }
+            arch_mode: mode,
+            simulate_kernel: true,
+            privilege_mode: PrivilegeMode::Machine,
+        };
+        cpu.setup_csrs();
+        cpu
     }
 
     // TODO: Refactor such that this logic is done by the kernel
     pub fn load_program_from_elf(&mut self, elf: ElfFile) -> Result<()> {
-        let program_file = load_program_to_memory(elf, self.memory.as_mut(), self.mode)?;
+        let program_file = load_program_to_memory(elf, self.memory.as_mut(), self.arch_mode)?;
 
-        if self.mode == CpuMode::RV64 {
+        if self.arch_mode == CpuMode::RV64 {
             self.reg_pc_64 = program_file.entry_point;
         } else {
             self.reg_pc = program_file.entry_point as u32;
@@ -124,10 +141,10 @@ impl Cpu {
             program_file.program_memory_offset,
             program_file.program_memory_offset + program_file.program_size,
             self.memory.as_mut(),
-            self.mode,
+            self.arch_mode,
         )
         .unwrap();
-        if self.mode == CpuMode::RV64 {
+        if self.arch_mode == CpuMode::RV64 {
             self.write_x_u64(
                 ABIRegister::SP.to_x_reg_id() as u8,
                 INITIAL_STACK_POINTER_64,
@@ -141,6 +158,9 @@ impl Cpu {
             .unwrap();
         }
         self.program_brk = program_file.end_of_data_addr;
+
+        self.setup_csrs();
+
         Ok(())
     }
 
@@ -158,7 +178,7 @@ impl Cpu {
                 .unwrap();
         }
 
-        if self.mode == CpuMode::RV64 {
+        if self.arch_mode == CpuMode::RV64 {
             self.reg_pc_64 = entry_point;
         } else {
             self.reg_pc = entry_point as u32;
@@ -176,6 +196,26 @@ impl Cpu {
         Ok(())
     }
 
+    fn setup_csrs(&mut self) {
+        let mut misa = MisaCSR(0);
+        misa.set_extension_i(true);
+        misa.set_extension_m(true);
+        match self.arch_mode {
+            CpuMode::RV32 => {
+                misa.set_mxl_32(1);
+                self.csr_table
+                    .write32(CSRAddress::Misa.as_u12(), misa.0 as u32);
+            }
+            CpuMode::RV64 => {
+                misa.set_mxl_64(2);
+                self.csr_table.write64(CSRAddress::Misa.as_u12(), misa.0);
+            }
+        }
+        self.csr_table.write32(CSRAddress::Mvendorid.as_u12(), 0);
+        self.csr_table
+            .write_xlen(CSRAddress::Mhartid.as_u12(), 0, self.arch_mode);
+    }
+
     pub fn run_cycle(&mut self) -> Result<()> {
         // Check if CPU is halted
         if self.halted {
@@ -191,7 +231,7 @@ impl Cpu {
         }
 
         // Increase PC
-        if self.mode == CpuMode::RV64 {
+        if self.arch_mode == CpuMode::RV64 {
             self.current_instruction_pc_64 = self.reg_pc_64;
             self.reg_pc_64 += 4;
         } else {
@@ -216,7 +256,7 @@ impl Cpu {
         let instruction = self.fetch_instruction_unchecked();
 
         // Increase PC
-        if self.mode == CpuMode::RV64 {
+        if self.arch_mode == CpuMode::RV64 {
             self.current_instruction_pc_64 = self.reg_pc_64;
             self.reg_pc_64 += 4;
         } else {
@@ -236,7 +276,7 @@ impl Cpu {
     }
 
     pub fn execute_word(&mut self, word: Word) -> Result<()> {
-        let program_line = decode_program_line(word, self.mode)?;
+        let program_line = decode_program_line(word, self.arch_mode)?;
         (program_line.instruction.operation)(self, &program_line.word)
     }
 
@@ -261,7 +301,7 @@ impl Cpu {
     }
 
     pub fn read_pc(&self) -> u64 {
-        if self.mode == CpuMode::RV32 {
+        if self.arch_mode == CpuMode::RV32 {
             self.reg_pc as u64
         } else {
             self.reg_pc_64
@@ -279,7 +319,7 @@ impl Cpu {
                         .read_mem_u32(pc)
                         .context("No instruction at pc")?,
                 ),
-                self.mode,
+                self.arch_mode,
             )
         }
     }
