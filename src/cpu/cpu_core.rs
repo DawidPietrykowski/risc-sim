@@ -32,6 +32,7 @@ pub enum PrivilegeMode {
 pub struct Cpu {
     reg_x32: [u32; 32],
     reg_x64: [u64; 32],
+    reg_f: [f64; 32],
     reg_pc: u32,
     reg_pc_64: u64,
     pub current_instruction_pc: u32,
@@ -76,6 +77,7 @@ impl Default for Cpu {
         let mut cpu = Cpu {
             reg_x32: [0x0; 32],
             reg_x64: [0x0; 32],
+            reg_f: [0.0; 32],
             reg_pc: 0x0,
             reg_pc_64: 0x0,
             current_instruction_pc: 0x0,
@@ -107,6 +109,7 @@ impl Cpu {
         let mut cpu = Cpu {
             reg_x32: [0x0; 32],
             reg_x64: [0x0; 32],
+            reg_f: [0.0; 32],
             reg_pc: 0x0,
             reg_pc_64: 0x0,
             current_instruction_pc: 0x0,
@@ -489,6 +492,56 @@ impl Cpu {
 
         *reg_value = value;
         Ok(())
+    }
+
+    pub fn write_f32(&mut self, id: u8, value: f32) -> Result<()> {
+        #[cfg(not(feature = "maxperf"))]
+        let reg_value = self
+            .reg_f
+            .get_mut(id as usize)
+            // .context(format!("Register f{} does not exist", id))?;
+            .context("Register does not exist")?;
+        #[cfg(feature = "maxperf")]
+        let reg_value = unsafe { self.reg_f.get_unchecked_mut(id as usize) }; // SAFETY: For properly compiled code 0 <= id < 32
+        *reg_value = f32_to_f64(value);
+        Ok(())
+    }
+
+    pub fn write_f64(&mut self, id: u8, value: f64) -> Result<()> {
+        #[cfg(not(feature = "maxperf"))]
+        let reg_value = self
+            .reg_f
+            .get_mut(id as usize)
+            // .context(format!("Register f{} does not exist", id))?;
+            .context("Register does not exist")?;
+        #[cfg(feature = "maxperf")]
+        let reg_value = unsafe { self.reg_f.get_unchecked_mut(id as usize) }; // SAFETY: For properly compiled code 0 <= id < 32
+        *reg_value = value;
+        Ok(())
+    }
+
+    pub fn read_f32(&self, id: u8) -> Result<f32> {
+        #[cfg(not(feature = "maxperf"))]
+        let reg_value = self
+            .reg_f
+            .get(id as usize)
+            // .context(format!("Register f{} does not exist", id))?;
+            .context("Register does not exist")?;
+        #[cfg(feature = "maxperf")]
+        let reg_value = unsafe { self.reg_f.get_unchecked(id as usize) }; // SAFETY: For properly compiled code 0 <= id < 32
+        Ok(f64_to_f32(*reg_value))
+    }
+
+    pub fn read_f64(&self, id: u8) -> Result<f64> {
+        #[cfg(not(feature = "maxperf"))]
+        let reg_value = self
+            .reg_f
+            .get(id as usize)
+            // .context(format!("Register f{} does not exist", id))?;
+            .context("Register does not exist")?;
+        #[cfg(feature = "maxperf")]
+        let reg_value = unsafe { self.reg_f.get_unchecked(id as usize) }; // SAFETY: For properly compiled code 0 <= id < 32
+        Ok(*reg_value)
     }
 
     pub fn read_pc_u32(&self) -> u32 {

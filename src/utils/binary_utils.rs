@@ -30,6 +30,30 @@ pub fn i64_to_u64(value: i64) -> u64 {
     u64::from_ne_bytes(value.to_ne_bytes())
 }
 
+pub fn u32_to_f32(value: u32) -> f32 {
+    f32::from_bits(value)
+}
+
+pub fn f32_to_u32(value: f32) -> u32 {
+    value.to_bits()
+}
+
+pub fn u64_to_f64(value: u64) -> f64 {
+    f64::from_bits(value)
+}
+
+pub fn f64_to_u64(value: f64) -> u64 {
+    value.to_bits()
+}
+
+pub fn f64_to_f32(value: f64) -> f32 {
+    u32_to_f32(value.to_bits() as u32)
+}
+
+pub fn f32_to_f64(value: f32) -> f64 {
+    u64_to_f64(!(u32::MAX) as u64 | f32_to_u32(value) as u64)
+}
+
 pub fn sign_extend_12bit_to_16bit(value: u16) -> i16 {
     ((value << 4) as i16) >> 4
 }
