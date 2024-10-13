@@ -8,3 +8,4 @@ pub mod rv64_zicsr;
 pub mod rv64_zifencei;
 pub mod rv64i;
 pub mod rv64m;
+pub mod traps;

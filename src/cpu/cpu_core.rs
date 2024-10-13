@@ -2,7 +2,8 @@ use std::fmt::Display;
 
 use crate::{
     elf::elf_loader::{load_program_to_memory, ElfFile},
-    isa::csr::csr_types::{CSRAddress, CSRTable, MisaCSR},
+    isa::
+        csr::csr_types::{CSRAddress, CSRTable, MisaCSR},
     system::{kernel::Kernel, passthrough_kernel::PassthroughKernel},
     types::ABIRegister,
     utils::binary_utils::*,
@@ -23,9 +24,9 @@ pub enum CpuMode {
 
 #[derive(PartialEq, Clone, Copy)]
 pub enum PrivilegeMode {
-    User,
-    Supervisor,
-    Machine,
+    User = 0,
+    Supervisor = 1,
+    Machine = 3,
 }
 
 pub struct Cpu {

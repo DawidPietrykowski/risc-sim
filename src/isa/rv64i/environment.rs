@@ -1,7 +1,12 @@
 use std::{fs::Metadata, mem, os::unix::fs::MetadataExt, ptr::null_mut};
 
 use crate::{
-    cpu::cpu_core::PrivilegeMode, isa, system::kernel::SeekType, types::*
+    isa::{
+        self,
+        traps::{execute_trap, TrapCause},
+    },
+    system::kernel::SeekType,
+    types::*,
 };
 
 use anyhow::{bail, Context, Result};
@@ -85,20 +90,7 @@ pub const RV64I_SET_E: [Instruction; 2] = [
         instruction_type: InstructionType::I,
         operation: |cpu, _word| {
             if !cpu.simulate_kernel {
-                let current_mode = cpu.privilege_mode;
-
-                if current_mode == PrivilegeMode::User {
-                    cpu.privilege_mode = PrivilegeMode::Supervisor;
-                } else if current_mode == PrivilegeMode::Supervisor {
-                    cpu.privilege_mode = PrivilegeMode::Machine;
-                }
-                let current_pc = cpu.read_current_instruction_addr_u64();
-                cpu.csr_table
-                    .write_xlen_epc(current_pc, cpu.arch_mode, cpu.privilege_mode);
-                let tvec = cpu
-                    .csr_table
-                    .read_xlen_tvec(cpu.arch_mode, cpu.privilege_mode);
-                cpu.write_pc_u64(tvec);
+                execute_trap(cpu, TrapCause::EnvironmentCallFromUMode as u64, false);
                 return Ok(());
             }
             let syscall_num = cpu.read_x_u64(ABIRegister::A(7).to_x_reg_id() as u8)?;
