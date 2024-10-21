@@ -10,7 +10,7 @@ use crate::{
             integer_reg_reg::RV32I_SET_R, load_store::RV32I_SET_LS,
         },
         rv32m::muldiv_reg_reg::RV32M_SET_R,
-        rv64_privileged::rv64_privileged::RV64_PRIVILEGED_SET,
+        rv64_privileged::privileged::RV64_PRIVILEGED_SET,
         rv64_zicsr::zicsr::RV64_ZICSR_SET,
         rv64_zifencei::zifencei::RV64_ZIFENCEI_SET,
         rv64i::{
