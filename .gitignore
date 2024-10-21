@@ -3,6 +3,7 @@
 !*.*
 !*/
 !tests/*
+!LICENSE
 
 /target
 proptest-regressions
