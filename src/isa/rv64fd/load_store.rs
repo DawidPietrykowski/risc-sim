@@ -34,10 +34,7 @@ pub const RV64F_SET_LS: [Instruction; 4] = [
 
             cpu.debug_print(|| format!("FLW: {:x?}", read_value));
 
-            cpu.write_f32(
-                instruction.rd.value(),
-                read_value,
-            )?;
+            cpu.write_f32(instruction.rd.value(), read_value)?;
 
             Ok(())
         },

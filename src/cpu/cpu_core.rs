@@ -1,9 +1,8 @@
-use std::fmt::Display;
+use std::{fmt::Display, fs::File};
 
 use crate::{
-    elf::elf_loader::{load_program_to_memory, ElfFile},
-    isa::
-        csr::csr_types::{CSRAddress, CSRTable, MisaCSR},
+    elf::elf_loader::{load_kernel_to_memory, load_program_to_memory, ElfFile},
+    isa::csr::csr_types::{CSRAddress, CSRTable, MisaCSR},
     system::{kernel::Kernel, passthrough_kernel::PassthroughKernel},
     types::ABIRegister,
     utils::binary_utils::*,
@@ -14,7 +13,7 @@ use super::memory::{
     raw_vec_memory::RawVecMemory,
 };
 use crate::types::{decode_program_line, ProgramLine, Word};
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Context, Ok, Result};
 
 #[derive(PartialEq, Clone, Copy)]
 pub enum CpuMode {
@@ -54,10 +53,17 @@ pub struct Cpu {
 impl Display for Cpu {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Registers:")?;
-        for (i, reg) in self.reg_x32.iter().filter(|reg| *reg != &0).enumerate() {
-            writeln!(f, "x{}: {:#010x}", i + 1, reg)?;
+        if self.arch_mode == CpuMode::RV64 {
+            for (i, reg) in self.reg_x64.iter().filter(|reg| *reg != &0).enumerate() {
+                writeln!(f, "x{}: {:#010x}", i + 1, reg)?;
+            }
+            writeln!(f, "PC: {:#010x}", self.reg_pc_64)?;
+        } else {
+            for (i, reg) in self.reg_x32.iter().filter(|reg| *reg != &0).enumerate() {
+                writeln!(f, "x{}: {:#010x}", i + 1, reg)?;
+            }
+            writeln!(f, "PC: {:#010x}", self.reg_pc)?;
         }
-        writeln!(f, "PC: {:#010x}", self.reg_pc)?;
         writeln!(f, "Program Break: {:#010x}", self.program_brk)?;
         writeln!(f, "Halted: {}", self.halted)?;
         writeln!(
@@ -133,8 +139,12 @@ impl Cpu {
 
     // TODO: Refactor such that this logic is done by the kernel
     pub fn load_program_from_elf(&mut self, elf: ElfFile) -> Result<()> {
+        let header = elf.header.clone(); // Clone the header before elf is moved
+        println!("{:?}", header);
         let program_file = load_program_to_memory(elf, self.memory.as_mut(), self.arch_mode)?;
+        println!("{:?}", program_file);
 
+        // panic!();
         if self.arch_mode == CpuMode::RV64 {
             self.reg_pc_64 = program_file.entry_point;
         } else {
@@ -147,7 +157,7 @@ impl Cpu {
             self.memory.as_mut(),
             self.arch_mode,
         )
-        .unwrap();
+        .unwrap_or(ProgramCache::empty());
         if self.arch_mode == CpuMode::RV64 {
             self.write_x_u64(
                 ABIRegister::SP.to_x_reg_id() as u8,
@@ -162,6 +172,24 @@ impl Cpu {
             .unwrap();
         }
         self.program_brk = program_file.end_of_data_addr;
+
+        self.setup_csrs();
+
+        Ok(())
+    }
+
+    pub fn load_kernel_image(&mut self, image: &mut File, addr: u64) -> Result<()> {
+        self.reg_pc_64 = addr;
+
+        load_kernel_to_memory(image, self.memory.as_mut(), addr);
+
+        self.program_cache = ProgramCache::new(
+            addr,
+            addr + image.metadata().unwrap().len(),
+            self.memory.as_mut(),
+            self.arch_mode,
+        )
+        .unwrap();
 
         self.setup_csrs();
 

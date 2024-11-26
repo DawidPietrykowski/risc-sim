@@ -4,7 +4,9 @@ use crate::types::{decode_program_line, ProgramLine, Word};
 use anyhow::Result;
 use bitflags::bitflags;
 use std::cmp::max;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
+use std::fs::File;
+use std::io::Read;
 use std::{fmt, fs};
 
 #[derive(Debug, Clone, PartialEq, Copy)]
@@ -13,20 +15,20 @@ pub enum WordSize {
     W64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Endian {
     Little,
     Big,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum ABI {
     SystemV,
     Other,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum ELFType {
     Relocatable,
@@ -36,7 +38,7 @@ pub enum ELFType {
     Unknown,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum ISA {
     RISCV,
@@ -48,7 +50,7 @@ pub enum ISA {
     OTHER,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct ELFHeader {
     pub word_size: WordSize,
     pub endian: Endian,
@@ -270,12 +272,28 @@ impl Display for ProgramHeader {
     }
 }
 
+#[derive(Clone)]
 pub struct ProgramFile {
     pub entry_point: u64,
     pub program_memory_offset: u64,
     pub lines: Vec<ProgramLine>,
     pub program_size: u64,
     pub end_of_data_addr: u64,
+}
+
+impl Debug for ProgramFile {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        writeln!(f, "Program File")?;
+        writeln!(f, "  Entry Point: {:#x}", self.entry_point)?;
+        writeln!(
+            f,
+            "  Program Memory Offset: {:#x}",
+            self.program_memory_offset
+        )?;
+        writeln!(f, "  Program Size: {:#x}", self.program_size)?;
+        writeln!(f, "  End of Data Address: {:#x}", self.end_of_data_addr)?;
+        Ok(())
+    }
 }
 
 pub fn decode_file(path: &str) -> ElfFile {
@@ -571,11 +589,13 @@ fn read_file_word_size(
     }
 }
 
+#[allow(unused_variables)]
 pub fn load_program_to_memory(
     elf: ElfFile,
     memory: &mut dyn Memory,
     mode: CpuMode,
 ) -> Result<ProgramFile> {
+    #[allow(unused_mut)]
     let mut program: Vec<ProgramLine> = vec![];
     let mut text_section_addr = 0;
     let mut text_section_size = 0;
@@ -616,21 +636,25 @@ pub fn load_program_to_memory(
             text_section_addr = section.addr;
             text_section_size = section.size;
 
+            // section.size = 1024;
             let mut pc = 0;
             while pc < section.size {
-                let instruction =
-                    u32::from_le_bytes(section.data[pc..(pc + 4)].try_into().unwrap());
-                pc += 4;
+                #[cfg(feature = "maxperf")]
+                {
+                    let instruction =
+                        u32::from_le_bytes(section.data[pc..(pc + 4)].try_into().unwrap());
 
-                let decoded_instruction = decode_program_line(Word(instruction), mode);
-                match decoded_instruction {
-                    Ok(decoded_instruction) => {
-                        program.push(decoded_instruction);
-                    }
-                    Err(e) => {
-                        println!("Error decoding instruction: {}", e);
+                    let decoded_instruction = decode_program_line(Word(instruction), mode);
+                    match decoded_instruction {
+                        Ok(decoded_instruction) => {
+                            program.push(decoded_instruction);
+                        }
+                        Err(e) => {
+                            println!("Error decoding instruction: {} at {}", e, pc - 4);
+                        }
                     }
                 }
+                pc += 4;
             }
         }
     }
@@ -642,6 +666,12 @@ pub fn load_program_to_memory(
         lines: program,
         end_of_data_addr: end_of_data_addr as u64,
     })
+}
+
+pub fn load_kernel_to_memory(image: &mut File, memory: &mut dyn Memory, addr: u64) {
+    let mut buffer = Vec::new();
+    image.read_to_end(&mut buffer).unwrap();
+    memory.write_buf(addr, &buffer).unwrap();
 }
 
 pub fn decode_program_from_binary(binary: &[u32], mode: CpuMode) -> Result<Vec<ProgramLine>> {

@@ -6,6 +6,8 @@ use risc_sim::cpu::cpu_core::{Cpu, CpuMode};
 use risc_sim::cpu::memory::raw_vec_memory::RawVecMemory;
 use risc_sim::elf::elf_loader::{decode_file, WordSize};
 use risc_sim::system::passthrough_kernel::PassthroughKernel;
+#[allow(unused)]
+use risc_sim::system::uart::read_uart_pending;
 use risc_sim::types::ABIRegister;
 
 use std::env;
@@ -61,9 +63,6 @@ fn main() -> Result<()> {
         Vec::new()
     };
 
-    // delay for 10s
-    // std::thread::sleep(std::time::Duration::from_secs(10));
-
     let file_path = &args[1];
     let program = decode_file(file_path);
 
@@ -74,7 +73,6 @@ fn main() -> Result<()> {
     };
     let mut cpu = Cpu::new(RawVecMemory::default(), PassthroughKernel::default(), mode);
     cpu.load_program_from_elf(program)?;
-    // cpu.set_debug_enabled(true);
 
     let start_time = std::time::Instant::now();
 
@@ -143,6 +141,12 @@ fn main() -> Result<()> {
                     .unwrap();
             }
         }
+
+        // if let Some(data) = read_uart_pending(&mut cpu) {
+        //     println!("UART: {:?}", data);
+        //     panic!()
+        // }
+
         #[cfg(not(feature = "maxperf"))]
         match cpu.run_cycle() {
             Ok(_) => {
@@ -186,7 +190,11 @@ fn main() -> Result<()> {
 
     let exit_code = cpu.read_x_u32(ABIRegister::A(0).to_x_reg_id() as u8)?;
     println!("Program exit code: {}", exit_code);
-    println!("Total cycle count: {} k", count / 1_000);
+    if count > 1_000_000 {
+        println!("Total cycle count: {} k", count / 1_000);
+    } else {
+        println!("Total cycle count: {}", count);
+    }
     println!("Elapsed time: {:?}", elapsed_time);
     println!(
         "FPS: {}",

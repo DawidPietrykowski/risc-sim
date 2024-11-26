@@ -30,9 +30,6 @@ pub fn execute_trap(cpu: &mut Cpu, cause: u64, interrupt: bool) {
             mcause |= cause;
             mcause |= (interrupt as u64) << 63;
             cpu.csr_table.write64(CSRAddress::Mcause.as_u12(), mcause);
-
-            cpu.csr_table
-                .write_xlen_epc(cpu.read_pc_u64(), cpu.arch_mode, cpu.privilege_mode);
         }
     }
 

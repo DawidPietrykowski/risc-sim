@@ -21,6 +21,7 @@ impl ProgramCache {
             data: Vec::new(),
         }
     }
+
     pub fn new(
         start_addr: u64,
         end_addr: u64,
