@@ -20,9 +20,10 @@ pub const RV64A_SET_AMO: [Instruction; 10] = [
             let addr = cpu.read_x_u64(instruction.rs1.value())?;
 
             let data = cpu.read_mem_u64(addr)?;
-            cpu.write_x_u64(instruction.rd.value(), data)?;
 
             let rs2 = cpu.read_x_u64(instruction.rs2.value())?;
+
+            cpu.write_x_u64(instruction.rd.value(), data)?;
 
             let res = rs2;
             cpu.write_mem_u64(addr, res)?;
@@ -41,9 +42,10 @@ pub const RV64A_SET_AMO: [Instruction; 10] = [
             let addr = cpu.read_x_u64(instruction.rs1.value())?;
 
             let data = cpu.read_mem_u32(addr)?;
-            cpu.write_x_i64(instruction.rd.value(), sign_extend_32bit_to_64bit(data))?;
 
             let rs2 = cpu.read_x_u64(instruction.rs2.value())? as u32;
+
+            cpu.write_x_i64(instruction.rd.value(), sign_extend_32bit_to_64bit(data))?;
 
             let res = rs2;
             cpu.write_mem_u32(addr, res)?;
@@ -62,9 +64,10 @@ pub const RV64A_SET_AMO: [Instruction; 10] = [
             let addr = cpu.read_x_u64(instruction.rs1.value())?;
 
             let data = u64_to_i64(cpu.read_mem_u64(addr)?);
-            cpu.write_x_i64(instruction.rd.value(), data)?;
 
             let rs2 = cpu.read_x_i64(instruction.rs2.value())?;
+
+            cpu.write_x_i64(instruction.rd.value(), data)?;
 
             let (res, _) = data.overflowing_add(rs2);
             cpu.write_mem_u64(addr, i64_to_u64(res))?;
@@ -83,9 +86,10 @@ pub const RV64A_SET_AMO: [Instruction; 10] = [
             let addr = cpu.read_x_u64(instruction.rs1.value())?;
 
             let data = u32_to_i32(cpu.read_mem_u32(addr)?);
-            cpu.write_x_i64(instruction.rd.value(), data as i64)?;
 
             let rs2 = cpu.read_x_i64(instruction.rs2.value())? as i32;
+
+            cpu.write_x_i64(instruction.rd.value(), data as i64)?;
 
             let (res, _) = data.overflowing_add(rs2);
             cpu.write_mem_u32(addr, i32_to_u32(res))?;
@@ -104,9 +108,10 @@ pub const RV64A_SET_AMO: [Instruction; 10] = [
             let addr = cpu.read_x_u64(instruction.rs1.value())?;
 
             let data = cpu.read_mem_u64(addr)?;
-            cpu.write_x_u64(instruction.rd.value(), data)?;
 
             let rs2 = cpu.read_x_u64(instruction.rs2.value())?;
+
+            cpu.write_x_u64(instruction.rd.value(), data)?;
 
             let res = data ^ rs2;
             cpu.write_mem_u64(addr, res)?;
@@ -125,9 +130,10 @@ pub const RV64A_SET_AMO: [Instruction; 10] = [
             let addr = cpu.read_x_u64(instruction.rs1.value())?;
 
             let data = cpu.read_mem_u32(addr)?;
-            cpu.write_x_i64(instruction.rd.value(), sign_extend_32bit_to_64bit(data))?;
 
             let rs2 = cpu.read_x_u64(instruction.rs2.value())? as u32;
+
+            cpu.write_x_i64(instruction.rd.value(), sign_extend_32bit_to_64bit(data))?;
 
             let res = data ^ rs2;
             cpu.write_mem_u32(addr, res)?;
@@ -146,9 +152,10 @@ pub const RV64A_SET_AMO: [Instruction; 10] = [
             let addr = cpu.read_x_u64(instruction.rs1.value())?;
 
             let data = cpu.read_mem_u64(addr)?;
-            cpu.write_x_u64(instruction.rd.value(), data)?;
 
             let rs2 = cpu.read_x_u64(instruction.rs2.value())?;
+
+            cpu.write_x_u64(instruction.rd.value(), data)?;
 
             let res = data & rs2;
             cpu.write_mem_u64(addr, res)?;
@@ -167,9 +174,10 @@ pub const RV64A_SET_AMO: [Instruction; 10] = [
             let addr = cpu.read_x_u64(instruction.rs1.value())?;
 
             let data = cpu.read_mem_u32(addr)?;
-            cpu.write_x_i64(instruction.rd.value(), sign_extend_32bit_to_64bit(data))?;
 
             let rs2 = cpu.read_x_u64(instruction.rs2.value())? as u32;
+
+            cpu.write_x_i64(instruction.rd.value(), sign_extend_32bit_to_64bit(data))?;
 
             let res = data & rs2;
             cpu.write_mem_u32(addr, res)?;
@@ -188,9 +196,10 @@ pub const RV64A_SET_AMO: [Instruction; 10] = [
             let addr = cpu.read_x_u64(instruction.rs1.value())?;
 
             let data = cpu.read_mem_u64(addr)?;
-            cpu.write_x_u64(instruction.rd.value(), data)?;
 
             let rs2 = cpu.read_x_u64(instruction.rs2.value())?;
+
+            cpu.write_x_u64(instruction.rd.value(), data)?;
 
             let res = data | rs2;
             cpu.write_mem_u64(addr, res)?;
@@ -209,9 +218,10 @@ pub const RV64A_SET_AMO: [Instruction; 10] = [
             let addr = cpu.read_x_u64(instruction.rs1.value())?;
 
             let data = cpu.read_mem_u32(addr)?;
-            cpu.write_x_i64(instruction.rd.value(), sign_extend_32bit_to_64bit(data))?;
 
             let rs2 = cpu.read_x_u64(instruction.rs2.value())? as u32;
+
+            cpu.write_x_i64(instruction.rd.value(), sign_extend_32bit_to_64bit(data))?;
 
             let res = data | rs2;
             cpu.write_mem_u32(addr, res)?;

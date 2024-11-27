@@ -3,7 +3,11 @@ use std::{fmt::Display, fs::File};
 use crate::{
     elf::elf_loader::{load_kernel_to_memory, load_program_to_memory, ElfFile},
     isa::csr::csr_types::{CSRAddress, CSRTable, MisaCSR},
-    system::{kernel::Kernel, passthrough_kernel::PassthroughKernel},
+    system::{
+        kernel::Kernel,
+        passthrough_kernel::PassthroughKernel,
+        uart::{read_uart_pending, UART_ADDR},
+    },
     types::ABIRegister,
     utils::binary_utils::*,
 };
@@ -392,6 +396,12 @@ impl Cpu {
 
     pub fn write_mem_u8(&mut self, addr: u64, value: u8) -> Result<()> {
         let addr = self.translate_address_if_needed(addr)?;
+        // TODO: Add better mechanism for hooks
+        if addr == UART_ADDR {
+            if let Some(data) = read_uart_pending(self) {
+                println!("UART: {:?}", data as char);
+            }
+        }
         self.memory.write_mem_u8(addr, value)
     }
 
@@ -585,7 +595,28 @@ impl Cpu {
     }
 
     pub fn write_pc_u64(&mut self, val: u64) {
+        // self.print_breakpoint(0x80000a54, val, "printfinit");
+        // self.print_breakpoint(0x80000540, val, "consoleinit");
+        // self.print_breakpoint(0x80002aa4, val, "scheduler");
+        // self.print_breakpoint(0x80000db4, val, "kfree");
+        // self.print_breakpoint(0x80000ebc, val, "kinit");
+        self.print_breakpoint(0x80000e44, val, "freerange");
+
+        // self.print_breakpoint(0x8000466c, val, "ialoc");
+        // self.print_breakpoint(0x80000664, val, "printf");
+        // self.print_breakpoint(0x80000a08, val, "panic");
+        // self.print_breakpoint(0x8000112c, val, "release");
         self.reg_pc_64 = val;
+    }
+
+    // TODO: add better mechanism
+    fn print_breakpoint(&mut self, pc: u64, val: u64, name: &str) {
+        if val == pc {
+            println!(
+                "jump to {:#x} from {:#x} into {}",
+                pc, self.current_instruction_pc_64, name
+            );
+        }
     }
 
     pub fn read_current_instruction_addr_u32(&self) -> u32 {

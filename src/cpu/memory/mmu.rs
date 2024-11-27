@@ -87,7 +87,7 @@ pub fn walk_page_table_sv39(virtual_address: u64, satp: u64, cpu: &mut Cpu) -> R
     let offset = virtual_address.offset();
 
     let l2_page_table_addr = read_root_page_table_pointer(satp, CpuMode::RV64);
-    let l2_pte = Sv39_PTE(cpu.read_mem_u64(l2_page_table_addr + vpn2 * 8)?);
+    let l2_pte = Sv39_PTE(cpu.memory.read_mem_u64(l2_page_table_addr + vpn2 * 8)?);
     if l2_pte.x() || l2_pte.r() {
         // leaf 1G
         let mut physical_address = Sv39_PhysicalAddress(0);
@@ -99,7 +99,7 @@ pub fn walk_page_table_sv39(virtual_address: u64, satp: u64, cpu: &mut Cpu) -> R
     }
 
     let l1_page_table_addr = l2_pte.ppn() << 12;
-    let l1_pte = Sv39_PTE(cpu.read_mem_u64(l1_page_table_addr + vpn1 * 8)?);
+    let l1_pte = Sv39_PTE(cpu.memory.read_mem_u64(l1_page_table_addr + vpn1 * 8)?);
     if l1_pte.x() || l1_pte.r() {
         // leaf 2MB
         let mut physical_address = Sv39_PhysicalAddress(0);
@@ -111,7 +111,7 @@ pub fn walk_page_table_sv39(virtual_address: u64, satp: u64, cpu: &mut Cpu) -> R
     }
 
     let l0_page_table_addr = l1_pte.ppn() << 12;
-    let l0_pte = Sv39_PTE(cpu.read_mem_u64(l0_page_table_addr + vpn0 * 8)?);
+    let l0_pte = Sv39_PTE(cpu.memory.read_mem_u64(l0_page_table_addr + vpn0 * 8)?);
 
     let physical_address = Sv39_PhysicalAddress(l0_pte.ppn() << 12 | offset); // 4KB
 

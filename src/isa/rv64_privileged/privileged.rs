@@ -4,7 +4,7 @@ use crate::{
     types::{Instruction, InstructionType, FUNC3_MASK, FUNC7_MASK, FUNC7_POS, OPCODE_MASK},
 };
 
-pub const RV64_PRIVILEGED_SET: [Instruction; 2] = [
+pub const RV64_PRIVILEGED_SET: [Instruction; 3] = [
     Instruction {
         mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
         bits: 0b0001000 << FUNC7_POS | 0b1110011,
@@ -69,5 +69,12 @@ pub const RV64_PRIVILEGED_SET: [Instruction; 2] = [
 
             Ok(())
         },
+    },
+    Instruction {
+        mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
+        bits: 0b0001001 << FUNC7_POS | 0b1110011,
+        name: "SFENCE.VMA",
+        instruction_type: InstructionType::R,
+        operation: |_cpu, _word| Ok(()),
     },
 ];

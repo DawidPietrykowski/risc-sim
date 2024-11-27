@@ -6,6 +6,7 @@ use risc_sim::cpu::cpu_core::{Cpu, CpuMode};
 use risc_sim::cpu::memory::raw_vec_memory::RawVecMemory;
 use risc_sim::elf::elf_loader::{decode_file, WordSize};
 use risc_sim::system::passthrough_kernel::PassthroughKernel;
+use risc_sim::system::uart::init_uart;
 #[allow(unused)]
 use risc_sim::system::uart::read_uart_pending;
 use risc_sim::types::ABIRegister;
@@ -26,6 +27,7 @@ fn main() -> Result<()> {
     const SCREEN_ADDR_ADDR: u64 = 0x40000000;
     const SCALE_SCREEN: u64 = 2;
     const SIMULATE_DISPLAY: bool = false;
+    const ASSUME_PROGRAM_CACHE_COMPLETE: bool = false;
 
     let mut frames_written = 0;
 
@@ -73,6 +75,8 @@ fn main() -> Result<()> {
     };
     let mut cpu = Cpu::new(RawVecMemory::default(), PassthroughKernel::default(), mode);
     cpu.load_program_from_elf(program)?;
+
+    init_uart(&mut cpu);
 
     let start_time = std::time::Instant::now();
 
@@ -142,10 +146,6 @@ fn main() -> Result<()> {
             }
         }
 
-        if let Some(data) = read_uart_pending(&mut cpu) {
-            println!("UART: {:?}", data);
-        }
-
         #[cfg(not(feature = "maxperf"))]
         match cpu.run_cycle() {
             Ok(_) => {
@@ -160,7 +160,11 @@ fn main() -> Result<()> {
         {
             let mut finished = false;
             for _ in 0..COUNT_INTERVAL {
-                match cpu.run_cycle_uncheked() {
+                match if ASSUME_PROGRAM_CACHE_COMPLETE {
+                    cpu.run_cycle_uncheked()
+                } else {
+                    cpu.run_cycle()
+                } {
                     Ok(_) => {
                         // println!("Cycle: {}", count);
                         continue;
@@ -174,9 +178,9 @@ fn main() -> Result<()> {
             if finished {
                 break anyhow::anyhow!("Error");
             }
-            if start_time.elapsed() > std::time::Duration::from_secs(30) {
-                break anyhow::anyhow!("Timeout");
-            }
+            // if start_time.elapsed() > std::time::Duration::from_secs(30) {
+            //     break anyhow::anyhow!("Timeout");
+            // }
         }
     };
 
