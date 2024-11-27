@@ -25,7 +25,7 @@ fn main() -> Result<()> {
     const MEMORY_BUFFER_SIZE: u64 = SCREEN_WIDTH * SCREEN_HEIGHT * 4;
     const SCREEN_ADDR_ADDR: u64 = 0x40000000;
     const SCALE_SCREEN: u64 = 2;
-    const SIMULATE_DISPLAY: bool = true;
+    const SIMULATE_DISPLAY: bool = false;
 
     let mut frames_written = 0;
 
@@ -142,10 +142,9 @@ fn main() -> Result<()> {
             }
         }
 
-        // if let Some(data) = read_uart_pending(&mut cpu) {
-        //     println!("UART: {:?}", data);
-        //     panic!()
-        // }
+        if let Some(data) = read_uart_pending(&mut cpu) {
+            println!("UART: {:?}", data);
+        }
 
         #[cfg(not(feature = "maxperf"))]
         match cpu.run_cycle() {

@@ -72,7 +72,7 @@ impl Stat {
     }
 }
 
-pub const RV32I_SET_E: [Instruction; 2] = [
+pub const RV32I_SET_E: [Instruction; 3] = [
     Instruction {
         mask: OPCODE_MASK | FUNC3_MASK | FUNC12_MASK,
         bits: 0b0 << FUNC12_POS | 0b1110011,
@@ -275,6 +275,17 @@ pub const RV32I_SET_E: [Instruction; 2] = [
         instruction_type: InstructionType::I,
         operation: |_cpu, _word| {
             todo!();
+        },
+    },
+    Instruction {
+        mask: OPCODE_MASK | FUNC3_MASK,
+        bits: 0b0001111,
+        name: "FENCE",
+        instruction_type: InstructionType::R,
+        operation: |cpu, _word| {
+            cpu.debug_print(|| "FENCE: skipping".to_string());
+
+            Ok(())
         },
     },
 ];

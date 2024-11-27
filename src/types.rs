@@ -13,6 +13,7 @@ use crate::{
         rv64_privileged::privileged::RV64_PRIVILEGED_SET,
         rv64_zicsr::zicsr::RV64_ZICSR_SET,
         rv64_zifencei::zifencei::RV64_ZIFENCEI_SET,
+        rv64a::amo::RV64A_SET_AMO,
         rv64i::{
             control_transfer::RV64I_SET_UJ, environment::RV64I_SET_E, immediate::RV64I_SET_I,
             integer_reg_reg::RV64I_SET_R, load_store::RV64I_SET_LS,
@@ -486,6 +487,7 @@ lazy_static! {
         all.extend_from_slice(&RV64I_SET_UJ);
         all.extend_from_slice(&RV64I_SET_LS);
         all.extend_from_slice(&RV64I_SET_E);
+        all.extend_from_slice(&RV64A_SET_AMO);
         all.extend_from_slice(&RV64M_SET_R);
         all.extend_from_slice(&RV64_ZIFENCEI_SET);
         all.extend_from_slice(&RV64_ZICSR_SET);
