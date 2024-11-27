@@ -9,6 +9,7 @@ use risc_sim::system::passthrough_kernel::PassthroughKernel;
 use risc_sim::system::uart::init_uart;
 #[allow(unused)]
 use risc_sim::system::uart::read_uart_pending;
+use risc_sim::system::virtio::init_virtio;
 use risc_sim::types::ABIRegister;
 
 use std::env;
@@ -77,6 +78,7 @@ fn main() -> Result<()> {
     cpu.load_program_from_elf(program)?;
 
     init_uart(&mut cpu);
+    init_virtio(&mut cpu);
 
     let start_time = std::time::Instant::now();
 

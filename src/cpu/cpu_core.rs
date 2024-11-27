@@ -7,6 +7,7 @@ use crate::{
         kernel::Kernel,
         passthrough_kernel::PassthroughKernel,
         uart::{read_uart_pending, UART_ADDR},
+        virtio::{process_queue, VIRTIO_0_ADDR, VIRTIO_MMIO_QUEUE_NOTIFY},
     },
     types::ABIRegister,
     utils::binary_utils::*,
@@ -412,6 +413,10 @@ impl Cpu {
 
     pub fn write_mem_u32(&mut self, addr: u64, value: u32) -> Result<()> {
         let addr = self.translate_address_if_needed(addr)?;
+        // TODO: Add better mechanism for hooks
+        if addr == VIRTIO_0_ADDR + VIRTIO_MMIO_QUEUE_NOTIFY as u64 {
+            process_queue(self);
+        }
         self.memory.write_mem_u32(addr, value)
     }
 
