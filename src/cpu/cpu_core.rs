@@ -2,12 +2,9 @@ use std::{fmt::Display, fs::File};
 
 use crate::{
     elf::elf_loader::{load_kernel_to_memory, load_program_to_memory, ElfFile},
-    isa::csr::csr_types::{CSRAddress, CSRTable, MisaCSR},
+    isa::{csr::csr_types::{CSRAddress, CSRTable, MisaCSR}, traps::check_pending_interrupts},
     system::{
-        kernel::Kernel,
-        passthrough_kernel::PassthroughKernel,
-        uart::{read_uart_pending, UART_ADDR},
-        virtio::{process_queue, VIRTIO_0_ADDR, VIRTIO_MMIO_QUEUE_NOTIFY},
+        kernel::Kernel, passthrough_kernel::PassthroughKernel, plic::{plic_check_pending, plic_handle_claim_read, plic_handle_claim_write, PLIC_CLAIM}, uart::{read_uart_pending, UART_ADDR}, virtio::{process_queue, VIRTIO_0_ADDR, VIRTIO_MMIO_QUEUE_NOTIFY}
     },
     types::ABIRegister,
     utils::binary_utils::*,
@@ -26,11 +23,47 @@ pub enum CpuMode {
     RV64,
 }
 
-#[derive(PartialEq, Clone, Copy)]
+#[derive(PartialEq, Clone, Copy, Debug)]
 pub enum PrivilegeMode {
     User = 0,
     Supervisor = 1,
     Machine = 3,
+}
+
+pub struct CircularBuffer<T> {
+    buffer: Vec<T>,
+    head: usize,
+    tail: usize,
+    size: usize,
+}
+
+impl<T> CircularBuffer<T> where T : Default, T : Clone {
+    fn new(size: usize) -> Self {
+        CircularBuffer {
+            buffer: vec![Default::default(); size],
+            head: 0,
+            tail: 0,
+            size,
+        }
+    }
+
+    fn push(&mut self, item: T) {
+        self.buffer[self.head] = item;
+        self.head = (self.head + 1) % self.size;
+        if self.head == self.tail {
+            self.tail = (self.tail + 1) % self.size;
+        }
+    }
+
+    fn pop(&mut self) -> Option<T> {
+        if self.tail != self.head {
+            let item = self.buffer[self.tail].clone();
+            self.tail = (self.tail + 1) % self.size;
+            Some(item)
+        } else {
+            None
+        }
+    }
 }
 
 pub struct Cpu {
@@ -53,19 +86,20 @@ pub struct Cpu {
     pub arch_mode: CpuMode,
     pub simulate_kernel: bool,
     pub privilege_mode: PrivilegeMode,
+    pub pc_history: CircularBuffer<u64>,
 }
 
 impl Display for Cpu {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Registers:")?;
         if self.arch_mode == CpuMode::RV64 {
-            for (i, reg) in self.reg_x64.iter().filter(|reg| *reg != &0).enumerate() {
-                writeln!(f, "x{}: {:#010x}", i + 1, reg)?;
+            for (i, reg) in self.reg_x64.iter().enumerate().filter(|(_, reg)| *reg != &0) {
+                writeln!(f, "x{}: {:#010x}", i, reg)?;
             }
             writeln!(f, "PC: {:#010x}", self.reg_pc_64)?;
         } else {
-            for (i, reg) in self.reg_x32.iter().filter(|reg| *reg != &0).enumerate() {
-                writeln!(f, "x{}: {:#010x}", i + 1, reg)?;
+            for (i, reg) in self.reg_x32.iter().enumerate().filter(|(_, reg)| *reg != &0) {
+                writeln!(f, "x{}: {:#010x}", i, reg)?;
             }
             writeln!(f, "PC: {:#010x}", self.reg_pc)?;
         }
@@ -105,6 +139,7 @@ impl Default for Cpu {
             arch_mode: CpuMode::RV32,
             simulate_kernel: true,
             privilege_mode: PrivilegeMode::Machine,
+            pc_history: CircularBuffer::new(100),
         };
         cpu.setup_csrs();
         cpu
@@ -137,6 +172,7 @@ impl Cpu {
             arch_mode: mode,
             simulate_kernel: true,
             privilege_mode: PrivilegeMode::Machine,
+            pc_history: CircularBuffer::new(100),
         };
         cpu.setup_csrs();
         cpu
@@ -253,11 +289,34 @@ impl Cpu {
             .write_xlen(CSRAddress::Mhartid.as_u12(), 0, self.arch_mode);
     }
 
+    fn check_breakpoints(&mut self) {
+        // TODO: Remove
+        // if self.reg_pc_64 == 0x80001104 {
+        //     let sp = self.read_x_u64(2).unwrap();
+        //     println!("at LD RA");
+        //     println!("sp: {:#x}", sp);
+        //     println!("mem: {:#x}", self.memory.read_mem_u64(sp + 8).unwrap());
+        //     println!();
+        // } else if self.reg_pc_64 == 0x800010bc {
+        //     let sp = self.read_x_u64(2).unwrap();
+        //     println!("at SD RA");
+        //     println!("sp: {:#x}", self.read_x_u64(2).unwrap());
+        //     println!("mem: {:#x}", self.memory.read_mem_u64(sp + 8).unwrap());
+        //     println!();
+        // }
+    }
+
     pub fn run_cycle(&mut self) -> Result<()> {
         // Check if CPU is halted
         if self.halted {
             bail!("CPU is halted");
         }
+
+        self.pc_history.push(self.current_instruction_pc_64);
+        plic_check_pending(self);
+        check_pending_interrupts(self, PrivilegeMode::Machine);
+        check_pending_interrupts(self, PrivilegeMode::Supervisor);
+        self.check_breakpoints();
 
         // Fetch
         let instruction = self.fetch_instruction()?;
@@ -266,6 +325,11 @@ impl Cpu {
         if self.debug_enabled {
             println!("\nPC({:#x}) {}", self.reg_pc, instruction);
         }
+
+        // TODO: Remove
+        // if self.read_pc() == 0x80002b70 {
+        //     println!("\nPC({:#x}) {}", self.reg_pc, instruction);
+        // }
 
         // Increase PC
         if self.arch_mode == CpuMode::RV64 {
@@ -289,8 +353,19 @@ impl Cpu {
             bail!("CPU is halted");
         }
 
+        self.pc_history.push(self.current_instruction_pc_64);
+        plic_check_pending(self);
+        check_pending_interrupts(self, PrivilegeMode::Machine);
+        check_pending_interrupts(self, PrivilegeMode::Supervisor);
+        self.check_breakpoints();
+
         // Fetch
         let instruction = self.fetch_instruction_unchecked();
+
+        // TODO: Remove
+        // if self.read_pc() == 0x80002b70 {
+        //     println!("\nPC({:#x}) {}", self.reg_pc, instruction);
+        // }
 
         // Increase PC
         if self.arch_mode == CpuMode::RV64 {
@@ -366,7 +441,7 @@ impl Cpu {
         self.program_cache.get_line_unchecked(self.read_pc())
     }
 
-    fn translate_address_if_needed(&mut self, addr: u64) -> Result<u64> {
+    pub fn translate_address_if_needed(&mut self, addr: u64) -> Result<u64> {
         let satp = self.csr_table.read64(CSRAddress::Satp.as_u12());
         if satp != 0 {
             walk_page_table_sv39(addr, satp, self)
@@ -382,6 +457,9 @@ impl Cpu {
 
     pub fn read_mem_u32(&mut self, addr: u64) -> Result<u32> {
         let addr = self.translate_address_if_needed(addr)?;
+        if addr == PLIC_CLAIM {
+            plic_handle_claim_read(self);
+        }
         self.memory.read_mem_u32(addr)
     }
 
@@ -396,7 +474,18 @@ impl Cpu {
     }
 
     pub fn write_mem_u8(&mut self, addr: u64, value: u8) -> Result<()> {
+        // TODO: Remove
+        // if addr == 0x8000a8a8 {
+        //     println!("WRITING 0 TO ADDR");
+        //     panic!();
+        //     return anyhow::bail!("WRITING 0 TO ADDR");
+        // }
         let addr = self.translate_address_if_needed(addr)?;
+        // if addr == 0x8000a8a8 {
+        //     println!("WRITING 0 TO ADDR");
+        //     panic!();
+        //     return anyhow::bail!("WRITING 0 TO ADDR");
+        // }
         // TODO: Add better mechanism for hooks
         if addr == UART_ADDR {
             if let Some(data) = read_uart_pending(self) {
@@ -407,21 +496,58 @@ impl Cpu {
     }
 
     pub fn write_mem_u16(&mut self, addr: u64, value: u16) -> Result<()> {
+        // TODO: Remove
+        // if addr == 0x8000a8a8 {
+        //     println!("WRITING 0 TO ADDR");
+        //     panic!();
+        //     return anyhow::bail!("WRITING 0 TO ADDR");
+        // }
         let addr = self.translate_address_if_needed(addr)?;
+        // if addr == 0x8000a8a8 {
+        //     println!("WRITING 0 TO ADDR");
+        //     panic!();
+        //     return anyhow::bail!("WRITING 0 TO ADDR");
+        // }
         self.memory.write_mem_u16(addr, value)
     }
 
     pub fn write_mem_u32(&mut self, addr: u64, value: u32) -> Result<()> {
+        // TODO: Remove
+        // if addr == 0x8000a8a8 {
+        //     println!("WRITING 0 TO ADDR");
+        //     panic!();
+        //     return anyhow::bail!("WRITING 0 TO ADDR");
+        // }
         let addr = self.translate_address_if_needed(addr)?;
+        // if addr == 0x8000a8a8 {
+        //     println!("WRITING 0 TO ADDR");
+        //     panic!();
+        //     return anyhow::bail!("WRITING 0 TO ADDR");
+        // }
         // TODO: Add better mechanism for hooks
         if addr == VIRTIO_0_ADDR + VIRTIO_MMIO_QUEUE_NOTIFY as u64 {
             process_queue(self);
+        }
+        if addr == PLIC_CLAIM {
+            plic_handle_claim_write(self, value);
+            return Ok(())
         }
         self.memory.write_mem_u32(addr, value)
     }
 
     pub fn write_mem_u64(&mut self, addr: u64, value: u64) -> Result<()> {
-        let addr = self.translate_address_if_needed(addr)?;
+        // TODO: Remove
+        // if addr == 0x8000a8a8 {
+        //     println!("WRITING 0 TO ADDR 2 {:#x} at {:#x}", value, self.current_instruction_pc_64);
+        //     // panic!();
+        //     // return anyhow::bail!("WRITING 0 TO ADDR");
+        // }
+        // let addr = self.translate_address_if_needed(addr)?;
+        // if addr == 0x8000a8a8 {
+        //     println!("WRITING 0 TO ADDR 1 {:#x} at {:#x}", value, self.current_instruction_pc_64);
+        //     // panic!();
+        //     // return anyhow::bail!("WRITING 0 TO ADDR");
+        // }
         self.memory.write_mem_u64(addr, value)
     }
 
@@ -488,6 +614,16 @@ impl Cpu {
             return Ok(()); // x0 is hardwired to 0
         }
 
+        // TODO: Remove
+        // if id == 2 && value == 0x8000a8a0 {
+        //     let sp = value;
+        //     println!("WRITE SP");
+        //     println!("pc: {:#x}", self.current_instruction_pc_64);
+        //     println!("sp: {:#x}", self.read_x_u64(2).unwrap());
+        //     println!("mem: {:#x}", self.memory.read_mem_u64((sp + 8) as u64).unwrap());
+        //     println!();
+        // }
+
         #[cfg(not(feature = "maxperf"))]
         let reg_value = self
             .reg_x64
@@ -519,9 +655,41 @@ impl Cpu {
         Ok(())
     }
 
+    pub fn print_pc_history(&mut self) {
+                    println!("pc history:");
+            let mut last_pc = 0u64;
+            while let Some(pc) = self.pc_history.pop() {
+                println!("{:#x}", pc);
+                if pc != last_pc + 0x4{
+                    println!("jmp");
+                }
+                last_pc = pc;
+            };
+            println!();
+
+    }
+
     pub fn write_x_u64(&mut self, id: u8, value: u64) -> Result<()> {
         if id == 0 {
             return Ok(()); // x0 is hardwired to 0
+        }
+
+        // TODO: Remove
+        // if id == 2 && value == 0x8000a8a0 {
+        //     let sp = value;
+        //     println!("WRITE SP");
+        //     println!("pc: {:#x}", self.current_instruction_pc_64);
+        //     println!("sp: {:#x}", self.read_x_u64(2).unwrap());
+        //     println!("mem: {:#x}", self.memory.read_mem_u64(sp + 8).unwrap());
+        //     println!();
+        // }
+
+        if id == ABIRegister::RA.to_x_reg_id() as u8 && value == 0x505050505050505 {
+            let sp = self.read_x_u64(2).unwrap();
+            println!("Warning: Writing 0 to RA register at PC: {:#x}", self.current_instruction_pc_64);
+            println!("sp: {:#x}", sp);
+            println!("mem: {:#x}", self.memory.read_mem_u64(sp + 24).unwrap());
+            self.print_pc_history();
         }
 
         #[cfg(not(feature = "maxperf"))]
@@ -600,28 +768,45 @@ impl Cpu {
     }
 
     pub fn write_pc_u64(&mut self, val: u64) {
+        // TODO: Remove
         // self.print_breakpoint(0x80000a54, val, "printfinit");
         // self.print_breakpoint(0x80000540, val, "consoleinit");
         // self.print_breakpoint(0x80002aa4, val, "scheduler");
         // self.print_breakpoint(0x80000db4, val, "kfree");
         // self.print_breakpoint(0x80000ebc, val, "kinit");
         self.print_breakpoint(0x80000e44, val, "freerange");
-
+        // if self.current_instruction_pc_64 != 0x80000e1c {
+            // self.print_breakpoint(0x8000112c, val, "release");
+        // }
+        // if self.current_instruction_pc_64 != 0x8000115c {
+            // self.print_breakpoint(0x800010b8, val, "pop_off");
+        // }
         // self.print_breakpoint(0x8000466c, val, "ialoc");
         // self.print_breakpoint(0x80000664, val, "printf");
         // self.print_breakpoint(0x80000a08, val, "panic");
-        // self.print_breakpoint(0x8000112c, val, "release");
+
+        if self.print_breakpoint(0x0, val, "zero") {
+            let ra = self.read_x_u64(ABIRegister::RA.to_x_reg_id() as u8).unwrap();
+            println!("ra: {:#x}", ra);
+            let sp = self.read_x_u64(ABIRegister::SP.to_x_reg_id() as u8).unwrap();
+            println!("sp: {:#x}", sp);
+            println!();
+            // panic!()
+        }
         self.reg_pc_64 = val;
     }
 
     // TODO: add better mechanism
-    fn print_breakpoint(&mut self, pc: u64, val: u64, name: &str) {
+    fn print_breakpoint(&mut self, pc: u64, val: u64, name: &str) -> bool {
         if val == pc {
             println!(
                 "jump to {:#x} from {:#x} into {}",
                 pc, self.current_instruction_pc_64, name
             );
+            println!();
+            return true;
         }
+        false
     }
 
     pub fn read_current_instruction_addr_u32(&self) -> u32 {

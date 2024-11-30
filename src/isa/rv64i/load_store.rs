@@ -95,6 +95,12 @@ pub const RV64I_SET_LS: [Instruction; 11] = [
 
             let read_value = cpu.read_mem_u64(moved_addr)?;
 
+            // TODO: Remove
+            // if moved_addr == 0x8000a8a8 {
+            //     println!("LD: {:#x} from: {:#x} with sp: {:x}", read_value, moved_addr, cpu.read_x_u64(2).unwrap());
+            //     println!();
+            // }
+
             cpu.debug_print(|| format!("LD: {:#x}", read_value));
 
             cpu.write_x_u64(instruction.rd.value(), read_value)?;
@@ -210,10 +216,33 @@ pub const RV64I_SET_LS: [Instruction; 11] = [
 
             let extended_offset = instruction.imm.as_i64();
             let rs1 = cpu.read_x_u64(instruction.rs1.value())?;
-            let moved_addr = cpu
-                .read_x_u64(instruction.rs1.value())?
-                .wrapping_add_signed(extended_offset);
+            let moved_addr = rs1.wrapping_add_signed(extended_offset);
             let read_value = cpu.read_x_u64(instruction.rs2.value())?;
+
+            // TODO: Remove
+            // if cpu.current_instruction_pc_64 == 0x800010bc {
+            //     println!(
+            //         "SD: {:#x} = {:#x} (addr: {:#x} + {}) dword: {:#x}",
+            //         moved_addr, read_value, rs1, extended_offset, word.0
+            //     );
+
+            //     let ra = cpu.read_x_u64(ABIRegister::RA.to_x_reg_id() as u8).unwrap();
+            //     println!("ra: {:#x}", ra);
+            //     let sp = cpu.read_x_u64(ABIRegister::SP.to_x_reg_id() as u8).unwrap();
+            //     println!("sp: {:#x}", sp);
+            //     println!();
+            // }
+
+            // if moved_addr == 0x8000a8a8 {
+            //     println!("00000000000000000000 SET HERE SD: {:#x} = {:#x} (addr: {:#x} + {}) dword: {:#x}", moved_addr, read_value, rs1, extended_offset, word.0);
+
+            //     let ra = cpu.read_x_u64(ABIRegister::RA.to_x_reg_id() as u8).unwrap();
+            //     println!("ra: {:#x}", ra);
+            //     let sp = cpu.read_x_u64(ABIRegister::SP.to_x_reg_id() as u8).unwrap();
+            //     println!("sp: {:#x}", sp);
+            //     println!("pc: {:#x}", cpu.current_instruction_pc_64);
+            //     println!();
+            // }
 
             cpu.debug_print(|| {
                 format!(

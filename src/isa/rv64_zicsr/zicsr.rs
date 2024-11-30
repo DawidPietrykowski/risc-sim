@@ -1,4 +1,4 @@
-use crate::types::*;
+use crate::{isa::csr::csr_types::CSRAddress, types::*};
 
 use anyhow::Ok;
 
@@ -17,6 +17,24 @@ pub const RV64_ZICSR_SET: [Instruction; 6] = [
             cpu.write_x_u64(instruction.rd.value(), old_csr_value)?;
             cpu.csr_table.write64(csr_addr, rs1_value);
 
+            // TODO: Remove
+            if csr_addr == CSRAddress::Satp.as_u12() {
+                println!(
+                    "Satp: {:#018x} (PPN={:#010x}, ASID={:#06x}, MODE={:#04x}) PC: {:#x}",
+                    rs1_value,
+                    rs1_value >> 44,
+                    (rs1_value >> 44) & 0xfff,
+                    rs1_value & 0xf,
+                    cpu.current_instruction_pc_64
+                );
+                if rs1_value != 0 {
+                    // test kernel address 
+                    const KERNEL_ADDR: u64 = 0x80000000;
+                    let res = cpu.translate_address_if_needed(KERNEL_ADDR)?;
+                    println!("Kernel address {:#x} translated to {:#x}", KERNEL_ADDR, res);
+                }
+            }
+            
             Ok(())
         },
     },

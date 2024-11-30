@@ -37,10 +37,7 @@ pub const RV64I_SET_UJ: [Instruction; 8] = [
 
             cpu.debug_print(|| format!("rs1: {:#x}", rs1));
 
-            let result = cpu
-                .read_x_u64(instruction.rs1.value())?
-                .wrapping_add_signed(offset)
-                & !(0b1);
+            let result = rs1.wrapping_add_signed(offset) & !(0b1);
 
             cpu.write_pc_u64(result);
 

@@ -155,6 +155,8 @@ fn main() -> Result<()> {
                 continue;
             }
             Err(e) => {
+                println!("Error: {:?}", e);
+                cpu.print_pc_history();
                 break e;
             }
         }
@@ -171,7 +173,9 @@ fn main() -> Result<()> {
                         // println!("Cycle: {}", count);
                         continue;
                     }
-                    Err(_e) => {
+                    Err(e) => {
+                        println!("Error: {:?}", e);
+                        cpu.print_pc_history();
                         finished = true;
                         break;
                     }
@@ -190,7 +194,6 @@ fn main() -> Result<()> {
 
     println!();
     println!("Execution stopped due to: {:?}", res);
-
     println!("CPU state: \n{}", cpu);
 
     let exit_code = cpu.read_x_u32(ABIRegister::A(0).to_x_reg_id() as u8)?;

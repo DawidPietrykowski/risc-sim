@@ -1,4 +1,4 @@
-use crate::cpu::cpu_core::Cpu;
+use crate::{cpu::cpu_core::Cpu, system::plic::plic_trigger_irq};
 
 const VIRTIO_DESC_NUM: usize = 8;
 
@@ -22,6 +22,8 @@ pub const VIRTIO_MMIO_QUEUE_NOTIFY: u32 = 0x050;
 
 const VRING_DESC_F_NEXT: u16 = 1;
 const VRING_DESC_F_WRITE: u16 = 2;
+
+const VIRTIO0_IRQ: u32 = 1;
 
 #[repr(C)]
 #[derive(Clone)]
@@ -135,6 +137,8 @@ fn read_mem_virtio_blk_req(cpu: &mut Cpu, addr: u64) -> VirtioBlkReq {
 }
 
 pub fn process_queue(cpu: &mut Cpu) {
+    println!("process_queue");
+    
     let virtio_avail = read_mem_virtio_avail(cpu);
     let last_avail_idx = virtio_avail.idx.wrapping_sub(1);
     let desc_idx = virtio_avail.ring[last_avail_idx as usize % VIRTIO_DESC_NUM];
@@ -153,7 +157,7 @@ pub fn process_queue(cpu: &mut Cpu) {
 
     // TODO: Perform read/write and raise interrupt
 
-    todo!("Asserts passed")
+    plic_trigger_irq(cpu, VIRTIO0_IRQ);
 }
 
 pub fn init_virtio(cpu: &mut Cpu) {

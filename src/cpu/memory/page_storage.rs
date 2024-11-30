@@ -3,7 +3,7 @@ use std::fmt::{Debug, Formatter};
 
 use super::memory_core::Memory;
 
-pub(crate) const PAGE_SIZE_LOG2: u32 = 18;
+pub(crate) const PAGE_SIZE_LOG2: u32 = 24;
 pub const PAGE_SIZE: u64 = 1 << PAGE_SIZE_LOG2;
 
 #[allow(unused)]

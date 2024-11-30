@@ -283,18 +283,21 @@ pub fn parse_instruction_r(word: &Word) -> RInstructionData {
 }
 
 pub fn decode_program_line(word: Word, mode: CpuMode) -> Result<ProgramLine> {
+
+    #[cfg(not(feature = "maxperf"))]
+    let context = format!("Instruction {:#x} not found", word.0);
+    #[cfg(feature = "maxperf")]
+    let context = "Instruction not found";
     let instruction = if mode == CpuMode::RV32 {
         *(ALL_INSTRUCTIONS_32
             .iter()
             .find(|ins| (word.0 & ins.mask) == ins.bits)
-            .context(format!("Instruction {:#x} not found", word.0))?)
-        // .context("Instruction not found")?);
+            .context(context)?)
     } else {
         *(ALL_INSTRUCTIONS_64
             .iter()
             .find(|ins| (word.0 & ins.mask) == ins.bits)
-            .context(format!("Instruction {:#x} not found", word.0))?)
-        // .context("Instruction not found")?);
+            .context(context)?)
     };
     Ok(ProgramLine { instruction, word })
 }
@@ -340,6 +343,8 @@ pub const TOP6_MASK: u32 = (U6_MASK as u32) << TOP6_POS;
 pub const TOP6_POS: u32 = 26;
 pub const FUNC12_MASK: u32 = (U12_MASK as u32) << 20;
 pub const FUNC12_POS: u32 = 20;
+pub const RS2_MASK: u32 = (U5_MASK as u32) << RS2_POS;
+pub const RS2_POS: u32 = 20;
 
 pub const U7_MASK: u8 = 0b1111111;
 

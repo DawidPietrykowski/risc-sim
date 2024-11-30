@@ -1,13 +1,13 @@
 use crate::{
     cpu::cpu_core::PrivilegeMode,
     isa::csr::csr_types::{CSRAddress, MstatusCSR},
-    types::{Instruction, InstructionType, FUNC3_MASK, FUNC7_MASK, FUNC7_POS, OPCODE_MASK},
+    types::{Instruction, InstructionType, FUNC3_MASK, FUNC7_MASK, FUNC7_POS, OPCODE_MASK, RS2_MASK, RS2_POS},
 };
 
-pub const RV64_PRIVILEGED_SET: [Instruction; 3] = [
+pub const RV64_PRIVILEGED_SET: [Instruction; 4] = [
     Instruction {
-        mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
-        bits: 0b0001000 << FUNC7_POS | 0b1110011,
+        mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK | RS2_MASK,
+        bits: 0b0001000 << FUNC7_POS | 0b1110011 | 0b00010 << RS2_POS,
         name: "SRET",
         instruction_type: InstructionType::R,
         operation: |cpu, _word| {
@@ -33,8 +33,8 @@ pub const RV64_PRIVILEGED_SET: [Instruction; 3] = [
         },
     },
     Instruction {
-        mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
-        bits: 0b0011000 << FUNC7_POS | 0b1110011,
+        mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK | RS2_MASK,
+        bits: 0b0011000 << FUNC7_POS | 0b1110011 | 0b00010 << RS2_POS,
         name: "MRET",
         instruction_type: InstructionType::R,
         operation: |cpu, _word| {
@@ -74,6 +74,13 @@ pub const RV64_PRIVILEGED_SET: [Instruction; 3] = [
         mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
         bits: 0b0001001 << FUNC7_POS | 0b1110011,
         name: "SFENCE.VMA",
+        instruction_type: InstructionType::R,
+        operation: |_cpu, _word| Ok(()),
+    },
+    Instruction {
+        mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK | RS2_MASK,
+        bits: 0b0001000 << FUNC7_POS | 0b1110011 | 0b00101 << RS2_POS,
+        name: "WFI",
         instruction_type: InstructionType::R,
         operation: |_cpu, _word| Ok(()),
     },
