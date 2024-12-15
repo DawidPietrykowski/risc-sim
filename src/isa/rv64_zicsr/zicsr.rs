@@ -1,6 +1,17 @@
-use crate::{isa::csr::csr_types::CSRAddress, types::*};
+use crate::{cpu::cpu_core::Cpu, isa::csr::csr_types::CSRAddress, types::*};
 
 use anyhow::Ok;
+
+fn test_vma(cpu: &mut Cpu, va: u64, pa: u64, sz: u64) {
+    const ADDRESSES: u64 = 100;
+    let span = sz / ADDRESSES;
+    for i in 0..ADDRESSES {
+        let cur = va + span * i;
+        let expected = pa + span * i;
+        let res = cpu.translate_address_if_needed(cur).unwrap();
+        assert_eq!(res, expected);
+    }
+}
 
 pub const RV64_ZICSR_SET: [Instruction; 6] = [
     Instruction {
@@ -30,8 +41,26 @@ pub const RV64_ZICSR_SET: [Instruction; 6] = [
                 if rs1_value != 0 {
                     // test kernel address 
                     const KERNEL_ADDR: u64 = 0x80000000;
-                    let res = cpu.translate_address_if_needed(KERNEL_ADDR)?;
-                    println!("Kernel address {:#x} translated to {:#x}", KERNEL_ADDR, res);
+                    const VMA_TEST_ADDR_VA: u64 = 0x10002000;
+                    const VMA_TEST_ADDR_PA: u64 = 0x10003000;
+                    const VMA_TEST_ADDR_SZ: u64 = 4096;
+
+                    test_vma(cpu, KERNEL_ADDR, KERNEL_ADDR, 4096);
+                    test_vma(cpu, VMA_TEST_ADDR_VA, VMA_TEST_ADDR_PA, VMA_TEST_ADDR_SZ);
+                    // let res = cpu.translate_address_if_needed(KERNEL_ADDR)?;
+                    // println!("Kernel address {:#x} translated to {:#x}", KERNEL_ADDR, res);
+
+                    // let res = cpu.translate_address_if_needed(VMA_TEST_ADDR_VA)?;
+                    // println!(
+                    //     "VMA test address {:#x} translated to {:#x}",
+                    //     VMA_TEST_ADDR_VA, res);
+                    // let res = cpu.translate_address_if_needed(VMA_TEST_ADDR_VA + VMA_TEST_ADDR_SZ - 1)?;
+                    // println!(
+                    //     "VMA test address end {:#x} translated to {:#x}",
+                    //     VMA_TEST_ADDR_VA + VMA_TEST_ADDR_SZ - 1, res);
+
+                    
+                    // troublesome_addresses.insert(VMA_TEST_ADDR_VA, VMA_TEST_ADDR_PA);
                 }
             }
             

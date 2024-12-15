@@ -542,12 +542,24 @@ impl Cpu {
         //     // panic!();
         //     // return anyhow::bail!("WRITING 0 TO ADDR");
         // }
-        // let addr = self.translate_address_if_needed(addr)?;
+        let addr = self.translate_address_if_needed(addr)?;
         // if addr == 0x8000a8a8 {
         //     println!("WRITING 0 TO ADDR 1 {:#x} at {:#x}", value, self.current_instruction_pc_64);
         //     // panic!();
         //     // return anyhow::bail!("WRITING 0 TO ADDR");
         // }
+        if addr == 0x87f9aff0 {
+            println!("PPN2 Writing {:#x} to {:#x}", value, self.current_instruction_pc_64);
+        }
+        if addr == 0x87fff000 {
+            println!("l2 page {:#x} to {:#x}", value, self.current_instruction_pc_64);
+        }
+        if addr == 0x87f9b000 {
+            println!("l1 page {:#x} to {:#x}", value, self.current_instruction_pc_64);
+        }
+        if addr == 0x87f9a000 {
+            println!("l0 page {:#x} to {:#x}", value, self.current_instruction_pc_64);
+        }
         self.memory.write_mem_u64(addr, value)
     }
 
@@ -659,10 +671,10 @@ impl Cpu {
                     println!("pc history:");
             let mut last_pc = 0u64;
             while let Some(pc) = self.pc_history.pop() {
-                println!("{:#x}", pc);
                 if pc != last_pc + 0x4{
                     println!("jmp");
                 }
+                println!("{:x}", pc);
                 last_pc = pc;
             };
             println!();
@@ -684,13 +696,13 @@ impl Cpu {
         //     println!();
         // }
 
-        if id == ABIRegister::RA.to_x_reg_id() as u8 && value == 0x505050505050505 {
-            let sp = self.read_x_u64(2).unwrap();
-            println!("Warning: Writing 0 to RA register at PC: {:#x}", self.current_instruction_pc_64);
-            println!("sp: {:#x}", sp);
-            println!("mem: {:#x}", self.memory.read_mem_u64(sp + 24).unwrap());
-            self.print_pc_history();
-        }
+        // if id == ABIRegister::RA.to_x_reg_id() as u8 && value == 0x505050505050505 {
+        //     let sp = self.read_x_u64(2).unwrap();
+        //     println!("Warning: Writing 0 to RA register at PC: {:x}", self.current_instruction_pc_64);
+        //     println!("sp: {:#x}", sp);
+        //     println!("mem: {:#x}", self.memory.read_mem_u64(sp + 24).unwrap());
+        //     self.print_pc_history();
+        // }
 
         #[cfg(not(feature = "maxperf"))]
         let reg_value = self
@@ -774,7 +786,50 @@ impl Cpu {
         // self.print_breakpoint(0x80002aa4, val, "scheduler");
         // self.print_breakpoint(0x80000db4, val, "kfree");
         // self.print_breakpoint(0x80000ebc, val, "kinit");
-        self.print_breakpoint(0x80000e44, val, "freerange");
+        // self.print_breakpoint(0x80000e44, val, "freerange");
+        self.print_breakpoint(0x800034d0, val, "usertrapret");
+        self.print_breakpoint(0x800090b0, val, "userret");
+        self.print_breakpoint(0x80009000, val, "trampoline");
+        self.print_breakpoint(0x8000146c, val, "main");
+        self.print_breakpoint(0x0000000080002af0, val, "scheduler");
+        if self.print_breakpoint(0x00000000800033fc, val, "swtch") {
+            let ra = self.read_x_u64(ABIRegister::RA.to_x_reg_id() as u8).unwrap();
+            println!("ra: {:#x}", ra);
+            let sp = self.read_x_u64(ABIRegister::SP.to_x_reg_id() as u8).unwrap();
+            println!("sp: {:#x}", sp);
+            println!();
+        }
+        if self.print_breakpoint(0x80002500, val, "back from swtch") {
+            let ra = self.read_x_u64(ABIRegister::RA.to_x_reg_id() as u8).unwrap();
+            println!("ra: {:#x}", ra);
+            let sp = self.read_x_u64(ABIRegister::SP.to_x_reg_id() as u8).unwrap();
+            println!("sp: {:#x}", sp);
+            println!();
+        }
+        self.print_breakpoint(0x0000000080002864, val, "userinit");
+        // if self.current_instruction_pc_64 == 0x80001040 && self.print_breakpoint(0x80002478, val, "mycpu") {
+        //     let ra = self.read_x_u64(ABIRegister::RA.to_x_reg_id() as u8).unwrap();
+        //     println!("ra: {:#x}", ra);
+        //     let sp = self.read_x_u64(ABIRegister::SP.to_x_reg_id() as u8).unwrap();
+        //     println!("sp: {:#x}", sp);
+        //     println!();
+        // }
+        if self.print_breakpoint(0x80002500, val, "forkret") {
+            let ra = self.read_x_u64(ABIRegister::RA.to_x_reg_id() as u8).unwrap();
+            println!("ra: {:#x}", ra);
+            let sp = self.read_x_u64(ABIRegister::SP.to_x_reg_id() as u8).unwrap();
+            println!("sp: {:#x}", sp);
+
+            let va = 0x3fffffe000;
+            let pa = self.translate_address_if_needed(va).unwrap();
+            println!("va: {:#x} pa: {:#x}", va, pa);
+            let va = 0x3fffffe000 + 0x8;
+            let pa = self.translate_address_if_needed(va).unwrap();
+            println!("va: {:#x} pa: {:#x}", va, pa);
+            // TODO: WRONG TRANSLATION
+
+            println!();
+        }
         // if self.current_instruction_pc_64 != 0x80000e1c {
             // self.print_breakpoint(0x8000112c, val, "release");
         // }

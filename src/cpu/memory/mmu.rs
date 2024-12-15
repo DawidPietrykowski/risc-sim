@@ -1,5 +1,5 @@
 use crate::cpu::cpu_core::{Cpu, CpuMode};
-use anyhow::Result;
+use anyhow::{bail, Result};
 use bitfield::bitfield;
 
 pub const MMU_PAGE_SIZE: usize = 4096;
@@ -79,8 +79,8 @@ pub fn read_root_page_table_pointer(satp: u64, cpu_mode: CpuMode) -> u64 {
     }
 }
 
-pub fn walk_page_table_sv39(virtual_address: u64, satp: u64, cpu: &mut Cpu) -> Result<u64> {
-    let virtual_address = Sv39_VirtualAddress(virtual_address);
+pub fn walk_page_table_sv39(va: u64, satp: u64, cpu: &mut Cpu) -> Result<u64> {
+    let virtual_address = Sv39_VirtualAddress(va);
     let vpn0 = virtual_address.vpn0();
     let vpn1 = virtual_address.vpn1();
     let vpn2 = virtual_address.vpn2();
@@ -88,7 +88,12 @@ pub fn walk_page_table_sv39(virtual_address: u64, satp: u64, cpu: &mut Cpu) -> R
 
     let l2_page_table_addr = read_root_page_table_pointer(satp, CpuMode::RV64);
     let l2_pte = Sv39_PTE(cpu.memory.read_mem_u64(l2_page_table_addr + vpn2 * 8)?);
+    // Check V bit
+    if !l2_pte.v() {
+        bail!("Invalid L2 PTE, virtual address: {:#x}, addr: {:#x}", va, l2_page_table_addr + vpn2 * 8);
+    }
     if l2_pte.x() || l2_pte.r() {
+        panic!();
         // leaf 1G
         let mut physical_address = Sv39_PhysicalAddress(0);
         physical_address.set_offset(offset);
@@ -100,7 +105,11 @@ pub fn walk_page_table_sv39(virtual_address: u64, satp: u64, cpu: &mut Cpu) -> R
 
     let l1_page_table_addr = l2_pte.ppn() << 12;
     let l1_pte = Sv39_PTE(cpu.memory.read_mem_u64(l1_page_table_addr + vpn1 * 8)?);
+    if !l1_pte.v() {
+        bail!("Invalid L1 PTE, virtual address: {:#x}, addr: {:#x}", va, l1_page_table_addr + vpn1 * 8);
+    }
     if l1_pte.x() || l1_pte.r() {
+        panic!();
         // leaf 2MB
         let mut physical_address = Sv39_PhysicalAddress(0);
         physical_address.set_offset(offset);
@@ -112,6 +121,18 @@ pub fn walk_page_table_sv39(virtual_address: u64, satp: u64, cpu: &mut Cpu) -> R
 
     let l0_page_table_addr = l1_pte.ppn() << 12;
     let l0_pte = Sv39_PTE(cpu.memory.read_mem_u64(l0_page_table_addr + vpn0 * 8)?);
+    if !l0_pte.v() {
+        println!("Root page addr: {:#x}", l2_page_table_addr);
+        println!("L2 PTE: {:?}", l2_pte);
+        println!("L1 PTE: {:?}", l1_pte);
+        println!("L0 PTE: {:?}", l0_pte);
+        println!("VA: {:?}", virtual_address);
+        println!("Offset: {:x}", offset);
+        println!("l2_page_addr: {:x}", l2_page_table_addr);
+        println!("l1_page_addr: {:x}", l1_page_table_addr);
+        println!("l0_page_addr: {:x}", l0_page_table_addr);
+        bail!("Invalid L0 PTE, virtual address: {:#x}, addr: {:#x}, pte: {:#x}", va, l0_page_table_addr + vpn0 * 8, l0_pte.0);
+    }
 
     let physical_address = Sv39_PhysicalAddress(l0_pte.ppn() << 12 | offset); // 4KB
 
