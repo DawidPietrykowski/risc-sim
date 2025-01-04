@@ -33,20 +33,20 @@ pub const RV64_ZICSR_SET: [Instruction; 6] = [
                 println!(
                     "Satp: {:#018x} (PPN={:#010x}, ASID={:#06x}, MODE={:#04x}) PC: {:#x}",
                     rs1_value,
-                    rs1_value >> 44,
+                    rs1_value & ((1u64 << 44) - 1),
                     (rs1_value >> 44) & 0xfff,
-                    rs1_value & 0xf,
+                    (rs1_value >> 60),
                     cpu.current_instruction_pc_64
                 );
                 if rs1_value != 0 {
-                    // test kernel address 
+                    // test kernel address
                     const KERNEL_ADDR: u64 = 0x80000000;
-                    const VMA_TEST_ADDR_VA: u64 = 0x10002000;
-                    const VMA_TEST_ADDR_PA: u64 = 0x10003000;
-                    const VMA_TEST_ADDR_SZ: u64 = 4096;
+                    //const VMA_TEST_ADDR_VA: u64 = 0x10002000;
+                    //const VMA_TEST_ADDR_PA: u64 = 0x10003000;
+                    //const VMA_TEST_ADDR_SZ: u64 = 4096;
 
-                    test_vma(cpu, KERNEL_ADDR, KERNEL_ADDR, 4096);
-                    test_vma(cpu, VMA_TEST_ADDR_VA, VMA_TEST_ADDR_PA, VMA_TEST_ADDR_SZ);
+                    //test_vma(cpu, KERNEL_ADDR, KERNEL_ADDR, 4096);
+                    //test_vma(cpu, VMA_TEST_ADDR_VA, VMA_TEST_ADDR_PA, VMA_TEST_ADDR_SZ);
                     // let res = cpu.translate_address_if_needed(KERNEL_ADDR)?;
                     // println!("Kernel address {:#x} translated to {:#x}", KERNEL_ADDR, res);
 
@@ -59,11 +59,10 @@ pub const RV64_ZICSR_SET: [Instruction; 6] = [
                     //     "VMA test address end {:#x} translated to {:#x}",
                     //     VMA_TEST_ADDR_VA + VMA_TEST_ADDR_SZ - 1, res);
 
-                    
                     // troublesome_addresses.insert(VMA_TEST_ADDR_VA, VMA_TEST_ADDR_PA);
                 }
             }
-            
+
             Ok(())
         },
     },

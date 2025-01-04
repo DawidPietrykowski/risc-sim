@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use anyhow::Result;
+use ctrlc;
 use minifb::{Key, Window, WindowOptions};
 use risc_sim::cpu::cpu_core::{Cpu, CpuMode};
 use risc_sim::cpu::memory::raw_vec_memory::RawVecMemory;
@@ -9,8 +10,10 @@ use risc_sim::system::passthrough_kernel::PassthroughKernel;
 use risc_sim::system::uart::init_uart;
 #[allow(unused)]
 use risc_sim::system::uart::read_uart_pending;
-use risc_sim::system::virtio::init_virtio;
+use risc_sim::system::virtio::{init_virtio, BlockDevice};
 use risc_sim::types::ABIRegister;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use std::env;
 
@@ -21,6 +24,14 @@ fn main() -> Result<()> {
     if args.len() < 2 {
         return Err(anyhow::anyhow!("Usage: {} <path_to_file>", args[0]));
     }
+
+    let running = Arc::new(AtomicBool::new(true));
+    let r = running.clone();
+
+    ctrlc::set_handler(move || {
+        r.store(false, Ordering::SeqCst);
+    })
+    .expect("Error setting Ctrl-C handler");
 
     const SCREEN_WIDTH: u64 = 320;
     const SCREEN_HEIGHT: u64 = 200;
@@ -74,7 +85,12 @@ fn main() -> Result<()> {
     } else {
         CpuMode::RV64
     };
-    let mut cpu = Cpu::new(RawVecMemory::default(), PassthroughKernel::default(), mode);
+    let mut cpu = Cpu::new(
+        RawVecMemory::default(),
+        PassthroughKernel::default(),
+        mode,
+        Some(BlockDevice::new("../xv6-riscv/fs.img")?),
+    );
     cpu.load_program_from_elf(program)?;
 
     init_uart(&mut cpu);
@@ -85,6 +101,10 @@ fn main() -> Result<()> {
     let mut count = 0;
     const COUNT_INTERVAL: u64 = 200000;
     let res = loop {
+        if !running.load(Ordering::SeqCst) {
+            break anyhow::anyhow!("Interrupted by Ctrl-C");
+        }
+
         #[cfg(not(feature = "maxperf"))]
         {
             count += 1;
@@ -97,6 +117,8 @@ fn main() -> Result<()> {
         if count > MAX_CYCLES {
             break anyhow::anyhow!("Too many cycles");
         }
+
+        //println!("PC: {:x}", cpu.read_current_instruction_addr_u64());
 
         if SIMULATE_DISPLAY && cpu.read_mem_u32(SCREEN_ADDR_ADDR)? != 0 {
             frames_written += 1;
@@ -195,6 +217,8 @@ fn main() -> Result<()> {
     println!();
     println!("Execution stopped due to: {:?}", res);
     println!("CPU state: \n{}", cpu);
+
+    cpu.print_pc_history();
 
     let exit_code = cpu.read_x_u32(ABIRegister::A(0).to_x_reg_id() as u8)?;
     println!("Program exit code: {}", exit_code);

@@ -1,3 +1,6 @@
+use core::slice::SlicePattern;
+use std::{fs::File, io::Read};
+
 use crate::{cpu::cpu_core::Cpu, system::plic::plic_trigger_irq};
 
 const VIRTIO_DESC_NUM: usize = 8;
@@ -25,16 +28,27 @@ const VRING_DESC_F_WRITE: u16 = 2;
 
 const VIRTIO0_IRQ: u32 = 1;
 
+const VIRTIO_BLK_T_IN: u32 = 0;
+const VIRTIO_BLK_T_OUT: u32 = 1;
+const VIRTIO_BLK_S_OK: u8 = 0;
+
+#[repr(u32)]
+#[derive(Clone, Debug, PartialEq)]
+enum VirtioBlkReqType {
+    In = VIRTIO_BLK_T_IN,
+    Out = VIRTIO_BLK_T_OUT,
+}
+
 #[repr(C)]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct VirtioBlkReq {
-    req_type: u32,
+    req_type: VirtioBlkReqType,
     reserved: u32,
     sector: u64,
 }
 
 #[repr(C)]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct VirtioQDesc {
     pub addr: u64,
     pub len: u32,
@@ -67,10 +81,54 @@ struct VirtioQUsed {
     avail_event: u16,
 }
 
-#[allow(non_camel_case_types)]
-enum VirtioBlkReqType {
-    VIRTIO_BLK_T_IN = 0,
-    VIRTIO_BLK_T_OUT = 1,
+pub struct BlockDevice {
+    pub storage: Vec<u8>,
+    size_in_blocks: usize,
+}
+
+const BLOCK_SIZE: usize = 512;
+
+impl BlockDevice {
+    pub fn new(path: &str) -> std::io::Result<Self> {
+        // Get file size
+        let metadata = std::fs::metadata(&path)?;
+        let file_size = metadata.len() as usize;
+
+        // Calculate number of blocks (rounding up)
+        let size_in_blocks = (file_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+
+        // Create storage with exact size
+        let mut storage = vec![0; size_in_blocks * BLOCK_SIZE];
+
+        // Read the image file
+        let mut file = File::open(path)?;
+        file.read_exact(&mut storage[..file_size])?;
+
+        Ok(BlockDevice {
+            storage,
+            size_in_blocks,
+        })
+    }
+
+    pub fn read_block(&self, block_num: usize) -> &[u8] {
+        if block_num >= self.size_in_blocks {
+            panic!("Read outside of block device");
+        }
+        let start = block_num * BLOCK_SIZE;
+        &self.storage[start..start + BLOCK_SIZE]
+    }
+
+    pub fn write_block(&mut self, block_num: usize, data: &[u8]) {
+        if block_num >= self.size_in_blocks {
+            panic!("Block number exceeds device size");
+        }
+        if data.len() != BLOCK_SIZE {
+            panic!("Data size must match block size");
+        }
+
+        let start = block_num * BLOCK_SIZE;
+        self.storage[start..start + BLOCK_SIZE].copy_from_slice(data);
+    }
 }
 
 fn read_virtio_queue_avail_addr(cpu: &mut Cpu) -> u64 {
@@ -129,6 +187,15 @@ fn read_mem_virtio_used(cpu: &mut Cpu) -> VirtioQUsed {
     unsafe { (*(buf.as_ptr() as *const VirtioQUsed)).clone() }
 }
 
+fn write_mem_virtio_used(cpu: &mut Cpu, used: &VirtioQUsed) {
+    let virtio_used_addr = read_virtio_queue_used_addr(cpu);
+    let queue_size = size_of::<VirtioQUsed>();
+    let buf = unsafe {
+        std::slice::from_raw_parts((used as *const VirtioQUsed) as *const u8, queue_size)
+    };
+    cpu.write_buf(virtio_used_addr, buf);
+}
+
 fn read_mem_virtio_blk_req(cpu: &mut Cpu, addr: u64) -> VirtioBlkReq {
     let req_size = size_of::<VirtioBlkReq>();
     let mut buf = vec![0u8; req_size];
@@ -138,26 +205,69 @@ fn read_mem_virtio_blk_req(cpu: &mut Cpu, addr: u64) -> VirtioBlkReq {
 
 pub fn process_queue(cpu: &mut Cpu) {
     println!("process_queue");
-    
+
+    print_desc_table(cpu);
+
     let virtio_avail = read_mem_virtio_avail(cpu);
     let last_avail_idx = virtio_avail.idx.wrapping_sub(1);
     let desc_idx = virtio_avail.ring[last_avail_idx as usize % VIRTIO_DESC_NUM];
 
     let req_desc = read_mem_virtio_desc(cpu, desc_idx);
     let req = read_mem_virtio_blk_req(cpu, req_desc.addr);
+    println!("REQ: {:?}", req);
     assert_eq!(req_desc.flags, VRING_DESC_F_NEXT);
 
     let data_desc = read_mem_virtio_desc(cpu, req_desc.next);
     assert_ne!(data_desc.flags & VRING_DESC_F_NEXT, 0);
-    let write = (data_desc.flags & VRING_DESC_F_WRITE) != 0;
+    let write = req.req_type == VirtioBlkReqType::In;
 
     let status_desc = read_mem_virtio_desc(cpu, data_desc.next);
     assert_eq!(status_desc.len, 1);
     assert_eq!(status_desc.flags, VRING_DESC_F_WRITE);
 
-    // TODO: Perform read/write and raise interrupt
+    println!("\nvirtio requested write: {}\n\n", write);
+
+    match req.req_type {
+        VirtioBlkReqType::In => {
+            // read data
+            let mut device = cpu.block_device.take().expect("No block device");
+            let data = device.read_block(req.sector as usize);
+            cpu.write_buf(data_desc.addr, data).unwrap();
+            cpu.block_device = Some(device);
+        }
+        VirtioBlkReqType::Out => {
+            // write data
+            let mut buf = vec![0u8; BLOCK_SIZE];
+            cpu.read_buf(data_desc.addr, buf.as_mut_slice()).unwrap();
+            if let Some(ref mut device) = &mut cpu.block_device {
+                device.write_block(req.sector as usize, &buf);
+            } else {
+                panic!("No block device");
+            }
+        }
+    };
+
+    let current_status = cpu.read_mem_u8(status_desc.addr).unwrap();
+    println!("current status: {}", current_status);
+    cpu.write_mem_u8(status_desc.addr, VIRTIO_BLK_S_OK).unwrap();
+
+    let mut virtio_used = read_mem_virtio_used(cpu);
+    let used_idx = virtio_used.idx as usize;
+    virtio_used.ring[used_idx % VIRTIO_DESC_NUM] = VirtioQUsedElem {
+        id: desc_idx as u32,
+        len: 0,
+    };
+    virtio_used.idx += 1;
+    write_mem_virtio_used(cpu, &virtio_used);
 
     plic_trigger_irq(cpu, VIRTIO0_IRQ);
+}
+
+fn print_desc_table(cpu: &mut Cpu) {
+    for i in 0..VIRTIO_DESC_NUM {
+        let desc = read_mem_virtio_desc(cpu, i as u16);
+        println!("DESC{}: {:?}", i, desc);
+    }
 }
 
 pub fn init_virtio(cpu: &mut Cpu) {

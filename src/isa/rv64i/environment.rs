@@ -1,6 +1,7 @@
 use std::{fs::Metadata, mem, os::unix::fs::MetadataExt, ptr::null_mut};
 
 use crate::{
+    cpu::cpu_core::PrivilegeMode,
     isa::{
         self,
         traps::{execute_trap, TrapCause},
@@ -90,7 +91,12 @@ pub const RV64I_SET_E: [Instruction; 3] = [
         instruction_type: InstructionType::I,
         operation: |cpu, _word| {
             if !cpu.simulate_kernel {
-                execute_trap(cpu, TrapCause::EnvironmentCallFromUMode as u64, false);
+                let cause = match cpu.privilege_mode {
+                    PrivilegeMode::User => TrapCause::EnvironmentCallFromUMode,
+                    PrivilegeMode::Supervisor => TrapCause::EnvironmentCallFromSMode,
+                    PrivilegeMode::Machine => TrapCause::EnvironmentCallFromMMode,
+                };
+                execute_trap(cpu, cause as u64, false);
                 return Ok(());
             }
             let syscall_num = cpu.read_x_u64(ABIRegister::A(7).to_x_reg_id() as u8)?;

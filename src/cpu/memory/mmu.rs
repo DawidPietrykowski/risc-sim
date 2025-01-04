@@ -90,7 +90,12 @@ pub fn walk_page_table_sv39(va: u64, satp: u64, cpu: &mut Cpu) -> Result<u64> {
     let l2_pte = Sv39_PTE(cpu.memory.read_mem_u64(l2_page_table_addr + vpn2 * 8)?);
     // Check V bit
     if !l2_pte.v() {
-        bail!("Invalid L2 PTE, virtual address: {:#x}, addr: {:#x}", va, l2_page_table_addr + vpn2 * 8);
+        bail!(
+            "Invalid L2 PTE, virtual address: {:#x}, addr: {:#x}\n{:?}",
+            va,
+            l2_page_table_addr + vpn2 * 8,
+            l2_pte
+        );
     }
     if l2_pte.x() || l2_pte.r() {
         panic!();
@@ -106,7 +111,12 @@ pub fn walk_page_table_sv39(va: u64, satp: u64, cpu: &mut Cpu) -> Result<u64> {
     let l1_page_table_addr = l2_pte.ppn() << 12;
     let l1_pte = Sv39_PTE(cpu.memory.read_mem_u64(l1_page_table_addr + vpn1 * 8)?);
     if !l1_pte.v() {
-        bail!("Invalid L1 PTE, virtual address: {:#x}, addr: {:#x}", va, l1_page_table_addr + vpn1 * 8);
+        bail!(
+            "Invalid L1 PTE, virtual address: {:#x}, addr: {:#x}\n{:?}",
+            va,
+            l1_page_table_addr + vpn1 * 8,
+            l1_pte
+        );
     }
     if l1_pte.x() || l1_pte.r() {
         panic!();
@@ -123,15 +133,38 @@ pub fn walk_page_table_sv39(va: u64, satp: u64, cpu: &mut Cpu) -> Result<u64> {
     let l0_pte = Sv39_PTE(cpu.memory.read_mem_u64(l0_page_table_addr + vpn0 * 8)?);
     if !l0_pte.v() {
         println!("Root page addr: {:#x}", l2_page_table_addr);
+        println!(
+            "L2 PTE: {:#x} {:#x}",
+            l2_pte.0,
+            l2_page_table_addr + vpn2 * 8
+        );
+        println!(
+            "L1 PTE: {:#x} {:#x}",
+            l1_pte.0,
+            l1_page_table_addr + vpn1 * 8
+        );
+        println!(
+            "L0 PTE: {:#x} {:#x}",
+            l0_pte.0,
+            l0_page_table_addr + vpn0 * 8
+        );
         println!("L2 PTE: {:?}", l2_pte);
         println!("L1 PTE: {:?}", l1_pte);
         println!("L0 PTE: {:?}", l0_pte);
-        println!("VA: {:?}", virtual_address);
+        println!("VA: {:x}", virtual_address.0);
+        println!("PC: {:x}", cpu.read_pc());
         println!("Offset: {:x}", offset);
         println!("l2_page_addr: {:x}", l2_page_table_addr);
         println!("l1_page_addr: {:x}", l1_page_table_addr);
         println!("l0_page_addr: {:x}", l0_page_table_addr);
-        bail!("Invalid L0 PTE, virtual address: {:#x}, addr: {:#x}, pte: {:#x}", va, l0_page_table_addr + vpn0 * 8, l0_pte.0);
+        let bt = std::backtrace::Backtrace::capture();
+        println!("{}", bt);
+        bail!(
+            "Invalid L0 PTE, virtual address: {:#x}, addr: {:#x}, pte: {:#x}",
+            va,
+            l0_page_table_addr + vpn0 * 8,
+            l0_pte.0
+        );
     }
 
     let physical_address = Sv39_PhysicalAddress(l0_pte.ppn() << 12 | offset); // 4KB

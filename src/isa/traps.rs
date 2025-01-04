@@ -29,7 +29,7 @@ pub enum TrapInterruptCause {
     MachineTimerInterrupt = 7,
     SupervisorExternalInterrupt = 9,
     MachineExternalInterrupt = 11,
-    SupervisorExternalGuestInterrupt = 12
+    SupervisorExternalGuestInterrupt = 12,
 }
 
 pub fn check_pending_interrupts(cpu: &mut Cpu, privilege_mode: PrivilegeMode) {
@@ -56,10 +56,7 @@ pub fn check_pending_interrupts(cpu: &mut Cpu, privilege_mode: PrivilegeMode) {
     };
     let ie = cpu.csr_table.read64(ie_csr.as_u12());
     let ip = cpu.csr_table.read64(ip_csr.as_u12());
-    let mstatus = MstatusCSR(
-        cpu.csr_table
-            .read_xlen(status_csr.as_u12(), cpu.arch_mode),
-    );
+    let mstatus = MstatusCSR(cpu.csr_table.read_xlen(status_csr.as_u12(), cpu.arch_mode));
 
     let interrupts = ie & ip;
     if interrupts != 0 && mstatus.sie() {
@@ -78,10 +75,7 @@ pub fn check_pending_interrupts(cpu: &mut Cpu, privilege_mode: PrivilegeMode) {
 pub fn execute_trap(cpu: &mut Cpu, cause: u64, interrupt: bool) {
     let initial_privilage_mode = cpu.privilege_mode;
 
-    println!(
-        "Trap: cause: {}, interrupt: {}",
-        cause, interrupt
-    );
+    println!("Trap: cause: {}, interrupt: {}", cause, interrupt);
 
     let deleg = match interrupt {
         false => cpu.csr_table.read64(CSRAddress::Medeleg.as_u12()),
@@ -96,18 +90,18 @@ pub fn execute_trap(cpu: &mut Cpu, cause: u64, interrupt: bool) {
         cpu.privilege_mode = PrivilegeMode::Machine;
     }
 
-    println!("Privilege mode: {:?} Initial mode: {:?}", cpu.privilege_mode, initial_privilage_mode);
+    println!(
+        "Privilege mode: {:?} Initial mode: {:?}",
+        cpu.privilege_mode, initial_privilage_mode
+    );
 
     let status_csr = match cpu.privilege_mode {
         PrivilegeMode::Machine => CSRAddress::Mstatus,
         PrivilegeMode::Supervisor => CSRAddress::Sstatus,
-        PrivilegeMode::User => panic!()
+        PrivilegeMode::User => panic!(),
     };
 
-    let mut mstatus = MstatusCSR(
-        cpu.csr_table
-            .read_xlen(status_csr.as_u12(), cpu.arch_mode),
-    );
+    let mut mstatus = MstatusCSR(cpu.csr_table.read_xlen(status_csr.as_u12(), cpu.arch_mode));
 
     if cpu.privilege_mode == PrivilegeMode::Machine {
         mstatus.set_mpp(initial_privilage_mode as u64);
@@ -117,7 +111,7 @@ pub fn execute_trap(cpu: &mut Cpu, cause: u64, interrupt: bool) {
         if initial_privilage_mode == PrivilegeMode::User {
             mstatus.set_spp(false);
         } else if initial_privilage_mode == PrivilegeMode::Supervisor {
-    	    mstatus.set_spp(true);
+            mstatus.set_spp(true);
         } else {
             panic!("Invalid privilege mode");
         }
@@ -125,7 +119,8 @@ pub fn execute_trap(cpu: &mut Cpu, cause: u64, interrupt: bool) {
         mstatus.set_sie(false);
     }
 
-    cpu.csr_table.write_xlen(status_csr.as_u12(), mstatus.0, cpu.arch_mode);
+    cpu.csr_table
+        .write_xlen(status_csr.as_u12(), mstatus.0, cpu.arch_mode);
 
     match cpu.arch_mode {
         crate::cpu::cpu_core::CpuMode::RV32 => todo!(),
@@ -142,6 +137,7 @@ pub fn execute_trap(cpu: &mut Cpu, cause: u64, interrupt: bool) {
     }
 
     let current_pc = cpu.read_current_instruction_addr_u64();
+    println!("Writing epc {:x}", current_pc);
     cpu.csr_table
         .write_xlen_epc(current_pc, cpu.arch_mode, cpu.privilege_mode);
     let tvec = cpu
@@ -151,7 +147,10 @@ pub fn execute_trap(cpu: &mut Cpu, cause: u64, interrupt: bool) {
     let tvec_mode = tvec & 0b11;
     let tvec_base = tvec & !0b11;
 
-    println!("tvec: 0x{:x}, tvec_mode: {}, tvec_base: 0x{:x}", tvec, tvec_mode, tvec_base);
+    println!(
+        "tvec: 0x{:x}, tvec_mode: {}, tvec_base: 0x{:x}",
+        tvec, tvec_mode, tvec_base
+    );
 
     if tvec_mode == 0 {
         cpu.write_pc_u64(tvec_base);
