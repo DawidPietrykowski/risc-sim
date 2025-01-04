@@ -196,7 +196,7 @@ impl Cpu {
             kernel: Box::new(kernel),
             csr_table: CSRTable::new(),
             arch_mode: mode,
-            simulate_kernel: true,
+            simulate_kernel: false,
             privilege_mode: PrivilegeMode::Machine,
             pc_history: CircularBuffer::new(100),
             block_device,
@@ -486,7 +486,7 @@ impl Cpu {
         if addr == UART_ADDR {
             if let Some(data) = read_uart_pending(self) {
                 //println!("UART: {:?}", data as char);
-                print!("{}", data as char);
+                print!("\x1b[93m{}\x1b[0m", data as char);
             }
         }
         self.memory.write_mem_u8(addr, value)

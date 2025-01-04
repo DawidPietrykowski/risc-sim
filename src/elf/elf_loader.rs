@@ -650,7 +650,7 @@ pub fn load_program_to_memory(
                             program.push(decoded_instruction);
                         }
                         Err(e) => {
-                            println!("Error decoding instruction: {} at {}", e, pc - 4);
+                            //println!("Error decoding instruction: {} at {}", e, pc - 4);
                         }
                     }
                 }

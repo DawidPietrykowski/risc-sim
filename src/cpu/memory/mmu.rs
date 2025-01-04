@@ -111,12 +111,19 @@ pub fn walk_page_table_sv39(va: u64, satp: u64, cpu: &mut Cpu) -> Result<u64> {
     let l1_page_table_addr = l2_pte.ppn() << 12;
     let l1_pte = Sv39_PTE(cpu.memory.read_mem_u64(l1_page_table_addr + vpn1 * 8)?);
     if !l1_pte.v() {
-        bail!(
+        println!(
             "Invalid L1 PTE, virtual address: {:#x}, addr: {:#x}\n{:?}",
             va,
             l1_page_table_addr + vpn1 * 8,
             l1_pte
         );
+        println!(
+            "L2 PTE, virtual address: {:#x}, addr: {:#x}\n{:?}",
+            va,
+            l2_page_table_addr + vpn2 * 8,
+            l2_pte
+        );
+        bail!("invalid l1 pte");
     }
     if l1_pte.x() || l1_pte.r() {
         panic!();
