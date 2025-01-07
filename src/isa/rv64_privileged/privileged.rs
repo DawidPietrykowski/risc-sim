@@ -1,5 +1,3 @@
-use anyhow::bail;
-
 use crate::{
     cpu::cpu_core::PrivilegeMode,
     isa::csr::csr_types::{CSRAddress, MstatusCSR},
@@ -21,8 +19,8 @@ pub const RV64_PRIVILEGED_SET: [Instruction; 4] = [
                     .read_xlen(CSRAddress::Sstatus.as_u12(), cpu.arch_mode),
             );
 
-            println!("Running SRET");
-            println!("SSTATUS: {:?}", sstatus);
+            //println!("Running SRET");
+            //println!("SSTATUS: {:?}", sstatus);
 
             if !sstatus.spp() {
                 cpu.privilege_mode = PrivilegeMode::User;
@@ -41,8 +39,8 @@ pub const RV64_PRIVILEGED_SET: [Instruction; 4] = [
 
             let current_pc = cpu.read_current_instruction_addr_u64();
 
-            println!("current PC: {:x}", current_pc);
-            println!("SEPC: {:x}", sepc);
+            //println!("current PC: {:x}", current_pc);
+            //println!("SEPC: {:x}", sepc);
             assert_ne!(sepc, current_pc);
 
             cpu.write_pc_u64(sepc);
@@ -62,8 +60,8 @@ pub const RV64_PRIVILEGED_SET: [Instruction; 4] = [
                     .read_xlen(CSRAddress::Mstatus.as_u12(), cpu.arch_mode),
             );
 
-            println!("Running MRET");
-            println!("MSTATUS: {:?}", mstatus);
+            //println!("Running MRET");
+            //println!("MSTATUS: {:?}", mstatus);
 
             match mstatus.mpp() {
                 1 => {
@@ -88,8 +86,8 @@ pub const RV64_PRIVILEGED_SET: [Instruction; 4] = [
                 .csr_table
                 .read_xlen(CSRAddress::Mepc.as_u12(), cpu.arch_mode);
 
-            println!("current PC: {:x}", cpu.read_current_instruction_addr_u64());
-            println!("MEPC: {:x}", mepc);
+            //println!("current PC: {:x}", cpu.read_current_instruction_addr_u64());
+            //println!("MEPC: {:x}", mepc);
 
             cpu.write_pc_u64(mepc);
 

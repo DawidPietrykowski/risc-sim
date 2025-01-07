@@ -53,10 +53,6 @@ impl<T: RawPageStorage> RawPageMemory<T> {
     }
 
     fn write_u32_to_page(&mut self, addr: u64, value: u32) -> Result<()> {
-        if addr == 0x87f9a000 {
-            println!("writing {:#x} to {:#x}", value, 0x87f9a000u64);
-        }
-
         let page_id = self.storage.get_page_id(addr);
 
         let page = self.storage.get_page_or_create(page_id);

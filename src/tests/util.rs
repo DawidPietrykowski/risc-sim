@@ -18,6 +18,7 @@ pub fn setup_cpu_64() -> Cpu {
         RawVecMemory::default(),
         PassthroughKernel::default(),
         cpu::cpu_core::CpuMode::RV64,
+        None,
     )
 }
 

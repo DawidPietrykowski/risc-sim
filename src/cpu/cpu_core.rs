@@ -13,7 +13,7 @@ use crate::{
             plic_check_pending, plic_handle_claim_read, plic_handle_claim_write,
             plic_handle_pending_write, PLIC_CLAIM, PLIC_PENDING,
         },
-        uart::{read_uart_pending, UART_ADDR},
+        uart::{uart_handle_read, uart_handle_write, UART_ADDR},
         virtio::{process_queue, BlockDevice, VIRTIO_0_ADDR, VIRTIO_MMIO_QUEUE_NOTIFY},
     },
     types::{ABIRegister, Instruction},
@@ -196,7 +196,7 @@ impl Cpu {
             kernel: Box::new(kernel),
             csr_table: CSRTable::new(),
             arch_mode: mode,
-            simulate_kernel: false,
+            simulate_kernel: true,
             privilege_mode: PrivilegeMode::Machine,
             pc_history: CircularBuffer::new(500),
             block_device,
@@ -207,10 +207,10 @@ impl Cpu {
 
     // TODO: Refactor such that this logic is done by the kernel
     pub fn load_program_from_elf(&mut self, elf: ElfFile) -> Result<()> {
-        let header = elf.header.clone(); // Clone the header before elf is moved
-        println!("{:?}", header);
+        //let header = elf.header.clone(); // Clone the header before elf is moved
+        //println!("{:?}", header);
         let program_file = load_program_to_memory(elf, self.memory.as_mut(), self.arch_mode)?;
-        println!("{:?}", program_file);
+        //println!("{:?}", program_file);
 
         if self.arch_mode == CpuMode::RV64 {
             self.reg_pc_64 = program_file.entry_point;
@@ -315,15 +315,11 @@ impl Cpu {
             .write_xlen(CSRAddress::Mhartid.as_u12(), 0, self.arch_mode);
     }
 
-    fn check_breakpoints(&mut self) {}
-
     pub fn run_cycle(&mut self) -> Result<()> {
         // Check if CPU is halted
         if self.halted {
             bail!("CPU is halted");
         }
-
-        self.check_breakpoints();
 
         // Fetch
         let instruction = self.fetch_instruction()?;
@@ -342,20 +338,20 @@ impl Cpu {
             self.reg_pc += 4;
         }
 
-        if self.current_instruction_pc_64 < 0x1000 {
-            self.pc_history.push((
-                self.current_instruction_pc_64,
-                Some(instruction.instruction),
-                self.csr_table.read64(CSRAddress::Satp.as_u12()),
-            ));
-        }
+        self.pc_history.push((
+            self.current_instruction_pc_64,
+            Some(instruction.instruction),
+            self.csr_table.read64(CSRAddress::Satp.as_u12()),
+        ));
 
         // Execute
         self.execute_program_line(&instruction)?;
 
-        plic_check_pending(self);
-        check_pending_interrupts(self, PrivilegeMode::Machine);
-        check_pending_interrupts(self, PrivilegeMode::Supervisor);
+        if !self.simulate_kernel {
+            plic_check_pending(self);
+            check_pending_interrupts(self, PrivilegeMode::Machine);
+            check_pending_interrupts(self, PrivilegeMode::Supervisor);
+        }
 
         Ok(())
     }
@@ -366,8 +362,6 @@ impl Cpu {
         if self.halted {
             bail!("CPU is halted");
         }
-
-        self.check_breakpoints();
 
         // Fetch
         let instruction = self.fetch_instruction_unchecked();
@@ -381,20 +375,20 @@ impl Cpu {
             self.reg_pc += 4;
         }
 
-        if self.current_instruction_pc_64 < 0x1000 {
-            self.pc_history.push((
-                self.current_instruction_pc_64,
-                Some(instruction.instruction),
-                self.csr_table.read64(CSRAddress::Satp.as_u12()),
-            ));
-        }
+        self.pc_history.push((
+            self.current_instruction_pc_64,
+            Some(instruction.instruction),
+            self.csr_table.read64(CSRAddress::Satp.as_u12()),
+        ));
 
         // Execute
         let _ = self.execute_program_line(&instruction);
 
-        plic_check_pending(self);
-        check_pending_interrupts(self, PrivilegeMode::Machine);
-        check_pending_interrupts(self, PrivilegeMode::Supervisor);
+        if !self.simulate_kernel {
+            plic_check_pending(self);
+            check_pending_interrupts(self, PrivilegeMode::Machine);
+            check_pending_interrupts(self, PrivilegeMode::Supervisor);
+        }
 
         Ok(())
     }
@@ -458,8 +452,8 @@ impl Cpu {
     fn fetch_instruction_unchecked(&mut self) -> ProgramLine {
         let mut pc = self.read_pc();
         pc = self.translate_address_if_needed(pc).unwrap();
-        //self.program_cache.get_line_unchecked(pc)
-        decode_program_line(Word(self.memory.read_mem_u32(pc).unwrap()), self.arch_mode).unwrap()
+        self.program_cache.get_line_unchecked(pc)
+        //decode_program_line(Word(self.memory.read_mem_u32(pc).unwrap()), self.arch_mode).unwrap()
     }
 
     pub fn translate_address_if_needed(&mut self, addr: u64) -> Result<u64> {
@@ -491,46 +485,29 @@ impl Cpu {
 
     pub fn read_mem_u8(&mut self, addr: u64) -> Result<u8> {
         let addr = self.translate_address_if_needed(addr)?;
+        if addr == UART_ADDR {
+            return Ok(uart_handle_read(self) as u8);
+        }
         self.memory.read_mem_u8(addr)
     }
 
     pub fn write_mem_u8(&mut self, addr: u64, value: u8) -> Result<()> {
         let addr = self.translate_address_if_needed(addr)?;
         // TODO: Add better mechanism for hooks
-        if addr == 0x87f4ba9c {
-            println!(
-                "a9c Writing {:#x} to {:#x}",
-                value, self.current_instruction_pc_64
-            );
-        }
         if addr == UART_ADDR {
-            if let Some(data) = read_uart_pending(self) {
-                //println!("UART: {:?}", data as char);
-                print!("\x1b[93m{}\x1b[0m", data as char);
-            }
+            uart_handle_write(self, value);
+            return Ok(());
         }
         self.memory.write_mem_u8(addr, value)
     }
 
     pub fn write_mem_u16(&mut self, addr: u64, value: u16) -> Result<()> {
         let addr = self.translate_address_if_needed(addr)?;
-        if addr == 0x87f4ba9c {
-            println!(
-                "a9c Writing {:#x} to {:#x}",
-                value, self.current_instruction_pc_64
-            );
-        }
         self.memory.write_mem_u16(addr, value)
     }
 
     pub fn write_mem_u32(&mut self, addr: u64, value: u32) -> Result<()> {
         let addr = self.translate_address_if_needed(addr)?;
-        if addr == 0x87f4ba9c {
-            println!(
-                "a9c Writing {:#x} to {:#x}",
-                value, self.current_instruction_pc_64
-            );
-        }
         if addr == VIRTIO_0_ADDR + VIRTIO_MMIO_QUEUE_NOTIFY as u64 {
             process_queue(self);
         }
@@ -546,30 +523,6 @@ impl Cpu {
 
     pub fn write_mem_u64(&mut self, addr: u64, value: u64) -> Result<()> {
         let addr = self.translate_address_if_needed(addr)?;
-        if addr == 0x87f4ba9c {
-            println!(
-                "a9c Writing {:#x} to {:#x}",
-                value, self.current_instruction_pc_64
-            );
-        }
-        //if addr == 0x87fff000 {
-        //    println!(
-        //        "l2 page {:#x} to {:#x}",
-        //        value, self.current_instruction_pc_64
-        //    );
-        //}
-        //if addr == 0x87ffe400 {
-        //    println!(
-        //        "l1 page {:#x} to {:#x}",
-        //        value, self.current_instruction_pc_64
-        //    );
-        //}
-        //if addr == 0x87ffd010 {
-        //    println!(
-        //        "l0 page {:#x} to {:#x}",
-        //        value, self.current_instruction_pc_64
-        //    );
-        //}
         self.memory.write_mem_u64(addr, value)
     }
 
@@ -761,56 +714,36 @@ impl Cpu {
         // self.print_breakpoint(0x80000db4, val, "kfree");
         // self.print_breakpoint(0x80000ebc, val, "kinit");
         // self.print_breakpoint(0x80000e44, val, "freerange");
-        self.print_breakpoint(0x800034d0, val, "usertrapret");
-        self.print_breakpoint(0x800090b0, val, "userret");
-        self.print_breakpoint(0x80009000, val, "trampoline");
-        self.print_breakpoint(0x8000146c, val, "main");
-        self.print_breakpoint(0x80003824, val, "kerneltrap");
-        self.print_breakpoint(0x0000000080001404, val, "scheduler");
-        self.print_breakpoint(0x8000167c, val, "mappages");
-        if self.print_breakpoint(0x00000000800033fc, val, "swtch") {
-            let ra = self
-                .read_x_u64(ABIRegister::RA.to_x_reg_id() as u8)
-                .unwrap();
-            println!("ra: {:#x}", ra);
-            let sp = self
-                .read_x_u64(ABIRegister::SP.to_x_reg_id() as u8)
-                .unwrap();
-            println!("sp: {:#x}", sp);
-            println!();
-        }
-        if self.print_breakpoint(0x80002500, val, "back from swtch") {
-            let ra = self
-                .read_x_u64(ABIRegister::RA.to_x_reg_id() as u8)
-                .unwrap();
-            println!("ra: {:#x}", ra);
-            let sp = self
-                .read_x_u64(ABIRegister::SP.to_x_reg_id() as u8)
-                .unwrap();
-            println!("sp: {:#x}", sp);
-            println!();
-        }
-        self.print_breakpoint(0x0000000080002864, val, "userinit");
-        if self.print_breakpoint(0x80002500, val, "forkret") {
-            let ra = self
-                .read_x_u64(ABIRegister::RA.to_x_reg_id() as u8)
-                .unwrap();
-            println!("ra: {:#x}", ra);
-            let sp = self
-                .read_x_u64(ABIRegister::SP.to_x_reg_id() as u8)
-                .unwrap();
-            println!("sp: {:#x}", sp);
-
-            let va = 0x3fffffe000;
-            let pa = self.translate_address_if_needed(va).unwrap();
-            println!("va: {:#x} pa: {:#x}", va, pa);
-            let va = 0x3fffffe000 + 0x8;
-            let pa = self.translate_address_if_needed(va).unwrap();
-            println!("va: {:#x} pa: {:#x}", va, pa);
-            // TODO: WRONG TRANSLATION
-
-            println!();
-        }
+        //self.print_breakpoint(0x800034d0, val, "usertrapret");
+        //self.print_breakpoint(0x800090b0, val, "userret");
+        //self.print_breakpoint(0x80009000, val, "trampoline");
+        //self.print_breakpoint(0x8000146c, val, "main");
+        //self.print_breakpoint(0x80003824, val, "kerneltrap");
+        //self.print_breakpoint(0x0000000080001404, val, "scheduler");
+        //self.print_breakpoint(0x8000167c, val, "mappages");
+        //if self.print_breakpoint(0x00000000800033fc, val, "swtch") {
+        //    let ra = self
+        //        .read_x_u64(ABIRegister::RA.to_x_reg_id() as u8)
+        //        .unwrap();
+        //    println!("ra: {:#x}", ra);
+        //    let sp = self
+        //        .read_x_u64(ABIRegister::SP.to_x_reg_id() as u8)
+        //        .unwrap();
+        //    println!("sp: {:#x}", sp);
+        //    println!();
+        //}
+        //if self.print_breakpoint(0x80002500, val, "back from swtch") {
+        //    let ra = self
+        //        .read_x_u64(ABIRegister::RA.to_x_reg_id() as u8)
+        //        .unwrap();
+        //    println!("ra: {:#x}", ra);
+        //    let sp = self
+        //        .read_x_u64(ABIRegister::SP.to_x_reg_id() as u8)
+        //        .unwrap();
+        //    println!("sp: {:#x}", sp);
+        //    println!();
+        //}
+        //self.print_breakpoint(0x0000000080002864, val, "userinit");
         // if self.current_instruction_pc_64 != 0x80000e1c {
         // self.print_breakpoint(0x8000112c, val, "release");
         // }
@@ -821,33 +754,33 @@ impl Cpu {
         // self.print_breakpoint(0x80000664, val, "printf");
         // self.print_breakpoint(0x80000a08, val, "panic");
 
-        if self.print_breakpoint(0x0, val, "zero") {
-            let ra = self
-                .read_x_u64(ABIRegister::RA.to_x_reg_id() as u8)
-                .unwrap();
-            println!("ra: {:#x}", ra);
-            let sp = self
-                .read_x_u64(ABIRegister::SP.to_x_reg_id() as u8)
-                .unwrap();
-            println!("sp: {:#x}", sp);
-            println!();
-            // panic!()
-        }
+        //if self.print_breakpoint(0x0, val, "zero") {
+        //    let ra = self
+        //        .read_x_u64(ABIRegister::RA.to_x_reg_id() as u8)
+        //        .unwrap();
+        //    println!("ra: {:#x}", ra);
+        //    let sp = self
+        //        .read_x_u64(ABIRegister::SP.to_x_reg_id() as u8)
+        //        .unwrap();
+        //    println!("sp: {:#x}", sp);
+        //    println!();
+        //    // panic!()
+        //}
         self.reg_pc_64 = val;
     }
 
     // TODO: add better mechanism
-    fn print_breakpoint(&mut self, pc: u64, val: u64, name: &str) -> bool {
-        if val == pc {
-            println!(
-                "jump to {:#x} from {:#x} into {}",
-                pc, self.current_instruction_pc_64, name
-            );
-            println!();
-            return true;
-        }
-        false
-    }
+    //fn print_breakpoint(&mut self, pc: u64, val: u64, name: &str) -> bool {
+    //    if val == pc {
+    //        println!(
+    //            "jump to {:#x} from {:#x} into {}",
+    //            pc, self.current_instruction_pc_64, name
+    //        );
+    //        println!();
+    //        return true;
+    //    }
+    //    false
+    //}
 
     pub fn read_current_instruction_addr_u32(&self) -> u32 {
         self.current_instruction_pc

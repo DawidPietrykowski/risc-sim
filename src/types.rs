@@ -283,7 +283,6 @@ pub fn parse_instruction_r(word: &Word) -> RInstructionData {
 }
 
 pub fn decode_program_line(word: Word, mode: CpuMode) -> Result<ProgramLine> {
-
     #[cfg(not(feature = "maxperf"))]
     let context = format!("Instruction {:#x} not found", word.0);
     #[cfg(feature = "maxperf")]

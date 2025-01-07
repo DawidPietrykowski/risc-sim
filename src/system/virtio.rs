@@ -220,9 +220,9 @@ fn read_mem_virtio_blk_req(cpu: &mut Cpu, addr: u64) -> VirtioBlkReq {
 }
 
 pub fn process_queue(cpu: &mut Cpu) {
-    println!("process_queue");
+    //println!("process_queue");
 
-    print_desc_table(cpu);
+    //print_desc_table(cpu);
 
     let virtio_avail = read_mem_virtio_avail(cpu);
     let last_avail_idx = virtio_avail.idx.wrapping_sub(1);
@@ -230,7 +230,7 @@ pub fn process_queue(cpu: &mut Cpu) {
 
     let req_desc = read_mem_virtio_desc(cpu, desc_idx);
     let req = read_mem_virtio_blk_req(cpu, req_desc.addr);
-    println!("REQ: {:?}", req);
+    //println!("REQ: {:?}", req);
     assert_eq!(req_desc.flags, VRING_DESC_F_NEXT);
 
     let data_desc = read_mem_virtio_desc(cpu, req_desc.next);
@@ -241,7 +241,7 @@ pub fn process_queue(cpu: &mut Cpu) {
     assert_eq!(status_desc.len, 1);
     assert_eq!(status_desc.flags, VRING_DESC_F_WRITE);
 
-    println!("\nvirtio requested write: {}\n\n", write);
+    //println!("\nvirtio requested write: {}\n\n", write);
 
     match req.req_type {
         VirtioBlkReqType::In => {
@@ -264,7 +264,7 @@ pub fn process_queue(cpu: &mut Cpu) {
     };
 
     let current_status = cpu.read_mem_u8(status_desc.addr).unwrap();
-    println!("current status: {}", current_status);
+    //println!("current status: {}", current_status);
     cpu.write_mem_u8(status_desc.addr, VIRTIO_BLK_S_OK).unwrap();
 
     let mut virtio_used = read_mem_virtio_used(cpu);

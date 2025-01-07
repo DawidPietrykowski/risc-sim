@@ -21,7 +21,7 @@ bitfield! {
     pub w, set_w: 2;            // Writable
     pub x, set_x: 3;            // Executable
     pub u, set_u: 4;            // User accessible
-    pub g, set_g: 5;            // Global
+    pub g, set_g: 5;            // Globalmmu
     pub a, set_a: 6;            // Accessed
     pub d, set_d: 7;            // Dirty
     pub rsw, set_rsw: 9, 8;     // Reserved for Software
@@ -98,7 +98,6 @@ pub fn walk_page_table_sv39(va: u64, satp: u64, cpu: &mut Cpu) -> Result<u64> {
         );
     }
     if l2_pte.x() || l2_pte.r() {
-        panic!();
         // leaf 1G
         let mut physical_address = Sv39_PhysicalAddress(0);
         physical_address.set_offset(offset);
@@ -126,7 +125,6 @@ pub fn walk_page_table_sv39(va: u64, satp: u64, cpu: &mut Cpu) -> Result<u64> {
         bail!("invalid l1 pte");
     }
     if l1_pte.x() || l1_pte.r() {
-        panic!();
         // leaf 2MB
         let mut physical_address = Sv39_PhysicalAddress(0);
         physical_address.set_offset(offset);

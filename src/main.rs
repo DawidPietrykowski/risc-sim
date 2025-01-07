@@ -1,38 +1,43 @@
 #![allow(dead_code)]
 
 use anyhow::Result;
-use ctrlc;
 use minifb::{Key, Window, WindowOptions};
+use nix::libc::{BRKINT, ECHO, ICRNL, INPCK, ISTRIP};
 use risc_sim::cpu::cpu_core::{Cpu, CpuMode};
 use risc_sim::cpu::memory::raw_vec_memory::RawVecMemory;
 use risc_sim::elf::elf_loader::{decode_file, WordSize};
 use risc_sim::isa::csr::csr_types::CSRAddress;
 use risc_sim::system::passthrough_kernel::PassthroughKernel;
-use risc_sim::system::uart::init_uart;
-#[allow(unused)]
-use risc_sim::system::uart::read_uart_pending;
+use risc_sim::system::uart::{init_uart, write_char};
 use risc_sim::system::virtio::{init_virtio, BlockDevice};
 use risc_sim::types::ABIRegister;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::io::{self, Read};
+use std::sync::mpsc;
+use std::sync::mpsc::Receiver;
+use termios::{Termios, ICANON, IXON, TCSANOW, VMIN, VTIME};
 
-use std::env;
+use std::{env, thread};
 
 const MAX_CYCLES: u64 = 10000000000;
+
+fn create_stdio_channel() -> Receiver<u8> {
+    let (tx, rx) = mpsc::channel::<u8>();
+    thread::spawn(move || loop {
+        let mut buf = [0u8; 1];
+        let n = io::stdin().read(&mut buf).unwrap();
+        if n != 0 {
+            let c = buf[0];
+            tx.send(c).unwrap();
+        }
+    });
+    rx
+}
 
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
         return Err(anyhow::anyhow!("Usage: {} <path_to_file>", args[0]));
     }
-
-    let running = Arc::new(AtomicBool::new(true));
-    let r = running.clone();
-
-    ctrlc::set_handler(move || {
-        r.store(false, Ordering::SeqCst);
-    })
-    .expect("Error setting Ctrl-C handler");
 
     const SCREEN_WIDTH: u64 = 320;
     const SCREEN_HEIGHT: u64 = 200;
@@ -78,6 +83,17 @@ fn main() -> Result<()> {
         Vec::new()
     };
 
+    let mut termios = Termios::from_fd(0)?;
+    // Disable canonical mode, echo, and other processing
+    termios.c_lflag &= !(ICANON | ECHO);
+    // Disable various input processing
+    termios.c_iflag &= !(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+    // Set read timeout and minimum input
+    termios.c_cc[VMIN] = 0; // Minimum number of characters
+    termios.c_cc[VTIME] = 0; // Timeout in deciseconds
+    termios::tcsetattr(0, TCSANOW, &termios)?;
+    let stdio_channel = create_stdio_channel();
+
     let file_path = &args[1];
     let program = decode_file(file_path);
 
@@ -87,13 +103,13 @@ fn main() -> Result<()> {
         CpuMode::RV64
     };
     let block_dev = BlockDevice::new("../xv6-riscv/fs.img")?;
-    //block_dev.write_to_file("test.img").unwrap();
     let mut cpu = Cpu::new(
         RawVecMemory::default(),
         PassthroughKernel::default(),
         mode,
         Some(block_dev),
     );
+    cpu.simulate_kernel = SIMULATE_DISPLAY;
     cpu.load_program_from_elf(program)?;
 
     init_uart(&mut cpu);
@@ -103,11 +119,9 @@ fn main() -> Result<()> {
 
     let mut count = 0;
     const COUNT_INTERVAL: u64 = 200000;
+    let mut stdio_count = 0;
+    const STDIO_READ_INTERVAL: u64 = 2;
     let res = loop {
-        if !running.load(Ordering::SeqCst) {
-            break anyhow::anyhow!("Interrupted by Ctrl-C");
-        }
-
         #[cfg(not(feature = "maxperf"))]
         {
             count += 1;
@@ -121,7 +135,18 @@ fn main() -> Result<()> {
             break anyhow::anyhow!("Too many cycles");
         }
 
-        //println!("PC: {:x}", cpu.read_current_instruction_addr_u64());
+        if stdio_count % STDIO_READ_INTERVAL == 0 {
+            if let Ok(c) = stdio_channel.try_recv() {
+                if c == 3 {
+                    break anyhow::anyhow!("Interrupted by Ctrl-C");
+                } else {
+                    write_char(&mut cpu, c);
+                }
+            }
+            stdio_count += 1;
+        } else {
+            stdio_count += 1;
+        }
 
         if SIMULATE_DISPLAY && cpu.read_mem_u32(SCREEN_ADDR_ADDR)? != 0 {
             frames_written += 1;
@@ -176,7 +201,6 @@ fn main() -> Result<()> {
         #[cfg(not(feature = "maxperf"))]
         match cpu.run_cycle() {
             Ok(_) => {
-                // println!("Cycle: {}", count);
                 continue;
             }
             Err(e) => {
@@ -195,7 +219,6 @@ fn main() -> Result<()> {
                     cpu.run_cycle()
                 } {
                     Ok(_) => {
-                        // println!("Cycle: {}", count);
                         continue;
                     }
                     Err(e) => {
@@ -255,7 +278,6 @@ fn main() -> Result<()> {
         "WORD at PC: {:x}",
         cpu.read_mem_u32(cpu.read_pc_u64()).unwrap()
     );
-    // println!("\nSTDOUT buffer:\n{}", cpu.read_and_clear_stdout_buffer());
 
     Ok(())
 }

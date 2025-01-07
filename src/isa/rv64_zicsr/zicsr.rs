@@ -2,6 +2,7 @@ use crate::{cpu::cpu_core::Cpu, isa::csr::csr_types::CSRAddress, types::*};
 
 use anyhow::Ok;
 
+#[allow(unused)]
 fn test_vma(cpu: &mut Cpu, va: u64, pa: u64, sz: u64) {
     const ADDRESSES: u64 = 100;
     let span = sz / ADDRESSES;
@@ -37,14 +38,14 @@ pub const RV64_ZICSR_SET: [Instruction; 6] = [
 
             // TODO: Remove
             if csr_addr == CSRAddress::Satp.as_u12() {
-                println!(
-                    "Satp: {:#018x} (PPN={:#010x}, ASID={:#06x}, MODE={:#04x}) PC: {:#x}",
-                    rs1_value,
-                    rs1_value & ((1u64 << 44) - 1),
-                    (rs1_value >> 44) & 0xfff,
-                    (rs1_value >> 60),
-                    cpu.current_instruction_pc_64
-                );
+                //println!(
+                //    "Satp: {:#018x} (PPN={:#010x}, ASID={:#06x}, MODE={:#04x}) PC: {:#x}",
+                //    rs1_value,
+                //    rs1_value & ((1u64 << 44) - 1),
+                //    (rs1_value >> 44) & 0xfff,
+                //    (rs1_value >> 60),
+                //    cpu.current_instruction_pc_64
+                //);
                 if rs1_value == 0x8000000000087f4e {
                     // test kernel address
                     //const KERNEL_ADDR: u64 = 0x80000000;
