@@ -1,9 +1,10 @@
 #![allow(dead_code)]
 
 use anyhow::Result;
+use clap::Parser;
 use minifb::{Key, Window, WindowOptions};
 use nix::libc::{BRKINT, ECHO, ICRNL, INPCK, ISTRIP};
-use risc_sim::cpu::cpu_core::{Cpu, CpuMode};
+use risc_sim::cpu::cpu_core::{Cpu, CpuMode, ExecutionMode};
 use risc_sim::cpu::memory::raw_vec_memory::RawVecMemory;
 use risc_sim::elf::elf_loader::{decode_file, WordSize};
 use risc_sim::isa::csr::csr_types::CSRAddress;
@@ -17,6 +18,26 @@ use std::sync::mpsc::Receiver;
 use termios::{Termios, ICANON, IXON, TCSANOW, VMIN, VTIME};
 
 use std::{env, thread};
+
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+pub struct Args {
+    /// Path to the program to execute
+    #[arg(required = true)]
+    pub program_path: String,
+
+    /// Enable display simulation
+    #[arg(long, default_value_t = false)]
+    pub simulate_display: bool,
+
+    /// Execution mode (userspace/bare)
+    #[arg(long, value_enum, default_value_t = ExecutionMode::UserSpace)]
+    pub execution_mode: ExecutionMode,
+
+    /// Optional filesystem image path
+    #[arg(long)]
+    pub fs_image: Option<String>,
+}
 
 const MAX_CYCLES: u64 = 10000000000;
 
@@ -34,22 +55,19 @@ fn create_stdio_channel() -> Receiver<u8> {
 }
 
 fn main() -> Result<()> {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
-        return Err(anyhow::anyhow!("Usage: {} <path_to_file>", args[0]));
-    }
+    let args = Args::parse();
 
     const SCREEN_WIDTH: u64 = 320;
     const SCREEN_HEIGHT: u64 = 200;
     const MEMORY_BUFFER_SIZE: u64 = SCREEN_WIDTH * SCREEN_HEIGHT * 4;
     const SCREEN_ADDR_ADDR: u64 = 0x40000000;
     const SCALE_SCREEN: u64 = 2;
-    const SIMULATE_DISPLAY: bool = false;
+    let simulate_display: bool = args.simulate_display;
     const ASSUME_PROGRAM_CACHE_COMPLETE: bool = false;
 
     let mut frames_written = 0;
 
-    let mut window = if SIMULATE_DISPLAY {
+    let mut window = if simulate_display {
         Some(
             Window::new(
                 "DISPLAY",
@@ -65,7 +83,7 @@ fn main() -> Result<()> {
         None
     };
 
-    let mut buffer: Vec<u32> = if SIMULATE_DISPLAY {
+    let mut buffer: Vec<u32> = if simulate_display {
         let buf: Vec<u32> = vec![
             0;
             (SCREEN_WIDTH * SCREEN_HEIGHT * SCALE_SCREEN * SCALE_SCREEN)
@@ -94,22 +112,26 @@ fn main() -> Result<()> {
     termios::tcsetattr(0, TCSANOW, &termios)?;
     let stdio_channel = create_stdio_channel();
 
-    let file_path = &args[1];
-    let program = decode_file(file_path);
+    let program = decode_file(&args.program_path);
 
     let mode = if program.header.word_size == WordSize::W32 {
         CpuMode::RV32
     } else {
         CpuMode::RV64
     };
-    let block_dev = BlockDevice::new("../xv6-riscv/fs.img")?;
+    let block_dev = if let Some(path) = args.fs_image {
+        Some(BlockDevice::new(&path)?)
+    } else {
+        None
+    };
     let mut cpu = Cpu::new(
         RawVecMemory::default(),
         PassthroughKernel::default(),
         mode,
-        Some(block_dev),
+        block_dev,
+        args.execution_mode,
     );
-    cpu.simulate_kernel = SIMULATE_DISPLAY;
+    cpu.simulate_kernel = simulate_display;
     cpu.load_program_from_elf(program)?;
 
     init_uart(&mut cpu);
@@ -148,7 +170,7 @@ fn main() -> Result<()> {
             stdio_count += 1;
         }
 
-        if SIMULATE_DISPLAY && cpu.read_mem_u32(SCREEN_ADDR_ADDR)? != 0 {
+        if simulate_display && cpu.read_mem_u32(SCREEN_ADDR_ADDR)? != 0 {
             frames_written += 1;
 
             println!("Draw on cycle: {}", count);

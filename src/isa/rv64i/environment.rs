@@ -1,7 +1,7 @@
 use std::{fs::Metadata, mem, os::unix::fs::MetadataExt, ptr::null_mut};
 
 use crate::{
-    cpu::cpu_core::PrivilegeMode,
+    cpu::cpu_core::{ExecutionMode, PrivilegeMode},
     isa::{
         self,
         traps::{execute_trap, TrapCause},
@@ -90,7 +90,7 @@ pub const RV64I_SET_E: [Instruction; 3] = [
         name: "ECALL",
         instruction_type: InstructionType::I,
         operation: |cpu, _word| {
-            if !cpu.simulate_kernel {
+            if cpu.execution_mode == ExecutionMode::Bare {
                 let cause = match cpu.privilege_mode {
                     PrivilegeMode::User => TrapCause::EnvironmentCallFromUMode,
                     PrivilegeMode::Supervisor => TrapCause::EnvironmentCallFromSMode,
