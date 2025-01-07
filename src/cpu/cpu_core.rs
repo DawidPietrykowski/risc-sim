@@ -366,12 +366,8 @@ impl Cpu {
         cpu
     }
 
-    // TODO: Refactor such that this logic is done by the kernel
     pub fn load_program_from_elf(&mut self, elf: ElfFile) -> Result<()> {
-        //let header = elf.header.clone(); // Clone the header before elf is moved
-        //println!("{:?}", header);
         let program_file = load_program_to_memory(elf, self.memory.as_mut(), self.arch_mode)?;
-        //println!("{:?}", program_file);
 
         if self.arch_mode == CpuMode::RV64 {
             self.reg_pc_64 = program_file.entry_point;
