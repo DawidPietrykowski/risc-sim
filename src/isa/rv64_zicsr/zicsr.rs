@@ -5,11 +5,18 @@ use anyhow::Ok;
 fn test_vma(cpu: &mut Cpu, va: u64, pa: u64, sz: u64) {
     const ADDRESSES: u64 = 100;
     let span = sz / ADDRESSES;
+    let mut wrong = false;
     for i in 0..ADDRESSES {
         let cur = va + span * i;
         let expected = pa + span * i;
         let res = cpu.translate_address_if_needed(cur).unwrap();
-        assert_eq!(res, expected);
+        //assert_eq!(res, expected);
+        if res != expected {
+            wrong = true;
+        }
+    }
+    if wrong {
+        println!("wrong mapping of {:x} to {:x}", va, pa);
     }
 }
 
@@ -38,12 +45,14 @@ pub const RV64_ZICSR_SET: [Instruction; 6] = [
                     (rs1_value >> 60),
                     cpu.current_instruction_pc_64
                 );
-                if rs1_value != 0 {
+                if rs1_value == 0x8000000000087f4e {
                     // test kernel address
-                    const KERNEL_ADDR: u64 = 0x80000000;
+                    //const KERNEL_ADDR: u64 = 0x80000000;
                     //const VMA_TEST_ADDR_VA: u64 = 0x10002000;
                     //const VMA_TEST_ADDR_PA: u64 = 0x10003000;
                     //const VMA_TEST_ADDR_SZ: u64 = 4096;
+                    //
+                    //test_vma(cpu, 0, 0x87f4b000, 0x1000);
 
                     //test_vma(cpu, KERNEL_ADDR, KERNEL_ADDR, 4096);
                     //test_vma(cpu, VMA_TEST_ADDR_VA, VMA_TEST_ADDR_PA, VMA_TEST_ADDR_SZ);

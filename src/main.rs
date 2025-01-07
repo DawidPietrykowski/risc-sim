@@ -6,6 +6,7 @@ use minifb::{Key, Window, WindowOptions};
 use risc_sim::cpu::cpu_core::{Cpu, CpuMode};
 use risc_sim::cpu::memory::raw_vec_memory::RawVecMemory;
 use risc_sim::elf::elf_loader::{decode_file, WordSize};
+use risc_sim::isa::csr::csr_types::CSRAddress;
 use risc_sim::system::passthrough_kernel::PassthroughKernel;
 use risc_sim::system::uart::init_uart;
 #[allow(unused)]
@@ -85,11 +86,13 @@ fn main() -> Result<()> {
     } else {
         CpuMode::RV64
     };
+    let block_dev = BlockDevice::new("../xv6-riscv/fs.img")?;
+    //block_dev.write_to_file("test.img").unwrap();
     let mut cpu = Cpu::new(
         RawVecMemory::default(),
         PassthroughKernel::default(),
         mode,
-        Some(BlockDevice::new("../xv6-riscv/fs.img")?),
+        Some(block_dev),
     );
     cpu.load_program_from_elf(program)?;
 
@@ -235,6 +238,22 @@ fn main() -> Result<()> {
     println!(
         "Cycles per second: {} mln",
         (count as f64 / elapsed_time.as_secs_f64()) as u64 / 1_000_000
+    );
+    println!(
+        "SATP: {:x}",
+        cpu.csr_table.read64(CSRAddress::Satp.as_u12())
+    );
+    println!(
+        "Translated 0x0: {:x}",
+        cpu.translate_address_if_needed(0x0).unwrap()
+    );
+    println!(
+        "Translated PC: {:x}",
+        cpu.translate_address_if_needed(cpu.read_pc_u64()).unwrap()
+    );
+    println!(
+        "WORD at PC: {:x}",
+        cpu.read_mem_u32(cpu.read_pc_u64()).unwrap()
     );
     // println!("\nSTDOUT buffer:\n{}", cpu.read_and_clear_stdout_buffer());
 

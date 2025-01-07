@@ -1,5 +1,8 @@
 use core::slice::SlicePattern;
-use std::{fs::File, io::Read};
+use std::{
+    fs::File,
+    io::{Read, Write},
+};
 
 use crate::{cpu::cpu_core::Cpu, system::plic::plic_trigger_irq};
 
@@ -86,7 +89,8 @@ pub struct BlockDevice {
     size_in_blocks: usize,
 }
 
-const BLOCK_SIZE: usize = 512;
+const SECTOR_SIZE: usize = 512;
+const BLOCK_SIZE: usize = 1024;
 
 impl BlockDevice {
     pub fn new(path: &str) -> std::io::Result<Self> {
@@ -95,10 +99,10 @@ impl BlockDevice {
         let file_size = metadata.len() as usize;
 
         // Calculate number of blocks (rounding up)
-        let size_in_blocks = (file_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+        let size_in_blocks = (file_size + SECTOR_SIZE - 1) / SECTOR_SIZE;
 
         // Create storage with exact size
-        let mut storage = vec![0; size_in_blocks * BLOCK_SIZE];
+        let mut storage = vec![0; size_in_blocks * SECTOR_SIZE];
 
         // Read the image file
         let mut file = File::open(path)?;
@@ -110,24 +114,36 @@ impl BlockDevice {
         })
     }
 
-    pub fn read_block(&self, block_num: usize) -> &[u8] {
+    pub fn read_block(&self, block_num: usize, len: usize) -> &[u8] {
         if block_num >= self.size_in_blocks {
             panic!("Read outside of block device");
         }
-        let start = block_num * BLOCK_SIZE;
-        &self.storage[start..start + BLOCK_SIZE]
+        let start = block_num * SECTOR_SIZE;
+        &self.storage[start..start + len]
     }
 
-    pub fn write_block(&mut self, block_num: usize, data: &[u8]) {
+    pub fn write_block(&mut self, block_num: usize, len: usize, data: &[u8]) {
         if block_num >= self.size_in_blocks {
             panic!("Block number exceeds device size");
         }
-        if data.len() != BLOCK_SIZE {
-            panic!("Data size must match block size");
+        //if data.len() != SECTOR_SIZE {
+        //    panic!("Data size must match block size");
+        //}
+
+        let start = block_num * SECTOR_SIZE;
+        self.storage[start..start + len].copy_from_slice(data);
+    }
+
+    pub fn write_to_file(&self, path: &str) -> std::io::Result<()> {
+        let mut file = File::create(path)?;
+
+        for i in 0..self.size_in_blocks {
+            let block = self.read_block(i, SECTOR_SIZE);
+            file.write_all(&block)?;
         }
 
-        let start = block_num * BLOCK_SIZE;
-        self.storage[start..start + BLOCK_SIZE].copy_from_slice(data);
+        file.flush()?;
+        Ok(())
     }
 }
 
@@ -231,7 +247,7 @@ pub fn process_queue(cpu: &mut Cpu) {
         VirtioBlkReqType::In => {
             // read data
             let mut device = cpu.block_device.take().expect("No block device");
-            let data = device.read_block(req.sector as usize);
+            let data = device.read_block(req.sector as usize, data_desc.len as usize);
             cpu.write_buf(data_desc.addr, data).unwrap();
             cpu.block_device = Some(device);
         }
@@ -240,7 +256,7 @@ pub fn process_queue(cpu: &mut Cpu) {
             let mut buf = vec![0u8; BLOCK_SIZE];
             cpu.read_buf(data_desc.addr, buf.as_mut_slice()).unwrap();
             if let Some(ref mut device) = &mut cpu.block_device {
-                device.write_block(req.sector as usize, &buf);
+                device.write_block(req.sector as usize, data_desc.len as usize, &buf);
             } else {
                 panic!("No block device");
             }

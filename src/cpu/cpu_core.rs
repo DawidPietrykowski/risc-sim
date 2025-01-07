@@ -16,7 +16,7 @@ use crate::{
         uart::{read_uart_pending, UART_ADDR},
         virtio::{process_queue, BlockDevice, VIRTIO_0_ADDR, VIRTIO_MMIO_QUEUE_NOTIFY},
     },
-    types::ABIRegister,
+    types::{ABIRegister, Instruction},
     utils::binary_utils::*,
 };
 
@@ -100,7 +100,7 @@ pub struct Cpu {
     pub arch_mode: CpuMode,
     pub simulate_kernel: bool,
     pub privilege_mode: PrivilegeMode,
-    pub pc_history: CircularBuffer<u64>,
+    pub pc_history: CircularBuffer<(u64, Option<Instruction>, u64)>,
     pub block_device: Option<BlockDevice>,
 }
 
@@ -164,7 +164,7 @@ impl Default for Cpu {
             arch_mode: CpuMode::RV32,
             simulate_kernel: true,
             privilege_mode: PrivilegeMode::Machine,
-            pc_history: CircularBuffer::new(100),
+            pc_history: CircularBuffer::new(500),
             block_device: None,
         };
         cpu.setup_csrs();
@@ -198,7 +198,7 @@ impl Cpu {
             arch_mode: mode,
             simulate_kernel: false,
             privilege_mode: PrivilegeMode::Machine,
-            pc_history: CircularBuffer::new(100),
+            pc_history: CircularBuffer::new(500),
             block_device,
         };
         cpu.setup_csrs();
@@ -323,7 +323,6 @@ impl Cpu {
             bail!("CPU is halted");
         }
 
-        self.pc_history.push(self.current_instruction_pc_64);
         self.check_breakpoints();
 
         // Fetch
@@ -343,6 +342,14 @@ impl Cpu {
             self.reg_pc += 4;
         }
 
+        if self.current_instruction_pc_64 < 0x1000 {
+            self.pc_history.push((
+                self.current_instruction_pc_64,
+                Some(instruction.instruction),
+                self.csr_table.read64(CSRAddress::Satp.as_u12()),
+            ));
+        }
+
         // Execute
         self.execute_program_line(&instruction)?;
 
@@ -360,7 +367,6 @@ impl Cpu {
             bail!("CPU is halted");
         }
 
-        self.pc_history.push(self.current_instruction_pc_64);
         self.check_breakpoints();
 
         // Fetch
@@ -373,6 +379,14 @@ impl Cpu {
         } else {
             self.current_instruction_pc = self.reg_pc;
             self.reg_pc += 4;
+        }
+
+        if self.current_instruction_pc_64 < 0x1000 {
+            self.pc_history.push((
+                self.current_instruction_pc_64,
+                Some(instruction.instruction),
+                self.csr_table.read64(CSRAddress::Satp.as_u12()),
+            ));
         }
 
         // Execute
@@ -483,6 +497,12 @@ impl Cpu {
     pub fn write_mem_u8(&mut self, addr: u64, value: u8) -> Result<()> {
         let addr = self.translate_address_if_needed(addr)?;
         // TODO: Add better mechanism for hooks
+        if addr == 0x87f4ba9c {
+            println!(
+                "a9c Writing {:#x} to {:#x}",
+                value, self.current_instruction_pc_64
+            );
+        }
         if addr == UART_ADDR {
             if let Some(data) = read_uart_pending(self) {
                 //println!("UART: {:?}", data as char);
@@ -494,11 +514,23 @@ impl Cpu {
 
     pub fn write_mem_u16(&mut self, addr: u64, value: u16) -> Result<()> {
         let addr = self.translate_address_if_needed(addr)?;
+        if addr == 0x87f4ba9c {
+            println!(
+                "a9c Writing {:#x} to {:#x}",
+                value, self.current_instruction_pc_64
+            );
+        }
         self.memory.write_mem_u16(addr, value)
     }
 
     pub fn write_mem_u32(&mut self, addr: u64, value: u32) -> Result<()> {
         let addr = self.translate_address_if_needed(addr)?;
+        if addr == 0x87f4ba9c {
+            println!(
+                "a9c Writing {:#x} to {:#x}",
+                value, self.current_instruction_pc_64
+            );
+        }
         if addr == VIRTIO_0_ADDR + VIRTIO_MMIO_QUEUE_NOTIFY as u64 {
             process_queue(self);
         }
@@ -514,30 +546,30 @@ impl Cpu {
 
     pub fn write_mem_u64(&mut self, addr: u64, value: u64) -> Result<()> {
         let addr = self.translate_address_if_needed(addr)?;
-        if addr == 0x87f9aff0 {
+        if addr == 0x87f4ba9c {
             println!(
-                "PPN2 Writing {:#x} to {:#x}",
+                "a9c Writing {:#x} to {:#x}",
                 value, self.current_instruction_pc_64
             );
         }
-        if addr == 0x87fff000 {
-            println!(
-                "l2 page {:#x} to {:#x}",
-                value, self.current_instruction_pc_64
-            );
-        }
-        if addr == 0x87ffe400 {
-            println!(
-                "l1 page {:#x} to {:#x}",
-                value, self.current_instruction_pc_64
-            );
-        }
-        if addr == 0x87ffd010 {
-            println!(
-                "l0 page {:#x} to {:#x}",
-                value, self.current_instruction_pc_64
-            );
-        }
+        //if addr == 0x87fff000 {
+        //    println!(
+        //        "l2 page {:#x} to {:#x}",
+        //        value, self.current_instruction_pc_64
+        //    );
+        //}
+        //if addr == 0x87ffe400 {
+        //    println!(
+        //        "l1 page {:#x} to {:#x}",
+        //        value, self.current_instruction_pc_64
+        //    );
+        //}
+        //if addr == 0x87ffd010 {
+        //    println!(
+        //        "l0 page {:#x} to {:#x}",
+        //        value, self.current_instruction_pc_64
+        //    );
+        //}
         self.memory.write_mem_u64(addr, value)
     }
 
@@ -636,11 +668,11 @@ impl Cpu {
     pub fn print_pc_history(&mut self) {
         println!("pc history:");
         let mut last_pc = 0u64;
-        while let Some(pc) = self.pc_history.pop() {
+        while let Some((pc, ins, satp)) = self.pc_history.pop() {
             if pc != last_pc + 0x4 {
                 println!("jmp");
             }
-            println!("{:x}", pc);
+            println!("{:x} {} {:x}", pc, ins.unwrap().name, satp);
             last_pc = pc;
         }
         println!();
