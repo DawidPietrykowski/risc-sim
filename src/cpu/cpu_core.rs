@@ -25,6 +25,7 @@ use super::memory::{
     raw_vec_memory::RawVecMemory,
 };
 use crate::types::{decode_program_line, ProgramLine, Word};
+#[allow(unused)]
 use anyhow::{bail, Context, Ok, Result};
 
 #[derive(PartialEq, Clone, Copy)]
@@ -61,6 +62,7 @@ where
         }
     }
 
+    #[allow(unused)]
     fn push(&mut self, item: T) {
         self.buffer[self.head] = item;
         self.head = (self.head + 1) % self.size;
@@ -83,8 +85,10 @@ where
 struct ExecutionVTable {
     run_cycles: fn(cpu: &mut Cpu) -> Result<()>,
     update_pc: fn(&mut Cpu),
+    #[allow(unused)]
     get_current_pc: fn(&Cpu) -> u64,
     get_current_pc_translated: fn(&mut Cpu) -> u64,
+    #[allow(unused)]
     fetch_instruction: fn(&mut Cpu) -> ProgramLine,
 }
 
@@ -106,7 +110,6 @@ pub struct Cpu {
     pub kernel: Box<dyn Kernel>,
     pub csr_table: CSRTable,
     pub arch_mode: CpuMode,
-    pub simulate_kernel: bool,
     pub privilege_mode: PrivilegeMode,
     pub pc_history: CircularBuffer<(u64, Option<Instruction>, u64)>,
     pub block_device: Option<BlockDevice>,
@@ -172,7 +175,6 @@ impl Default for Cpu {
             kernel: Box::<PassthroughKernel>::default(),
             csr_table: CSRTable::new(),
             arch_mode: CpuMode::RV32,
-            simulate_kernel: true,
             privilege_mode: PrivilegeMode::Machine,
             pc_history: CircularBuffer::new(500),
             block_device: None,
@@ -265,11 +267,11 @@ impl ExecutionVTable {
         };
         let fetch_instruction = match force_cache {
             true => |cpu: &mut Cpu| {
-                let mut pc = (cpu.vtable.get_current_pc_translated)(cpu);
+                let pc = (cpu.vtable.get_current_pc_translated)(cpu);
                 cpu.program_cache.get_line_unchecked(pc)
             },
             false => |cpu: &mut Cpu| unsafe {
-                let mut pc = (cpu.vtable.get_current_pc_translated)(cpu);
+                let pc = (cpu.vtable.get_current_pc_translated)(cpu);
                 decode_program_line(
                     Word(cpu.memory.read_mem_u32(pc).unwrap_unchecked()),
                     cpu.arch_mode,
@@ -351,7 +353,6 @@ impl Cpu {
             kernel: Box::new(kernel),
             csr_table: CSRTable::new(),
             arch_mode: mode,
-            simulate_kernel: true,
             privilege_mode: PrivilegeMode::Machine,
             pc_history: CircularBuffer::new(500),
             block_device,
@@ -474,83 +475,6 @@ impl Cpu {
 
     pub fn run_cycle(&mut self) -> Result<()> {
         return (self.vtable.run_cycles)(self);
-
-        // Check if CPU is halted
-        if self.halted {
-            bail!("CPU is halted");
-        }
-
-        // Fetch
-        let instruction = self.fetch_instruction()?;
-
-        #[cfg(not(feature = "maxperf"))]
-        if self.debug_enabled {
-            println!("\nPC({:#x}) {}", self.reg_pc, instruction);
-        }
-
-        // Increase PC
-        if self.arch_mode == CpuMode::RV64 {
-            self.current_instruction_pc_64 = self.reg_pc_64;
-            self.reg_pc_64 += 4;
-        } else {
-            self.current_instruction_pc = self.reg_pc;
-            self.reg_pc += 4;
-        }
-
-        self.pc_history.push((
-            self.current_instruction_pc_64,
-            Some(instruction.instruction),
-            self.csr_table.read64(CSRAddress::Satp.as_u12()),
-        ));
-
-        // Execute
-        self.execute_program_line(&instruction)?;
-
-        if !self.simulate_kernel {
-            plic_check_pending(self);
-            check_pending_interrupts(self, PrivilegeMode::Machine);
-            check_pending_interrupts(self, PrivilegeMode::Supervisor);
-        }
-
-        Ok(())
-    }
-
-    #[cfg(feature = "maxperf")]
-    pub fn run_cycle_uncheked(&mut self) -> Result<()> {
-        return (self.vtable.run_cycles)(self);
-        // Check if CPU is halted
-        if self.halted {
-            bail!("CPU is halted");
-        }
-
-        // Fetch
-        let instruction = self.fetch_instruction_unchecked();
-
-        // Increase PC
-        if self.arch_mode == CpuMode::RV64 {
-            self.current_instruction_pc_64 = self.reg_pc_64;
-            self.reg_pc_64 += 4;
-        } else {
-            self.current_instruction_pc = self.reg_pc;
-            self.reg_pc += 4;
-        }
-
-        self.pc_history.push((
-            self.current_instruction_pc_64,
-            Some(instruction.instruction),
-            self.csr_table.read64(CSRAddress::Satp.as_u12()),
-        ));
-
-        // Execute
-        let _ = self.execute_program_line(&instruction);
-
-        if !self.simulate_kernel {
-            plic_check_pending(self);
-            check_pending_interrupts(self, PrivilegeMode::Machine);
-            check_pending_interrupts(self, PrivilegeMode::Supervisor);
-        }
-
-        Ok(())
     }
 
     #[inline(always)]
@@ -591,6 +515,7 @@ impl Cpu {
         }
     }
 
+    #[cfg(not(feature = "maxperf"))]
     fn fetch_instruction(&mut self) -> Result<ProgramLine> {
         let mut pc = self.read_pc();
         pc = self.translate_address_if_needed(pc)?;
@@ -606,14 +531,6 @@ impl Cpu {
                 self.arch_mode,
             )
         }
-    }
-
-    #[cfg(feature = "maxperf")]
-    fn fetch_instruction_unchecked(&mut self) -> ProgramLine {
-        let mut pc = self.read_pc();
-        pc = self.translate_address_if_needed(pc).unwrap();
-        self.program_cache.get_line_unchecked(pc)
-        //decode_program_line(Word(self.memory.read_mem_u32(pc).unwrap()), self.arch_mode).unwrap()
     }
 
     pub fn translate_address_if_needed(&mut self, addr: u64) -> Result<u64> {

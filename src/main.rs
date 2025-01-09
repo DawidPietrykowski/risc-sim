@@ -17,7 +17,7 @@ use std::sync::mpsc;
 use std::sync::mpsc::Receiver;
 use termios::{Termios, ICANON, IXON, TCSANOW, VMIN, VTIME};
 
-use std::{env, thread};
+use std::thread;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -131,7 +131,6 @@ fn main() -> Result<()> {
         block_dev,
         args.execution_mode,
     );
-    cpu.simulate_kernel = simulate_display;
     cpu.load_program_from_elf(program)?;
 
     init_uart(&mut cpu);
@@ -235,11 +234,7 @@ fn main() -> Result<()> {
         {
             let mut finished = false;
             for _ in 0..COUNT_INTERVAL {
-                match if ASSUME_PROGRAM_CACHE_COMPLETE {
-                    cpu.run_cycle_uncheked()
-                } else {
-                    cpu.run_cycle()
-                } {
+                match cpu.run_cycle() {
                     Ok(_) => {
                         continue;
                     }
