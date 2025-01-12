@@ -36,7 +36,7 @@ impl Page {
     pub fn new(position: u64) -> Page {
         Page {
             position,
-            data: Box::new([0; PAGE_SIZE as usize]),
+            data: unsafe { Box::new_zeroed().assume_init() },
         }
     }
 }

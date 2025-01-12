@@ -19,6 +19,7 @@ pub fn setup_cpu_64() -> Cpu {
         PassthroughKernel::default(),
         cpu::cpu_core::CpuMode::RV64,
         None,
+        cpu::cpu_core::ExecutionMode::UserSpace,
     )
 }
 
