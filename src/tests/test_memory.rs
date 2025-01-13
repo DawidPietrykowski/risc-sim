@@ -1,7 +1,7 @@
 use proptest::{prop_assert_eq, proptest};
 
 use crate::{
-    cpu::memory::page_storage::PAGE_SIZE,
+    cpu::memory::{memory_core::Memory, page_storage::PAGE_SIZE, raw_memory::ContinuousMemory},
     tests::util::{execute_i_instruction, execute_s_instruction, setup_cpu, setup_cpu_64},
 };
 
@@ -18,7 +18,25 @@ proptest! {
     }
 
     #[test]
-    fn test_memory_mapping_u64(addr in 0x0u64..(u64::MAX - 8)) {
+    fn test_memory_mapping_u64_continuous(addr in 0x1u64..0x1018u64, offset in 0x0..(u64::MAX - 0x2048 - 0x8)) {
+        let value = 0x123456789abcdef0u64;
+        let mut memory = ContinuousMemory::new(offset, 0x1024);
+        let addr = addr + offset;
+        memory.write_mem_u64(addr, value).unwrap();
+        prop_assert_eq!(memory.read_mem_u64(addr).unwrap(), value);
+        prop_assert_eq!(memory.read_mem_u64(addr + 1).unwrap(), 0x00123456789abcde);
+        prop_assert_eq!(memory.read_mem_u64(addr + 2).unwrap(), 0x0000123456789abc);
+        prop_assert_eq!(memory.read_mem_u64(addr + 3).unwrap(), 0x000000123456789a);
+        prop_assert_eq!(memory.read_mem_u64(addr + 4).unwrap(), 0x0000000012345678);
+        prop_assert_eq!(memory.read_mem_u64(addr + 5).unwrap(), 0x0000000000123456);
+        prop_assert_eq!(memory.read_mem_u64(addr + 6).unwrap(), 0x0000000000001234);
+        prop_assert_eq!(memory.read_mem_u64(addr + 7).unwrap(), 0x0000000000000012);
+        prop_assert_eq!(memory.read_mem_u64(addr + 8).unwrap(), 0x0000000000000000);
+        prop_assert_eq!(memory.read_mem_u64(addr - 1).unwrap(), 0x3456789abcdef000);
+    }
+
+    #[test]
+    fn test_memory_mapping_u64(addr in 0x1u64..(u64::MAX - 8)) {
         let mut cpu = setup_cpu_64();
         let value = 0x123456789abcdef0u64;
         cpu.write_mem_u64(addr, value).unwrap();

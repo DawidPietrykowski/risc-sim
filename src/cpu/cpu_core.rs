@@ -22,7 +22,7 @@ use crate::{
 
 use super::memory::{
     memory_core::Memory, mmu::walk_page_table_sv39, program_cache::ProgramCache,
-    raw_vec_memory::RawVecMemory,
+    raw_memory::ContinuousMemory, raw_vec_memory::RawVecMemory,
 };
 use crate::types::{decode_program_line, ProgramLine, Word};
 #[allow(unused)]
@@ -81,7 +81,135 @@ where
         }
     }
 }
+struct MemoryAccessVTable {
+    read_mem_u64: fn(&mut Cpu, u64) -> Result<u64>,
+    read_mem_u32: fn(&mut Cpu, u64) -> Result<u32>,
+    read_mem_u16: fn(&mut Cpu, u64) -> Result<u16>,
+    read_mem_u8: fn(&mut Cpu, u64) -> Result<u8>,
+    write_mem_u8: fn(&mut Cpu, u64, u8) -> Result<()>,
+    write_mem_u16: fn(&mut Cpu, u64, u16) -> Result<()>,
+    write_mem_u32: fn(&mut Cpu, u64, u32) -> Result<()>,
+    write_mem_u64: fn(&mut Cpu, u64, u64) -> Result<()>,
+}
 
+// TODO: Add peripheral memory
+fn bare_read_mem_u64(cpu: &mut Cpu, addr: u64) -> Result<u64> {
+    let addr = cpu.translate_address_if_needed(addr)?;
+    cpu.memory.read_mem_u64(addr)
+}
+
+fn bare_read_mem_u32(cpu: &mut Cpu, addr: u64) -> Result<u32> {
+    let addr = cpu.translate_address_if_needed(addr)?;
+    if addr == PLIC_CLAIM {
+        return Ok(plic_handle_claim_read(cpu));
+    }
+    cpu.memory.read_mem_u32(addr)
+}
+
+fn bare_read_mem_u16(cpu: &mut Cpu, addr: u64) -> Result<u16> {
+    let addr = cpu.translate_address_if_needed(addr)?;
+    cpu.memory.read_mem_u16(addr)
+}
+
+fn bare_read_mem_u8(cpu: &mut Cpu, addr: u64) -> Result<u8> {
+    let addr = cpu.translate_address_if_needed(addr)?;
+    if addr == UART_ADDR {
+        return Ok(uart_handle_read(cpu) as u8);
+    }
+    cpu.memory.read_mem_u8(addr)
+}
+
+fn bare_write_mem_u8(cpu: &mut Cpu, addr: u64, value: u8) -> Result<()> {
+    let addr = cpu.translate_address_if_needed(addr)?;
+    if addr == UART_ADDR {
+        uart_handle_write(cpu, value);
+        return Ok(());
+    }
+    cpu.memory.write_mem_u8(addr, value)
+}
+
+fn bare_write_mem_u16(cpu: &mut Cpu, addr: u64, value: u16) -> Result<()> {
+    let addr = cpu.translate_address_if_needed(addr)?;
+    cpu.memory.write_mem_u16(addr, value)
+}
+
+fn bare_write_mem_u32(cpu: &mut Cpu, addr: u64, value: u32) -> Result<()> {
+    let addr = cpu.translate_address_if_needed(addr)?;
+    if addr == VIRTIO_0_ADDR + VIRTIO_MMIO_QUEUE_NOTIFY as u64 {
+        process_queue(cpu);
+    }
+    if addr == PLIC_PENDING {
+        plic_handle_pending_write(cpu, value);
+    }
+    if addr == PLIC_CLAIM {
+        plic_handle_claim_write(cpu, value);
+        return Ok(());
+    }
+    cpu.memory.write_mem_u32(addr, value)
+}
+
+fn bare_write_mem_u64(cpu: &mut Cpu, addr: u64, value: u64) -> Result<()> {
+    let addr = cpu.translate_address_if_needed(addr)?;
+    cpu.memory.write_mem_u64(addr, value)
+}
+
+fn user_space_read_mem_u64(cpu: &mut Cpu, addr: u64) -> Result<u64> {
+    cpu.memory.read_mem_u64(addr)
+}
+
+fn user_space_read_mem_u32(cpu: &mut Cpu, addr: u64) -> Result<u32> {
+    cpu.memory.read_mem_u32(addr)
+}
+
+fn user_space_read_mem_u16(cpu: &mut Cpu, addr: u64) -> Result<u16> {
+    cpu.memory.read_mem_u16(addr)
+}
+
+fn user_space_read_mem_u8(cpu: &mut Cpu, addr: u64) -> Result<u8> {
+    cpu.memory.read_mem_u8(addr)
+}
+
+fn user_space_write_mem_u8(cpu: &mut Cpu, addr: u64, value: u8) -> Result<()> {
+    cpu.memory.write_mem_u8(addr, value)
+}
+
+fn user_space_write_mem_u16(cpu: &mut Cpu, addr: u64, value: u16) -> Result<()> {
+    cpu.memory.write_mem_u16(addr, value)
+}
+
+fn user_space_write_mem_u32(cpu: &mut Cpu, addr: u64, value: u32) -> Result<()> {
+    cpu.memory.write_mem_u32(addr, value)
+}
+
+fn user_space_write_mem_u64(cpu: &mut Cpu, addr: u64, value: u64) -> Result<()> {
+    cpu.memory.write_mem_u64(addr, value)
+}
+impl MemoryAccessVTable {
+    fn new(execution_mode: ExecutionMode) -> Self {
+        match execution_mode {
+            ExecutionMode::Bare => Self {
+                read_mem_u64: bare_read_mem_u64,
+                read_mem_u32: bare_read_mem_u32,
+                read_mem_u16: bare_read_mem_u16,
+                read_mem_u8: bare_read_mem_u8,
+                write_mem_u8: bare_write_mem_u8,
+                write_mem_u16: bare_write_mem_u16,
+                write_mem_u32: bare_write_mem_u32,
+                write_mem_u64: bare_write_mem_u64,
+            },
+            ExecutionMode::UserSpace => Self {
+                read_mem_u64: user_space_read_mem_u64,
+                read_mem_u32: user_space_read_mem_u32,
+                read_mem_u16: user_space_read_mem_u16,
+                read_mem_u8: user_space_read_mem_u8,
+                write_mem_u8: user_space_write_mem_u8,
+                write_mem_u16: user_space_write_mem_u16,
+                write_mem_u32: user_space_write_mem_u32,
+                write_mem_u64: user_space_write_mem_u64,
+            },
+        }
+    }
+}
 struct ExecutionVTable {
     run_cycles: fn(cpu: &mut Cpu) -> Result<()>,
     update_pc: fn(&mut Cpu),
@@ -91,7 +219,6 @@ struct ExecutionVTable {
     #[allow(unused)]
     fetch_instruction: fn(&mut Cpu) -> ProgramLine,
 }
-
 pub struct Cpu {
     reg_x32: [u32; 32],
     reg_x64: [u64; 32],
@@ -115,6 +242,10 @@ pub struct Cpu {
     pub block_device: Option<BlockDevice>,
     vtable: ExecutionVTable,
     pub execution_mode: ExecutionMode,
+    memory_access_vtable: MemoryAccessVTable,
+    uart: Option<ContinuousMemory>,
+    virtio: Option<ContinuousMemory>,
+    plic: Option<ContinuousMemory>,
 }
 
 impl Display for Cpu {
@@ -154,6 +285,8 @@ impl Display for Cpu {
 
 const INITIAL_STACK_POINTER_32: u32 = 0xbfffff00; // TODO: Calculate during program load
 const INITIAL_STACK_POINTER_64: u64 = 0x00007FFFFFFFFFFF; // TODO: Calculate during program load
+pub const KERNEL_ADDR: u64 = 0x80000000;
+pub const KERNEL_SIZE: u64 = 128 * 1024 * 1024;
 
 impl Default for Cpu {
     fn default() -> Self {
@@ -180,6 +313,10 @@ impl Default for Cpu {
             block_device: None,
             vtable: ExecutionVTable::new(CpuMode::RV32, ExecutionMode::UserSpace, false),
             execution_mode: ExecutionMode::UserSpace,
+            memory_access_vtable: MemoryAccessVTable::new(ExecutionMode::UserSpace),
+            uart: None,
+            virtio: None,
+            plic: None,
         };
         cpu.setup_csrs();
         cpu
@@ -361,7 +498,11 @@ impl Cpu {
                 execution_mode.clone(),
                 execution_mode == ExecutionMode::UserSpace,
             ),
+            memory_access_vtable: MemoryAccessVTable::new(execution_mode.clone()),
             execution_mode,
+            uart: Some(ContinuousMemory::new(0x10000000, 0x100)),
+            virtio: Some(ContinuousMemory::new(0x10001000, 0x100)),
+            plic: Some(ContinuousMemory::new(0x0c000000, 0x201004 + 0x8)),
         };
         cpu.setup_csrs();
         cpu
@@ -543,64 +684,35 @@ impl Cpu {
     }
 
     pub fn read_mem_u64(&mut self, addr: u64) -> Result<u64> {
-        let addr = self.translate_address_if_needed(addr)?;
-        self.memory.read_mem_u64(addr)
+        (self.memory_access_vtable.read_mem_u64)(self, addr)
     }
 
     pub fn read_mem_u32(&mut self, addr: u64) -> Result<u32> {
-        let addr = self.translate_address_if_needed(addr)?;
-        if addr == PLIC_CLAIM {
-            return Ok(plic_handle_claim_read(self));
-        }
-        self.memory.read_mem_u32(addr)
+        (self.memory_access_vtable.read_mem_u32)(self, addr)
     }
 
     pub fn read_mem_u16(&mut self, addr: u64) -> Result<u16> {
-        let addr = self.translate_address_if_needed(addr)?;
-        self.memory.read_mem_u16(addr)
+        (self.memory_access_vtable.read_mem_u16)(self, addr)
     }
 
     pub fn read_mem_u8(&mut self, addr: u64) -> Result<u8> {
-        let addr = self.translate_address_if_needed(addr)?;
-        if addr == UART_ADDR {
-            return Ok(uart_handle_read(self) as u8);
-        }
-        self.memory.read_mem_u8(addr)
+        (self.memory_access_vtable.read_mem_u8)(self, addr)
     }
 
     pub fn write_mem_u8(&mut self, addr: u64, value: u8) -> Result<()> {
-        let addr = self.translate_address_if_needed(addr)?;
-        // TODO: Add better mechanism for hooks
-        if addr == UART_ADDR {
-            uart_handle_write(self, value);
-            return Ok(());
-        }
-        self.memory.write_mem_u8(addr, value)
+        (self.memory_access_vtable.write_mem_u8)(self, addr, value)
     }
 
     pub fn write_mem_u16(&mut self, addr: u64, value: u16) -> Result<()> {
-        let addr = self.translate_address_if_needed(addr)?;
-        self.memory.write_mem_u16(addr, value)
+        (self.memory_access_vtable.write_mem_u16)(self, addr, value)
     }
 
     pub fn write_mem_u32(&mut self, addr: u64, value: u32) -> Result<()> {
-        let addr = self.translate_address_if_needed(addr)?;
-        if addr == VIRTIO_0_ADDR + VIRTIO_MMIO_QUEUE_NOTIFY as u64 {
-            process_queue(self);
-        }
-        if addr == PLIC_PENDING {
-            plic_handle_pending_write(self, value);
-        }
-        if addr == PLIC_CLAIM {
-            plic_handle_claim_write(self, value);
-            return Ok(());
-        }
-        self.memory.write_mem_u32(addr, value)
+        (self.memory_access_vtable.write_mem_u32)(self, addr, value)
     }
 
     pub fn write_mem_u64(&mut self, addr: u64, value: u64) -> Result<()> {
-        let addr = self.translate_address_if_needed(addr)?;
-        self.memory.write_mem_u64(addr, value)
+        (self.memory_access_vtable.write_mem_u64)(self, addr, value)
     }
 
     pub fn read_x_u32(&self, id: u8) -> Result<u32> {

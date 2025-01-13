@@ -5,6 +5,7 @@ use clap::Parser;
 use minifb::{Key, Window, WindowOptions};
 use nix::libc::{BRKINT, ECHO, ICRNL, INPCK, ISTRIP};
 use risc_sim::cpu::cpu_core::{Cpu, CpuMode, ExecutionMode};
+use risc_sim::cpu::memory::raw_memory::ContinuousMemory;
 use risc_sim::cpu::memory::raw_vec_memory::RawVecMemory;
 use risc_sim::elf::elf_loader::{decode_file, WordSize};
 use risc_sim::isa::csr::csr_types::CSRAddress;
@@ -124,13 +125,22 @@ fn main() -> Result<()> {
     } else {
         None
     };
-    let mut cpu = Cpu::new(
-        RawVecMemory::default(),
-        PassthroughKernel::default(),
-        mode,
-        block_dev,
-        args.execution_mode,
-    );
+    let mut cpu = match args.execution_mode {
+        ExecutionMode::Bare => Cpu::new(
+            ContinuousMemory::default(),
+            PassthroughKernel::default(),
+            mode,
+            block_dev,
+            args.execution_mode,
+        ),
+        ExecutionMode::UserSpace => Cpu::new(
+            RawVecMemory::default(),
+            PassthroughKernel::default(),
+            mode,
+            block_dev,
+            args.execution_mode,
+        ),
+    };
     cpu.load_program_from_elf(program)?;
 
     init_uart(&mut cpu);
