@@ -1,4 +1,4 @@
-use crate::cpu::cpu_core::Cpu;
+use crate::cpu::{cpu_core::Cpu, memory::memory_core::Memory};
 
 use super::plic::plic_trigger_irq;
 use std::io::{self, Write};
@@ -13,40 +13,41 @@ const LSR_TX_READY: u8 = 1 << 5;
 const UART0_IRQ: u32 = 10;
 
 pub fn uart_handle_write(cpu: &mut Cpu, value: u8) {
+    let uart = &mut cpu.peripherals.as_mut().unwrap().uart;
     let mut stdout = io::stdout();
-    let lsr = cpu.memory.read_mem_u8(UART_ADDR + LSR_REG).unwrap();
-    cpu.memory
-        .write_mem_u8(UART_ADDR + LSR_REG, lsr | LSR_TX_READY)
+    let lsr = uart.read_mem_u8(UART_ADDR + LSR_REG).unwrap();
+    uart.write_mem_u8(UART_ADDR + LSR_REG, lsr | LSR_TX_READY)
         .unwrap();
-    cpu.memory.write_mem_u8(UART_ADDR, value).unwrap();
+    uart.write_mem_u8(UART_ADDR, value).unwrap();
     write!(stdout, "\x1b[93m{}\x1b[0m", value as char).unwrap();
 
     stdout.flush().unwrap();
 }
 
 pub fn init_uart(cpu: &mut Cpu) {
-    cpu.memory
-        .write_mem_u8(UART_ADDR + LSR_REG, LSR_TX_READY)
+    let uart = &mut cpu.peripherals.as_mut().unwrap().uart;
+    uart.write_mem_u8(UART_ADDR + LSR_REG, LSR_TX_READY)
         .unwrap();
 }
 
 pub fn write_char(cpu: &mut Cpu, c: u8) {
-    let lsr = cpu.memory.read_mem_u8(UART_ADDR + LSR_REG).unwrap();
+    let uart = &mut cpu.peripherals.as_mut().unwrap().uart;
+    let lsr = uart.read_mem_u8(UART_ADDR + LSR_REG).unwrap();
     if lsr & LSR_RX_READY == 0 {
-        cpu.memory
-            .write_mem_u8(UART_ADDR + LSR_REG, lsr | LSR_RX_READY)
+        uart.write_mem_u8(UART_ADDR + LSR_REG, lsr | LSR_RX_READY)
             .unwrap();
 
-        cpu.memory.write_mem_u8(UART_ADDR, c).unwrap();
+        uart.write_mem_u8(UART_ADDR, c).unwrap();
 
         plic_trigger_irq(cpu, UART0_IRQ);
     }
 }
 
 pub fn uart_handle_read(cpu: &mut Cpu) -> u8 {
-    let lsr = cpu.read_mem_u8(UART_ADDR + LSR_REG).unwrap();
-    cpu.memory
-        .write_mem_u8(UART_ADDR + LSR_REG, lsr & !LSR_RX_READY)
+    let uart = &mut cpu.peripherals.as_mut().unwrap().uart;
+    let lsr = uart.read_mem_u8(UART_ADDR + LSR_REG).unwrap();
+
+    uart.write_mem_u8(UART_ADDR + LSR_REG, lsr & !LSR_RX_READY)
         .unwrap();
-    cpu.memory.read_mem_u8(UART_ADDR).unwrap()
+    uart.read_mem_u8(UART_ADDR).unwrap()
 }

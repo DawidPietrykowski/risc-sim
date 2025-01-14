@@ -11,7 +11,7 @@ use crate::{
         passthrough_kernel::PassthroughKernel,
         plic::{
             plic_check_pending, plic_handle_claim_read, plic_handle_claim_write,
-            plic_handle_pending_write, PLIC_CLAIM, PLIC_PENDING,
+            plic_handle_pending_write, PLIC_ADDR, PLIC_CLAIM, PLIC_PENDING,
         },
         uart::{uart_handle_read, uart_handle_write, UART_ADDR},
         virtio::{process_queue, BlockDevice, VIRTIO_0_ADDR, VIRTIO_MMIO_QUEUE_NOTIFY},
@@ -81,6 +81,13 @@ where
         }
     }
 }
+
+pub struct Peripherals {
+    pub uart: ContinuousMemory,
+    pub virtio: ContinuousMemory,
+    pub plic: ContinuousMemory,
+}
+
 struct MemoryAccessVTable {
     read_mem_u64: fn(&mut Cpu, u64) -> Result<u64>,
     read_mem_u32: fn(&mut Cpu, u64) -> Result<u32>,
@@ -100,8 +107,20 @@ fn bare_read_mem_u64(cpu: &mut Cpu, addr: u64) -> Result<u64> {
 
 fn bare_read_mem_u32(cpu: &mut Cpu, addr: u64) -> Result<u32> {
     let addr = cpu.translate_address_if_needed(addr)?;
-    if addr == PLIC_CLAIM {
-        return Ok(plic_handle_claim_read(cpu));
+    if addr <= KERNEL_ADDR {
+        if addr < UART_ADDR {
+            // PLIC
+            if addr == PLIC_CLAIM {
+                return Ok(plic_handle_claim_read(cpu));
+            }
+            return cpu.peripherals.as_mut().unwrap().plic.read_mem_u32(addr);
+        } else if addr < VIRTIO_0_ADDR {
+            // UART
+            return cpu.peripherals.as_mut().unwrap().uart.read_mem_u32(addr);
+        } else {
+            // VIRTIO
+            return cpu.peripherals.as_mut().unwrap().virtio.read_mem_u32(addr);
+        }
     }
     cpu.memory.read_mem_u32(addr)
 }
@@ -113,17 +132,56 @@ fn bare_read_mem_u16(cpu: &mut Cpu, addr: u64) -> Result<u16> {
 
 fn bare_read_mem_u8(cpu: &mut Cpu, addr: u64) -> Result<u8> {
     let addr = cpu.translate_address_if_needed(addr)?;
-    if addr == UART_ADDR {
-        return Ok(uart_handle_read(cpu) as u8);
+    if addr <= KERNEL_ADDR {
+        if addr < UART_ADDR {
+            // PLIC
+            return cpu.peripherals.as_mut().unwrap().plic.read_mem_u8(addr);
+        } else if addr < VIRTIO_0_ADDR {
+            // UART
+            if addr == UART_ADDR {
+                return Ok(uart_handle_read(cpu) as u8);
+            }
+            return cpu.peripherals.as_mut().unwrap().uart.read_mem_u8(addr);
+        } else {
+            // VIRTIO
+            return cpu.peripherals.as_mut().unwrap().virtio.read_mem_u8(addr);
+        }
     }
     cpu.memory.read_mem_u8(addr)
 }
 
 fn bare_write_mem_u8(cpu: &mut Cpu, addr: u64, value: u8) -> Result<()> {
     let addr = cpu.translate_address_if_needed(addr)?;
-    if addr == UART_ADDR {
-        uart_handle_write(cpu, value);
-        return Ok(());
+    if addr <= KERNEL_ADDR {
+        if addr < UART_ADDR {
+            // PLIC
+            return cpu
+                .peripherals
+                .as_mut()
+                .unwrap()
+                .plic
+                .write_mem_u8(addr, value);
+        } else if addr < VIRTIO_0_ADDR {
+            // UART
+            if addr == UART_ADDR {
+                uart_handle_write(cpu, value);
+                return Ok(());
+            }
+            return cpu
+                .peripherals
+                .as_mut()
+                .unwrap()
+                .uart
+                .write_mem_u8(addr, value);
+        } else {
+            // VIRTIO
+            return cpu
+                .peripherals
+                .as_mut()
+                .unwrap()
+                .virtio
+                .write_mem_u8(addr, value);
+        }
     }
     cpu.memory.write_mem_u8(addr, value)
 }
@@ -135,15 +193,42 @@ fn bare_write_mem_u16(cpu: &mut Cpu, addr: u64, value: u16) -> Result<()> {
 
 fn bare_write_mem_u32(cpu: &mut Cpu, addr: u64, value: u32) -> Result<()> {
     let addr = cpu.translate_address_if_needed(addr)?;
-    if addr == VIRTIO_0_ADDR + VIRTIO_MMIO_QUEUE_NOTIFY as u64 {
-        process_queue(cpu);
-    }
-    if addr == PLIC_PENDING {
-        plic_handle_pending_write(cpu, value);
-    }
-    if addr == PLIC_CLAIM {
-        plic_handle_claim_write(cpu, value);
-        return Ok(());
+    if addr <= KERNEL_ADDR {
+        if addr < UART_ADDR {
+            // PLIC
+            if addr == PLIC_PENDING {
+                plic_handle_pending_write(cpu, value);
+            }
+            if addr == PLIC_CLAIM {
+                plic_handle_claim_write(cpu, value);
+                return Ok(());
+            }
+            return cpu
+                .peripherals
+                .as_mut()
+                .unwrap()
+                .plic
+                .write_mem_u32(addr, value);
+        } else if addr < VIRTIO_0_ADDR {
+            // UART
+            return cpu
+                .peripherals
+                .as_mut()
+                .unwrap()
+                .uart
+                .write_mem_u32(addr, value);
+        } else {
+            // VIRTIO
+            if addr == VIRTIO_0_ADDR + VIRTIO_MMIO_QUEUE_NOTIFY as u64 {
+                process_queue(cpu);
+            }
+            return cpu
+                .peripherals
+                .as_mut()
+                .unwrap()
+                .virtio
+                .write_mem_u32(addr, value);
+        }
     }
     cpu.memory.write_mem_u32(addr, value)
 }
@@ -243,9 +328,7 @@ pub struct Cpu {
     vtable: ExecutionVTable,
     pub execution_mode: ExecutionMode,
     memory_access_vtable: MemoryAccessVTable,
-    uart: Option<ContinuousMemory>,
-    virtio: Option<ContinuousMemory>,
-    plic: Option<ContinuousMemory>,
+    pub peripherals: Option<Peripherals>,
 }
 
 impl Display for Cpu {
@@ -314,9 +397,7 @@ impl Default for Cpu {
             vtable: ExecutionVTable::new(CpuMode::RV32, ExecutionMode::UserSpace, false),
             execution_mode: ExecutionMode::UserSpace,
             memory_access_vtable: MemoryAccessVTable::new(ExecutionMode::UserSpace),
-            uart: None,
-            virtio: None,
-            plic: None,
+            peripherals: None,
         };
         cpu.setup_csrs();
         cpu
@@ -500,9 +581,11 @@ impl Cpu {
             ),
             memory_access_vtable: MemoryAccessVTable::new(execution_mode.clone()),
             execution_mode,
-            uart: Some(ContinuousMemory::new(0x10000000, 0x100)),
-            virtio: Some(ContinuousMemory::new(0x10001000, 0x100)),
-            plic: Some(ContinuousMemory::new(0x0c000000, 0x201004 + 0x8)),
+            peripherals: Some(Peripherals {
+                uart: ContinuousMemory::new(UART_ADDR, 0x100),
+                virtio: ContinuousMemory::new(VIRTIO_0_ADDR, 0x100),
+                plic: ContinuousMemory::new(PLIC_ADDR, 0x201004 + 0x8),
+            }),
         };
         cpu.setup_csrs();
         cpu

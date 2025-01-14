@@ -4,7 +4,10 @@ use std::{
     io::{Read, Write},
 };
 
-use crate::{cpu::cpu_core::Cpu, system::plic::plic_trigger_irq};
+use crate::{
+    cpu::{cpu_core::Cpu, memory::memory_core::Memory},
+    system::plic::plic_trigger_irq,
+};
 
 const VIRTIO_DESC_NUM: usize = 8;
 
@@ -148,29 +151,32 @@ impl BlockDevice {
 }
 
 fn read_virtio_queue_avail_addr(cpu: &mut Cpu) -> u64 {
-    let virtio_avail_addr_low = cpu
+    let virtio = &mut cpu.peripherals.as_mut().unwrap().virtio;
+    let virtio_avail_addr_low = virtio
         .read_mem_u32(VIRTIO_0_ADDR + VIRTIO_MMIO_QUEUE_AVAIL_LOW as u64)
         .unwrap();
-    let virtio_avail_addr_high = cpu
+    let virtio_avail_addr_high = virtio
         .read_mem_u32(VIRTIO_0_ADDR + VIRTIO_MMIO_QUEUE_AVAIL_HIGH as u64)
         .unwrap();
     (virtio_avail_addr_low as u64) | ((virtio_avail_addr_high as u64) << 32)
 }
 fn read_virtio_queue_desc_addr(cpu: &mut Cpu) -> u64 {
-    let virtio_desc_addr_low = cpu
+    let virtio = &mut cpu.peripherals.as_mut().unwrap().virtio;
+    let virtio_desc_addr_low = virtio
         .read_mem_u32(VIRTIO_0_ADDR + VIRTIO_MMIO_QUEUE_DESC_LOW as u64)
         .unwrap();
-    let virtio_desc_addr_high = cpu
+    let virtio_desc_addr_high = virtio
         .read_mem_u32(VIRTIO_0_ADDR + VIRTIO_MMIO_QUEUE_DESC_HIGH as u64)
         .unwrap();
     (virtio_desc_addr_low as u64) | ((virtio_desc_addr_high as u64) << 32)
 }
 
 fn read_virtio_queue_used_addr(cpu: &mut Cpu) -> u64 {
-    let virtio_used_addr_low = cpu
+    let virtio = &mut cpu.peripherals.as_mut().unwrap().virtio;
+    let virtio_used_addr_low = virtio
         .read_mem_u32(VIRTIO_0_ADDR + VIRTIO_MMIO_QUEUE_USED_LOW as u64)
         .unwrap();
-    let virtio_used_addr_high = cpu
+    let virtio_used_addr_high = virtio
         .read_mem_u32(VIRTIO_0_ADDR + VIRTIO_MMIO_QUEUE_USED_HIGH as u64)
         .unwrap();
     (virtio_used_addr_low as u64) | ((virtio_used_addr_high as u64) << 32)
@@ -178,17 +184,19 @@ fn read_virtio_queue_used_addr(cpu: &mut Cpu) -> u64 {
 
 fn read_mem_virtio_avail(cpu: &mut Cpu) -> VirtioQAvail {
     let virtio_avail_addr = read_virtio_queue_avail_addr(cpu);
+    let virtio = &mut cpu.peripherals.as_mut().unwrap().virtio;
     let queue_size = size_of::<VirtioQAvail>();
     let mut buf = vec![0u8; queue_size];
-    cpu.read_buf(virtio_avail_addr, &mut buf);
+    virtio.read_buf(virtio_avail_addr, &mut buf);
     unsafe { (*(buf.as_ptr() as *const VirtioQAvail)).clone() }
 }
 
 fn read_mem_virtio_desc(cpu: &mut Cpu, desc_idx: u16) -> VirtioQDesc {
     let virtio_desc_addr = read_virtio_queue_desc_addr(cpu);
+    let virtio = &mut cpu.peripherals.as_mut().unwrap().virtio;
     let desc_size = size_of::<VirtioQDesc>();
     let mut buf = vec![0u8; desc_size];
-    cpu.read_buf(
+    virtio.read_buf(
         virtio_desc_addr + (desc_idx as u64) * (desc_size as u64),
         &mut buf,
     );
@@ -197,29 +205,33 @@ fn read_mem_virtio_desc(cpu: &mut Cpu, desc_idx: u16) -> VirtioQDesc {
 
 fn read_mem_virtio_used(cpu: &mut Cpu) -> VirtioQUsed {
     let virtio_used_addr = read_virtio_queue_used_addr(cpu);
+    let virtio = &mut cpu.peripherals.as_mut().unwrap().virtio;
     let queue_size = size_of::<VirtioQUsed>();
     let mut buf = vec![0u8; queue_size];
-    cpu.read_buf(virtio_used_addr, &mut buf);
+    virtio.read_buf(virtio_used_addr, &mut buf);
     unsafe { (*(buf.as_ptr() as *const VirtioQUsed)).clone() }
 }
 
 fn write_mem_virtio_used(cpu: &mut Cpu, used: &VirtioQUsed) {
     let virtio_used_addr = read_virtio_queue_used_addr(cpu);
+    let virtio = &mut cpu.peripherals.as_mut().unwrap().virtio;
     let queue_size = size_of::<VirtioQUsed>();
     let buf = unsafe {
         std::slice::from_raw_parts((used as *const VirtioQUsed) as *const u8, queue_size)
     };
-    cpu.write_buf(virtio_used_addr, buf);
+    virtio.write_buf(virtio_used_addr, buf);
 }
 
 fn read_mem_virtio_blk_req(cpu: &mut Cpu, addr: u64) -> VirtioBlkReq {
+    let virtio = &mut cpu.peripherals.as_mut().unwrap().virtio;
     let req_size = size_of::<VirtioBlkReq>();
     let mut buf = vec![0u8; req_size];
-    cpu.read_buf(addr, &mut buf);
+    virtio.read_buf(addr, &mut buf);
     unsafe { (*(buf.as_ptr() as *const VirtioBlkReq)).clone() }
 }
 
 pub fn process_queue(cpu: &mut Cpu) {
+    let virtio = &mut cpu.peripherals.as_mut().unwrap().virtio;
     //println!("process_queue");
 
     //print_desc_table(cpu);
@@ -287,17 +299,24 @@ fn print_desc_table(cpu: &mut Cpu) {
 }
 
 pub fn init_virtio(cpu: &mut Cpu) {
-    cpu.write_mem_u32(VIRTIO_0_ADDR + VIRTIO_MMIO_DEVICE_ID as u64, 2)
+    let virtio = &mut cpu.peripherals.as_mut().unwrap().virtio;
+
+    virtio
+        .write_mem_u32(VIRTIO_0_ADDR + VIRTIO_MMIO_DEVICE_ID as u64, 2)
         .unwrap();
-    cpu.write_mem_u32(VIRTIO_0_ADDR + VIRTIO_MMIO_VENDOR_ID as u64, 0x554d4551)
+    virtio
+        .write_mem_u32(VIRTIO_0_ADDR + VIRTIO_MMIO_VENDOR_ID as u64, 0x554d4551)
         .unwrap();
-    cpu.write_mem_u32(VIRTIO_0_ADDR + VIRTIO_MMIO_MAGIC_VALUE as u64, 0x74726976)
+    virtio
+        .write_mem_u32(VIRTIO_0_ADDR + VIRTIO_MMIO_MAGIC_VALUE as u64, 0x74726976)
         .unwrap();
-    cpu.write_mem_u32(VIRTIO_0_ADDR + VIRTIO_MMIO_VERSION as u64, 2)
+    virtio
+        .write_mem_u32(VIRTIO_0_ADDR + VIRTIO_MMIO_VERSION as u64, 2)
         .unwrap();
-    cpu.write_mem_u32(
-        VIRTIO_0_ADDR + VIRTIO_MMIO_QUEUE_NUM_MAX as u64,
-        VIRTIO_DESC_NUM as u32,
-    )
-    .unwrap();
+    virtio
+        .write_mem_u32(
+            VIRTIO_0_ADDR + VIRTIO_MMIO_QUEUE_NUM_MAX as u64,
+            VIRTIO_DESC_NUM as u32,
+        )
+        .unwrap();
 }
