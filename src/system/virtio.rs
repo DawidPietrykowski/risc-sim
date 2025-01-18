@@ -187,7 +187,7 @@ fn read_mem_virtio_avail(cpu: &mut Cpu) -> VirtioQAvail {
     let virtio = &mut cpu.peripherals.as_mut().unwrap().virtio;
     let queue_size = size_of::<VirtioQAvail>();
     let mut buf = vec![0u8; queue_size];
-    virtio.read_buf(virtio_avail_addr, &mut buf);
+    cpu.read_buf(virtio_avail_addr, &mut buf);
     unsafe { (*(buf.as_ptr() as *const VirtioQAvail)).clone() }
 }
 
@@ -196,7 +196,7 @@ fn read_mem_virtio_desc(cpu: &mut Cpu, desc_idx: u16) -> VirtioQDesc {
     let virtio = &mut cpu.peripherals.as_mut().unwrap().virtio;
     let desc_size = size_of::<VirtioQDesc>();
     let mut buf = vec![0u8; desc_size];
-    virtio.read_buf(
+    cpu.read_buf(
         virtio_desc_addr + (desc_idx as u64) * (desc_size as u64),
         &mut buf,
     );
@@ -208,7 +208,7 @@ fn read_mem_virtio_used(cpu: &mut Cpu) -> VirtioQUsed {
     let virtio = &mut cpu.peripherals.as_mut().unwrap().virtio;
     let queue_size = size_of::<VirtioQUsed>();
     let mut buf = vec![0u8; queue_size];
-    virtio.read_buf(virtio_used_addr, &mut buf);
+    cpu.read_buf(virtio_used_addr, &mut buf);
     unsafe { (*(buf.as_ptr() as *const VirtioQUsed)).clone() }
 }
 
@@ -219,14 +219,14 @@ fn write_mem_virtio_used(cpu: &mut Cpu, used: &VirtioQUsed) {
     let buf = unsafe {
         std::slice::from_raw_parts((used as *const VirtioQUsed) as *const u8, queue_size)
     };
-    virtio.write_buf(virtio_used_addr, buf);
+    cpu.write_buf(virtio_used_addr, buf);
 }
 
 fn read_mem_virtio_blk_req(cpu: &mut Cpu, addr: u64) -> VirtioBlkReq {
     let virtio = &mut cpu.peripherals.as_mut().unwrap().virtio;
     let req_size = size_of::<VirtioBlkReq>();
     let mut buf = vec![0u8; req_size];
-    virtio.read_buf(addr, &mut buf);
+    cpu.read_buf(addr, &mut buf);
     unsafe { (*(buf.as_ptr() as *const VirtioBlkReq)).clone() }
 }
 
