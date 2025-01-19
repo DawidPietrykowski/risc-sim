@@ -5,10 +5,11 @@ use clap::Parser;
 use ctrlc::set_handler;
 use minifb::{Key, Window, WindowOptions};
 use nix::libc::{BRKINT, ECHO, ICRNL, INPCK, ISTRIP};
-use risc_sim::cpu::cpu_core::{Cpu, CpuMode, ExecutionMode};
+use risc_sim::cpu::cpu_core::{
+    Cpu, CpuMode, ExecutionMode, INITIAL_STACK_POINTER_32, INITIAL_STACK_POINTER_64,
+};
 use risc_sim::cpu::memory::raw_memory::ContinuousMemory;
-use risc_sim::cpu::memory::raw_table_memory::RawTableMemory;
-use risc_sim::cpu::memory::raw_vec_memory::RawVecMemory;
+use risc_sim::cpu::memory::user_memory::{UserMemory, HEAP_SIZE, STACK_SIZE};
 use risc_sim::elf::elf_loader::{decode_file, WordSize};
 use risc_sim::isa::csr::csr_types::CSRAddress;
 use risc_sim::system::passthrough_kernel::PassthroughKernel;
@@ -72,10 +73,9 @@ fn main() -> Result<()> {
     const SCREEN_WIDTH: u64 = 320;
     const SCREEN_HEIGHT: u64 = 200;
     const MEMORY_BUFFER_SIZE: u64 = SCREEN_WIDTH * SCREEN_HEIGHT * 4;
-    const SCREEN_ADDR_ADDR: u64 = 0x40000000;
+    const SCREEN_ADDR_ADDR: u64 = 0x1000000 - 4;
     const SCALE_SCREEN: u64 = 2;
     let simulate_display: bool = args.simulate_display;
-    const ASSUME_PROGRAM_CACHE_COMPLETE: bool = false;
 
     let mut frames_written = 0;
 
@@ -146,14 +146,24 @@ fn main() -> Result<()> {
         ),
         ExecutionMode::UserSpace => match mode {
             CpuMode::RV64 => Cpu::new(
-                RawVecMemory::default(),
+                UserMemory::new(
+                    INITIAL_STACK_POINTER_64 as u64 - STACK_SIZE,
+                    0,
+                    STACK_SIZE,
+                    HEAP_SIZE,
+                ),
                 PassthroughKernel::default(),
                 mode,
                 block_dev,
                 args.execution_mode.clone(),
             ),
             CpuMode::RV32 => Cpu::new(
-                RawTableMemory::default(),
+                UserMemory::new(
+                    INITIAL_STACK_POINTER_32 as u64 - STACK_SIZE,
+                    0,
+                    STACK_SIZE,
+                    HEAP_SIZE,
+                ),
                 PassthroughKernel::default(),
                 mode,
                 block_dev,

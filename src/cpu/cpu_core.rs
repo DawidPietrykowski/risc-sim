@@ -356,8 +356,8 @@ impl Display for Cpu {
     }
 }
 
-const INITIAL_STACK_POINTER_32: u32 = 0xbfffff00; // TODO: Calculate during program load
-const INITIAL_STACK_POINTER_64: u64 = 0x00007FFFFFFFFFFF; // TODO: Calculate during program load
+pub const INITIAL_STACK_POINTER_32: u32 = 0xbfffff00; // TODO: Calculate during program load
+pub const INITIAL_STACK_POINTER_64: u64 = 0x00007FFFFFFFFFFF; // TODO: Calculate during program load
 pub const KERNEL_ADDR: u64 = 0x80000000;
 pub const KERNEL_SIZE: u64 = 128 * 1024 * 1024;
 
