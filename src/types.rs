@@ -22,6 +22,7 @@ use crate::{
     },
 };
 use anyhow::{anyhow, Context, Ok, Result};
+use once_cell::sync::Lazy;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct ProgramLine {
@@ -301,6 +302,19 @@ pub fn decode_program_line(word: Word, mode: CpuMode) -> Result<ProgramLine> {
     Ok(ProgramLine { instruction, word })
 }
 
+pub fn decode_program_line_unchecked_rv64(word: &Word) -> ProgramLine {
+    let instruction = unsafe {
+        ALL_INSTRUCTIONS_64
+            .iter()
+            .find(|ins| (word.0 & ins.mask) == ins.bits)
+            .unwrap_unchecked()
+    };
+    ProgramLine {
+        instruction: *instruction,
+        word: *word,
+    }
+}
+
 pub fn encode_program_line(name: &str, instruction_data: InstructionData) -> Result<Word> {
     let instruction = find_instruction_by_name(name)?;
     let mut word = Word(0);
@@ -469,36 +483,34 @@ pub fn find_instruction_by_name(name: &str) -> Result<Instruction> {
         .find(|ins| ins.name == name)
         .context("Function not found")?)
 }
-use lazy_static::lazy_static;
 
-lazy_static! {
-    static ref ALL_INSTRUCTIONS_32: Vec<Instruction> = {
-        let mut all = Vec::new();
-        all.extend_from_slice(&RV32I_SET_I);
-        all.extend_from_slice(&RV32I_SET_R);
-        all.extend_from_slice(&RV32I_SET_UJ);
-        all.extend_from_slice(&RV32I_SET_LS);
-        all.extend_from_slice(&RV32I_SET_E);
-        all.extend_from_slice(&RV32M_SET_R);
-        all.extend_from_slice(&RV32_ZIFENCEI_SET);
-        all.extend_from_slice(&RV32_ZICSR_SET);
-        all
-    };
-    static ref ALL_INSTRUCTIONS_64: Vec<Instruction> = {
-        let mut all = Vec::new();
-        all.extend_from_slice(&RV64I_SET_I);
-        all.extend_from_slice(&RV64I_SET_R);
-        all.extend_from_slice(&RV64I_SET_UJ);
-        all.extend_from_slice(&RV64I_SET_LS);
-        all.extend_from_slice(&RV64I_SET_E);
-        all.extend_from_slice(&RV64A_SET_AMO);
-        all.extend_from_slice(&RV64M_SET_R);
-        all.extend_from_slice(&RV64_ZIFENCEI_SET);
-        all.extend_from_slice(&RV64_ZICSR_SET);
-        all.extend_from_slice(&RV64_PRIVILEGED_SET);
-        all
-    };
-}
+static ALL_INSTRUCTIONS_32: Lazy<Vec<Instruction>> = Lazy::new(|| {
+    let mut all = Vec::new();
+    all.extend_from_slice(&RV32I_SET_I);
+    all.extend_from_slice(&RV32I_SET_R);
+    all.extend_from_slice(&RV32I_SET_UJ);
+    all.extend_from_slice(&RV32I_SET_LS);
+    all.extend_from_slice(&RV32I_SET_E);
+    all.extend_from_slice(&RV32M_SET_R);
+    all.extend_from_slice(&RV32_ZIFENCEI_SET);
+    all.extend_from_slice(&RV32_ZICSR_SET);
+    all
+});
+
+static ALL_INSTRUCTIONS_64: Lazy<Vec<Instruction>> = Lazy::new(|| {
+    let mut all = Vec::new();
+    all.extend_from_slice(&RV64I_SET_I);
+    all.extend_from_slice(&RV64I_SET_R);
+    all.extend_from_slice(&RV64I_SET_UJ);
+    all.extend_from_slice(&RV64I_SET_LS);
+    all.extend_from_slice(&RV64I_SET_E);
+    all.extend_from_slice(&RV64A_SET_AMO);
+    all.extend_from_slice(&RV64M_SET_R);
+    all.extend_from_slice(&RV64_ZIFENCEI_SET);
+    all.extend_from_slice(&RV64_ZICSR_SET);
+    all.extend_from_slice(&RV64_PRIVILEGED_SET);
+    all
+});
 
 pub enum ABIRegister {
     Zero,

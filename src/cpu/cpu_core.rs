@@ -16,7 +16,7 @@ use crate::{
         uart::{uart_handle_read, uart_handle_write, UART_ADDR},
         virtio::{process_queue, BlockDevice, VIRTIO_0_ADDR, VIRTIO_MMIO_QUEUE_NOTIFY},
     },
-    types::{ABIRegister, Instruction},
+    types::{decode_program_line_unchecked_rv64, ABIRegister, Instruction},
     utils::binary_utils::*,
 };
 
@@ -409,6 +409,7 @@ impl ExecutionVTable {
         let run_cycles = match execution_mode {
             ExecutionMode::Bare => |cpu: &mut Cpu| {
                 // Check if CPU is halted
+                #[cfg(not(feature = "maxperf"))]
                 if cpu.halted {
                     bail!("CPU is halted");
                 }
@@ -490,11 +491,16 @@ impl ExecutionVTable {
             },
             false => |cpu: &mut Cpu| unsafe {
                 let pc = (cpu.vtable.get_current_pc_translated)(cpu);
-                decode_program_line(
+                #[cfg(not(feature = "maxperf"))]
+                return decode_program_line(
                     Word(cpu.memory.read_mem_u32(pc).unwrap_unchecked()),
                     cpu.arch_mode,
                 )
-                .unwrap_unchecked()
+                .unwrap();
+                #[cfg(feature = "maxperf")]
+                return decode_program_line_unchecked_rv64(&Word(
+                    cpu.memory.read_mem_u32(pc).unwrap_unchecked(),
+                ));
             },
         };
         let get_current_pc_translated = match execution_mode {
