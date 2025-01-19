@@ -1,5 +1,6 @@
 use std::{fmt::Display, fs::File};
 
+#[allow(unused)]
 use crate::{
     elf::elf_loader::{load_kernel_to_memory, load_program_to_memory, ElfFile},
     isa::{
@@ -297,20 +298,13 @@ impl MemoryAccessVTable {
 }
 struct ExecutionVTable {
     run_cycles: fn(cpu: &mut Cpu) -> Result<()>,
-    update_pc: fn(&mut Cpu),
-    #[allow(unused)]
-    get_current_pc: fn(&Cpu) -> u64,
-    get_current_pc_translated: fn(&mut Cpu) -> u64,
-    #[allow(unused)]
-    fetch_instruction: fn(&mut Cpu) -> ProgramLine,
+    fetch_instruction: fn(&mut Cpu, pc: u64) -> ProgramLine,
 }
 pub struct Cpu {
     reg_x32: [u32; 32],
     reg_x64: [u64; 32],
     reg_f: [f64; 32],
-    reg_pc: u32,
     reg_pc_64: u64,
-    pub current_instruction_pc: u32,
     pub current_instruction_pc_64: u64,
     pub memory: Box<dyn Memory>,
     program_cache: ProgramCache,
@@ -353,7 +347,7 @@ impl Display for Cpu {
             {
                 writeln!(f, "x{}: {:#010x}", i, reg)?;
             }
-            writeln!(f, "PC: {:#010x}", self.reg_pc)?;
+            writeln!(f, "PC: {:#010x}", self.reg_pc_64)?;
         }
         writeln!(f, "Program Break: {:#010x}", self.program_brk)?;
         writeln!(f, "Halted: {}", self.halted)?;
@@ -377,9 +371,7 @@ impl Default for Cpu {
             reg_x32: [0x0; 32],
             reg_x64: [0x0; 32],
             reg_f: [0.0; 32],
-            reg_pc: 0x0,
             reg_pc_64: 0x0,
-            current_instruction_pc: 0x0,
             current_instruction_pc_64: 0x0,
             memory: Box::new(RawVecMemory::new()),
             program_cache: ProgramCache::empty(),
@@ -394,7 +386,7 @@ impl Default for Cpu {
             privilege_mode: PrivilegeMode::Machine,
             pc_history: CircularBuffer::new(500),
             block_device: None,
-            vtable: ExecutionVTable::new(CpuMode::RV32, ExecutionMode::UserSpace, false),
+            vtable: ExecutionVTable::new(CpuMode::RV32, ExecutionMode::UserSpace),
             execution_mode: ExecutionMode::UserSpace,
             memory_access_vtable: MemoryAccessVTable::new(ExecutionMode::UserSpace),
             peripherals: None,
@@ -405,7 +397,7 @@ impl Default for Cpu {
 }
 
 impl ExecutionVTable {
-    fn new(mode: CpuMode, execution_mode: ExecutionMode, force_cache: bool) -> Self {
+    fn new(mode: CpuMode, execution_mode: ExecutionMode) -> Self {
         let run_cycles = match execution_mode {
             ExecutionMode::Bare => |cpu: &mut Cpu| {
                 // Check if CPU is halted
@@ -416,17 +408,25 @@ impl ExecutionVTable {
 
                 // Fetch
                 #[cfg(feature = "maxperf")]
-                let instruction = (cpu.vtable.fetch_instruction)(cpu);
+                let pc_translated = unsafe {
+                    cpu.translate_address_if_needed(cpu.reg_pc_64)
+                        .unwrap_unchecked()
+                };
                 #[cfg(not(feature = "maxperf"))]
-                let instruction = cpu.fetch_instruction()?;
+                let pc_translated = cpu.translate_address_if_needed(cpu.reg_pc_64)?;
+                #[cfg(feature = "maxperf")]
+                let instruction = (cpu.vtable.fetch_instruction)(cpu, pc_translated);
+                #[cfg(not(feature = "maxperf"))]
+                let instruction = cpu.fetch_instruction(pc_translated)?;
 
                 #[cfg(not(feature = "maxperf"))]
                 if cpu.debug_enabled {
-                    println!("\nPC({:#x}) {}", cpu.reg_pc, instruction);
+                    println!("\nPC({:#x}) {}", cpu.reg_pc_64, instruction);
                 }
 
                 // Increase PC
-                (cpu.vtable.update_pc)(cpu);
+                cpu.current_instruction_pc_64 = cpu.reg_pc_64;
+                cpu.reg_pc_64 += 4;
 
                 #[cfg(not(feature = "maxperf"))]
                 cpu.pc_history.push((
@@ -456,17 +456,18 @@ impl ExecutionVTable {
 
                 // Fetch
                 #[cfg(feature = "maxperf")]
-                let instruction = (cpu.vtable.fetch_instruction)(cpu);
+                let instruction = cpu.program_cache.get_line_unchecked(cpu.reg_pc_64);
                 #[cfg(not(feature = "maxperf"))]
-                let instruction = cpu.fetch_instruction()?;
+                let instruction = cpu.fetch_instruction(cpu.reg_pc_64)?;
 
                 #[cfg(not(feature = "maxperf"))]
                 if cpu.debug_enabled {
-                    println!("\nPC({:#x}) {}", cpu.reg_pc, instruction);
+                    println!("\nPC({:#x}) {}", cpu.reg_pc_64, instruction);
                 }
 
                 // Increase PC
-                (cpu.vtable.update_pc)(cpu);
+                cpu.current_instruction_pc_64 = cpu.reg_pc_64;
+                cpu.reg_pc_64 += 4;
 
                 #[cfg(not(feature = "maxperf"))]
                 cpu.pc_history.push((
@@ -484,86 +485,40 @@ impl ExecutionVTable {
                 Ok(())
             },
         };
-        let fetch_instruction = match force_cache {
-            true => |cpu: &mut Cpu| {
-                let pc = (cpu.vtable.get_current_pc_translated)(cpu);
-                cpu.program_cache.get_line_unchecked(pc)
+        let fetch_instruction = match mode {
+            CpuMode::RV32 => |cpu: &mut Cpu, pc: u64| unsafe {
+                #[cfg(not(feature = "maxperf"))]
+                return decode_program_line(
+                    Word(cpu.memory.read_mem_u32(pc).unwrap_unchecked()),
+                    cpu.arch_mode,
+                )
+                .unwrap();
+                #[cfg(feature = "maxperf")]
+                return decode_program_line(
+                    Word(cpu.memory.read_mem_u32(pc).unwrap_unchecked()),
+                    cpu.arch_mode,
+                )
+                .unwrap_unchecked();
             },
-            false => match mode {
-                CpuMode::RV32 => |cpu: &mut Cpu| unsafe {
-                    let pc = (cpu.vtable.get_current_pc_translated)(cpu);
-                    #[cfg(not(feature = "maxperf"))]
-                    return decode_program_line(
-                        Word(cpu.memory.read_mem_u32(pc).unwrap_unchecked()),
-                        cpu.arch_mode,
-                    )
-                    .unwrap();
-                    #[cfg(feature = "maxperf")]
-                    return decode_program_line(
-                        Word(cpu.memory.read_mem_u32(pc).unwrap_unchecked()),
-                        cpu.arch_mode,
-                    )
-                    .unwrap_unchecked();
-                },
-                CpuMode::RV64 => |cpu: &mut Cpu| unsafe {
-                    let pc = (cpu.vtable.get_current_pc_translated)(cpu);
-                    #[cfg(not(feature = "maxperf"))]
-                    return decode_program_line(
-                        Word(cpu.memory.read_mem_u32(pc).unwrap_unchecked()),
-                        cpu.arch_mode,
-                    )
-                    .unwrap();
-                    #[cfg(feature = "maxperf")]
-                    return decode_program_line_unchecked_rv64(&Word(
-                        cpu.memory.read_mem_u32(pc).unwrap_unchecked(),
-                    ));
-                },
+            CpuMode::RV64 => |cpu: &mut Cpu, pc: u64| unsafe {
+                #[cfg(not(feature = "maxperf"))]
+                return decode_program_line(
+                    Word(cpu.memory.read_mem_u32(pc).unwrap_unchecked()),
+                    cpu.arch_mode,
+                )
+                .unwrap();
+                #[cfg(feature = "maxperf")]
+                return decode_program_line_unchecked_rv64(&Word(
+                    cpu.memory.read_mem_u32(pc).unwrap_unchecked(),
+                ));
             },
-        };
-        let get_current_pc_translated_32 = match execution_mode {
-            ExecutionMode::Bare => {
-                if cfg!(feature = "maxperf") {
-                    |cpu: &mut Cpu| unsafe {
-                        cpu.translate_address_if_needed(cpu.reg_pc as u64)
-                            .unwrap_unchecked()
-                    }
-                } else {
-                    |cpu: &mut Cpu| cpu.translate_address_if_needed(cpu.reg_pc as u64).unwrap()
-                }
-            }
-            ExecutionMode::UserSpace => |cpu: &mut Cpu| cpu.reg_pc as u64,
-        };
-        let get_current_pc_translated_64 = match execution_mode {
-            ExecutionMode::Bare => {
-                if cfg!(feature = "maxperf") {
-                    |cpu: &mut Cpu| unsafe {
-                        cpu.translate_address_if_needed(cpu.reg_pc_64)
-                            .unwrap_unchecked()
-                    }
-                } else {
-                    |cpu: &mut Cpu| cpu.translate_address_if_needed(cpu.reg_pc_64).unwrap()
-                }
-            }
-            ExecutionMode::UserSpace => |cpu: &mut Cpu| cpu.reg_pc_64,
         };
         match mode {
             CpuMode::RV64 => Self {
-                update_pc: |cpu: &mut Cpu| {
-                    cpu.current_instruction_pc_64 = cpu.reg_pc_64;
-                    cpu.reg_pc_64 += 4;
-                },
-                get_current_pc: |cpu: &Cpu| cpu.reg_pc_64,
-                get_current_pc_translated: get_current_pc_translated_64,
                 run_cycles,
                 fetch_instruction,
             },
             CpuMode::RV32 => Self {
-                update_pc: |cpu: &mut Cpu| {
-                    cpu.current_instruction_pc = cpu.reg_pc;
-                    cpu.reg_pc += 4;
-                },
-                get_current_pc: |cpu: &Cpu| cpu.reg_pc as u64,
-                get_current_pc_translated: get_current_pc_translated_32,
                 run_cycles,
                 fetch_instruction,
             },
@@ -593,9 +548,7 @@ impl Cpu {
             reg_x32: [0x0; 32],
             reg_x64: [0x0; 32],
             reg_f: [0.0; 32],
-            reg_pc: 0x0,
             reg_pc_64: 0x0,
-            current_instruction_pc: 0x0,
             current_instruction_pc_64: 0x0,
             memory: Box::new(memory),
             program_cache: ProgramCache::empty(),
@@ -610,11 +563,7 @@ impl Cpu {
             privilege_mode: PrivilegeMode::Machine,
             pc_history: CircularBuffer::new(500),
             block_device,
-            vtable: ExecutionVTable::new(
-                mode,
-                execution_mode.clone(),
-                execution_mode == ExecutionMode::UserSpace,
-            ),
+            vtable: ExecutionVTable::new(mode, execution_mode.clone()),
             memory_access_vtable: MemoryAccessVTable::new(execution_mode.clone()),
             execution_mode,
             peripherals: Some(Peripherals {
@@ -630,11 +579,7 @@ impl Cpu {
     pub fn load_program_from_elf(&mut self, elf: ElfFile) -> Result<()> {
         let program_file = load_program_to_memory(elf, self.memory.as_mut(), self.arch_mode)?;
 
-        if self.arch_mode == CpuMode::RV64 {
-            self.reg_pc_64 = program_file.entry_point;
-        } else {
-            self.reg_pc = program_file.entry_point as u32;
-        }
+        self.reg_pc_64 = program_file.entry_point;
 
         self.program_cache = ProgramCache::new(
             program_file.program_memory_offset,
@@ -695,11 +640,7 @@ impl Cpu {
                 .unwrap();
         }
 
-        if self.arch_mode == CpuMode::RV64 {
-            self.reg_pc_64 = entry_point;
-        } else {
-            self.reg_pc = entry_point as u32;
-        }
+        self.reg_pc_64 = entry_point;
 
         self.program_cache = ProgramCache::new(
             entry_point,
@@ -768,24 +709,18 @@ impl Cpu {
     }
 
     pub fn read_pc(&self) -> u64 {
-        if self.arch_mode == CpuMode::RV32 {
-            self.reg_pc as u64
-        } else {
-            self.reg_pc_64
-        }
+        self.reg_pc_64
     }
 
     #[cfg(not(feature = "maxperf"))]
-    fn fetch_instruction(&mut self) -> Result<ProgramLine> {
-        let mut pc = self.read_pc();
-        pc = self.translate_address_if_needed(pc)?;
-        if let Some(cache_line) = self.program_cache.try_get_line(pc) {
+    fn fetch_instruction(&mut self, physical_addr: u64) -> Result<ProgramLine> {
+        if let Some(cache_line) = self.program_cache.try_get_line(physical_addr) {
             Ok(cache_line)
         } else {
             decode_program_line(
                 Word(
                     self.memory
-                        .read_mem_u32(pc)
+                        .read_mem_u32(physical_addr)
                         .context("No instruction at pc")?,
                 ),
                 self.arch_mode,
@@ -1003,7 +938,7 @@ impl Cpu {
     }
 
     pub fn read_pc_u32(&self) -> u32 {
-        self.reg_pc
+        self.reg_pc_64 as u32
     }
 
     pub fn read_pc_u64(&self) -> u64 {
@@ -1011,7 +946,7 @@ impl Cpu {
     }
 
     pub fn write_pc_u32(&mut self, val: u32) {
-        self.reg_pc = val;
+        self.reg_pc_64 = val as u64;
     }
 
     pub fn write_pc_u64(&mut self, val: u64) {
@@ -1091,7 +1026,7 @@ impl Cpu {
     //}
 
     pub fn read_current_instruction_addr_u32(&self) -> u32 {
-        self.current_instruction_pc
+        self.current_instruction_pc_64 as u32
     }
 
     pub fn read_current_instruction_addr_u64(&self) -> u64 {

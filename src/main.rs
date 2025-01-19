@@ -6,6 +6,7 @@ use minifb::{Key, Window, WindowOptions};
 use nix::libc::{BRKINT, ECHO, ICRNL, INPCK, ISTRIP};
 use risc_sim::cpu::cpu_core::{Cpu, CpuMode, ExecutionMode};
 use risc_sim::cpu::memory::raw_memory::ContinuousMemory;
+use risc_sim::cpu::memory::raw_table_memory::RawTableMemory;
 use risc_sim::cpu::memory::raw_vec_memory::RawVecMemory;
 use risc_sim::elf::elf_loader::{decode_file, WordSize};
 use risc_sim::isa::csr::csr_types::CSRAddress;
@@ -133,13 +134,22 @@ fn main() -> Result<()> {
             block_dev,
             args.execution_mode.clone(),
         ),
-        ExecutionMode::UserSpace => Cpu::new(
-            RawVecMemory::default(),
-            PassthroughKernel::default(),
-            mode,
-            block_dev,
-            args.execution_mode.clone(),
-        ),
+        ExecutionMode::UserSpace => match mode {
+            CpuMode::RV64 => Cpu::new(
+                RawVecMemory::default(),
+                PassthroughKernel::default(),
+                mode,
+                block_dev,
+                args.execution_mode.clone(),
+            ),
+            CpuMode::RV32 => Cpu::new(
+                RawTableMemory::default(),
+                PassthroughKernel::default(),
+                mode,
+                block_dev,
+                args.execution_mode.clone(),
+            ),
+        },
     };
     cpu.load_program_from_elf(program)?;
 
