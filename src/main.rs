@@ -44,8 +44,6 @@ pub struct Args {
     pub fs_image: Option<String>,
 }
 
-const MAX_CYCLES: u64 = 10000000000;
-
 fn create_stdio_channel() -> Receiver<u8> {
     let (tx, rx) = mpsc::channel::<u8>();
     thread::spawn(move || loop {
@@ -179,7 +177,10 @@ fn main() -> Result<()> {
     let start_time = std::time::Instant::now();
 
     let mut count = 0;
+    #[cfg(feature = "maxperf")]
     const COUNT_INTERVAL: u64 = 200000;
+    #[cfg(not(feature = "maxperf"))]
+    const COUNT_INTERVAL: u64 = 1;
     let mut stdio_count = 0;
     const STDIO_READ_INTERVAL: u64 = 2;
     let res = loop {
@@ -187,17 +188,7 @@ fn main() -> Result<()> {
             break anyhow::anyhow!("Interrupted by Ctrl-C");
         }
 
-        #[cfg(not(feature = "maxperf"))]
-        {
-            count += 1;
-            if count > MAX_CYCLES {
-                break anyhow::anyhow!("Too many cycles");
-            }
-        }
-        #[cfg(feature = "maxperf")]
-        {
-            count += COUNT_INTERVAL;
-        }
+        count += COUNT_INTERVAL;
 
         if args.execution_mode == ExecutionMode::Bare {
             if stdio_count % STDIO_READ_INTERVAL == 0 {
@@ -270,8 +261,6 @@ fn main() -> Result<()> {
                 continue;
             }
             Err(e) => {
-                println!("Error: {:?}", e);
-                cpu.print_pc_history();
                 break e;
             }
         }
