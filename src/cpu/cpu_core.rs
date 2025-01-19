@@ -520,7 +520,20 @@ impl ExecutionVTable {
                 },
             },
         };
-        let get_current_pc_translated = match execution_mode {
+        let get_current_pc_translated_32 = match execution_mode {
+            ExecutionMode::Bare => {
+                if cfg!(feature = "maxperf") {
+                    |cpu: &mut Cpu| unsafe {
+                        cpu.translate_address_if_needed(cpu.reg_pc as u64)
+                            .unwrap_unchecked()
+                    }
+                } else {
+                    |cpu: &mut Cpu| cpu.translate_address_if_needed(cpu.reg_pc as u64).unwrap()
+                }
+            }
+            ExecutionMode::UserSpace => |cpu: &mut Cpu| cpu.reg_pc as u64,
+        };
+        let get_current_pc_translated_64 = match execution_mode {
             ExecutionMode::Bare => {
                 if cfg!(feature = "maxperf") {
                     |cpu: &mut Cpu| unsafe {
@@ -540,7 +553,7 @@ impl ExecutionVTable {
                     cpu.reg_pc_64 += 4;
                 },
                 get_current_pc: |cpu: &Cpu| cpu.reg_pc_64,
-                get_current_pc_translated,
+                get_current_pc_translated: get_current_pc_translated_64,
                 run_cycles,
                 fetch_instruction,
             },
@@ -550,7 +563,7 @@ impl ExecutionVTable {
                     cpu.reg_pc += 4;
                 },
                 get_current_pc: |cpu: &Cpu| cpu.reg_pc as u64,
-                get_current_pc_translated,
+                get_current_pc_translated: get_current_pc_translated_32,
                 run_cycles,
                 fetch_instruction,
             },
