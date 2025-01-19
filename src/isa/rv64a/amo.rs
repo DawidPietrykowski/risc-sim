@@ -39,13 +39,13 @@ pub const RV64A_SET_AMO: [Instruction; 10] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_r(word);
 
-            let addr = cpu.read_x_u64(instruction.rs1.value())?;
+            let addr = cpu.read_x_u64(instruction.rs1.value());
 
             let data = cpu.read_mem_u32(addr)?;
 
-            let rs2 = cpu.read_x_u64(instruction.rs2.value())? as u32;
+            let rs2 = cpu.read_x_u64(instruction.rs2.value()) as u32;
 
-            cpu.write_x_i64(instruction.rd.value(), sign_extend_32bit_to_64bit(data))?;
+            cpu.write_x_i64(instruction.rd.value(), sign_extend_32bit_to_64bit(data));
 
             let res = rs2;
             cpu.write_mem_u32(addr, res)?;

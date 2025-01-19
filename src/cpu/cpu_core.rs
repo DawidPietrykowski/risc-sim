@@ -593,13 +593,11 @@ impl Cpu {
                 ABIRegister::SP.to_x_reg_id() as u8,
                 INITIAL_STACK_POINTER_64,
             )
-            .unwrap();
         } else {
             self.write_x_u32(
                 ABIRegister::SP.to_x_reg_id() as u8,
                 INITIAL_STACK_POINTER_32,
             )
-            .unwrap();
         }
         self.program_brk = program_file.end_of_data_addr;
 
@@ -769,96 +767,47 @@ impl Cpu {
         (self.memory_access_vtable.write_mem_u64)(self, addr, value)
     }
 
-    pub fn read_x_u32(&self, id: u8) -> Result<u32> {
-        #[cfg(feature = "maxperf")]
-        {
-            unsafe { return Ok(*self.reg_x32.get_unchecked(id as usize)) }
-        }
-        #[cfg(not(feature = "maxperf"))]
-        {
-            let value = self
-                .reg_x32
-                .get(id as usize)
-                .context(format!("Register x{} does not exist", id))?;
-
-            return Ok(*value);
-        }
+    pub fn read_x_u32(&self, id: u8) -> u32 {
+        unsafe { *self.reg_x32.get_unchecked(id as usize) }
     }
 
-    pub fn read_x_u64(&self, id: u8) -> Result<u64> {
-        #[cfg(feature = "maxperf")]
-        {
-            unsafe { return Ok(*self.reg_x64.get_unchecked(id as usize)) }
-        }
-        #[cfg(not(feature = "maxperf"))]
-        {
-            let value = self
-                .reg_x64
-                .get(id as usize)
-                .context(format!("Register x{} does not exist", id))?;
-
-            return Ok(*value);
-        }
+    pub fn read_x_u64(&self, id: u8) -> u64 {
+        unsafe { *self.reg_x64.get_unchecked(id as usize) }
     }
 
-    pub fn read_x_i32(&self, id: u8) -> Result<i32> {
-        Ok(u32_to_i32(self.read_x_u32(id)?))
+    pub fn read_x_i32(&self, id: u8) -> i32 {
+        u32_to_i32(self.read_x_u32(id))
     }
 
-    pub fn read_x_i64(&self, id: u8) -> Result<i64> {
-        Ok(u64_to_i64(self.read_x_u64(id)?))
+    pub fn read_x_i64(&self, id: u8) -> i64 {
+        u64_to_i64(self.read_x_u64(id))
     }
 
-    pub fn write_x_i32(&mut self, id: u8, value: i32) -> Result<()> {
+    pub fn write_x_i32(&mut self, id: u8, value: i32) {
         if id == 0 {
-            return Ok(()); // x0 is hardwired to 0
+            return; // x0 is hardwired to 0
         }
 
-        #[cfg(not(feature = "maxperf"))]
-        let reg_value = self
-            .reg_x32
-            .get_mut(id as usize)
-            .context("Register does not exist")?;
-        #[cfg(feature = "maxperf")]
         let reg_value = unsafe { self.reg_x32.get_unchecked_mut(id as usize) }; // SAFETY: For properly compiled code 0 <= id < 32
-
         *reg_value = i32_to_u32(value);
-        Ok(())
     }
 
-    pub fn write_x_i64(&mut self, id: u8, value: i64) -> Result<()> {
+    pub fn write_x_i64(&mut self, id: u8, value: i64) {
         if id == 0 {
-            return Ok(()); // x0 is hardwired to 0
+            return; // x0 is hardwired to 0
         }
 
-        #[cfg(not(feature = "maxperf"))]
-        let reg_value = self
-            .reg_x64
-            .get_mut(id as usize)
-            // .context(format!("Register x{} does not exist", id))?;
-            .context("Register does not exist")?;
-        #[cfg(feature = "maxperf")]
         let reg_value = unsafe { self.reg_x64.get_unchecked_mut(id as usize) }; // SAFETY: For properly compiled code 0 <= id < 32
-
         *reg_value = i64_to_u64(value);
-        Ok(())
     }
 
-    pub fn write_x_u32(&mut self, id: u8, value: u32) -> Result<()> {
+    pub fn write_x_u32(&mut self, id: u8, value: u32) {
         if id == 0 {
-            return Ok(()); // x0 is hardwired to 0
+            return; // x0 is hardwired to 0
         }
 
-        #[cfg(not(feature = "maxperf"))]
-        let reg_value = self
-            .reg_x32
-            .get_mut(id as usize)
-            .context("Register does not exist")?;
-        #[cfg(feature = "maxperf")]
         let reg_value = unsafe { self.reg_x32.get_unchecked_mut(id as usize) }; // SAFETY: For properly compiled code 0 <= id < 32
-
         *reg_value = value;
-        Ok(())
     }
 
     pub fn print_pc_history(&mut self) {
@@ -874,21 +823,13 @@ impl Cpu {
         println!();
     }
 
-    pub fn write_x_u64(&mut self, id: u8, value: u64) -> Result<()> {
+    pub fn write_x_u64(&mut self, id: u8, value: u64) {
         if id == 0 {
-            return Ok(()); // x0 is hardwired to 0
+            return; // x0 is hardwired to 0
         }
 
-        #[cfg(not(feature = "maxperf"))]
-        let reg_value = self
-            .reg_x64
-            .get_mut(id as usize)
-            .context("Register does not exist")?;
-        #[cfg(feature = "maxperf")]
         let reg_value = unsafe { self.reg_x64.get_unchecked_mut(id as usize) }; // SAFETY: For properly compiled code 0 <= id < 32
-
         *reg_value = value;
-        Ok(())
     }
 
     pub fn write_f32(&mut self, id: u8, value: f32) -> Result<()> {
