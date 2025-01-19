@@ -46,7 +46,7 @@ impl ProgramCache {
         Some(self.data[((addr - self.start_addr) / 4) as usize])
     }
 
-#[inline(always)]
+    #[inline(always)]
     pub fn get_line_unchecked(&self, addr: u64) -> ProgramLine {
         unsafe {
             *self

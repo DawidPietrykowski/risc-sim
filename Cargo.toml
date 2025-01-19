@@ -14,6 +14,7 @@ array-init = "2.1.0"
 bitfield = "0.17.0"
 bitflags = "2.6.0"
 clap = { version = "4.5.24", features = ["derive"] }
+ctrlc = "3.4.5"
 lazy_static = "1.5.0"
 minifb = "0.27.0"
 nix = { version = "0.29.0", features = ["time"] }

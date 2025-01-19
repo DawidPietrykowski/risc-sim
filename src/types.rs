@@ -302,9 +302,13 @@ pub fn decode_program_line(word: Word, mode: CpuMode) -> Result<ProgramLine> {
     Ok(ProgramLine { instruction, word })
 }
 
-pub fn decode_program_line_unchecked_rv64(word: &Word) -> ProgramLine {
+pub fn decode_program_line_unchecked(word: &Word, mode: CpuMode) -> ProgramLine {
+    let table = match mode {
+        CpuMode::RV32 => &ALL_INSTRUCTIONS_32,
+        CpuMode::RV64 => &ALL_INSTRUCTIONS_64,
+    };
     let instruction = unsafe {
-        ALL_INSTRUCTIONS_64
+        table
             .iter()
             .find(|ins| (word.0 & ins.mask) == ins.bits)
             .unwrap_unchecked()

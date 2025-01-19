@@ -17,7 +17,7 @@ use crate::{
         uart::{uart_handle_read, uart_handle_write, UART_ADDR},
         virtio::{process_queue, BlockDevice, VIRTIO_0_ADDR, VIRTIO_MMIO_QUEUE_NOTIFY},
     },
-    types::{decode_program_line_unchecked_rv64, ABIRegister, Instruction},
+    types::{decode_program_line_unchecked, ABIRegister, Instruction},
     utils::binary_utils::*,
 };
 
@@ -296,10 +296,7 @@ impl MemoryAccessVTable {
         }
     }
 }
-struct ExecutionVTable {
-    run_cycles: fn(cpu: &mut Cpu) -> Result<()>,
-    fetch_instruction: fn(&mut Cpu, pc: u64) -> ProgramLine,
-}
+
 pub struct Cpu {
     reg_x32: [u32; 32],
     reg_x64: [u64; 32],
@@ -319,7 +316,6 @@ pub struct Cpu {
     pub privilege_mode: PrivilegeMode,
     pub pc_history: CircularBuffer<(u64, Option<Instruction>, u64)>,
     pub block_device: Option<BlockDevice>,
-    vtable: ExecutionVTable,
     pub execution_mode: ExecutionMode,
     memory_access_vtable: MemoryAccessVTable,
     pub peripherals: Option<Peripherals>,
@@ -355,8 +351,8 @@ impl Display for Cpu {
             f,
             "Program Memory Offset: {:#010x}",
             self.program_memory_offset
-        )?;
-        writeln!(f, "Memory: {:?}", self.memory)
+        )
+        //writeln!(f, "Memory: {:?}", self.memory)
     }
 }
 
@@ -386,7 +382,6 @@ impl Default for Cpu {
             privilege_mode: PrivilegeMode::Machine,
             pc_history: CircularBuffer::new(500),
             block_device: None,
-            vtable: ExecutionVTable::new(CpuMode::RV32, ExecutionMode::UserSpace),
             execution_mode: ExecutionMode::UserSpace,
             memory_access_vtable: MemoryAccessVTable::new(ExecutionMode::UserSpace),
             peripherals: None,
@@ -396,138 +391,100 @@ impl Default for Cpu {
     }
 }
 
-impl ExecutionVTable {
-    fn new(mode: CpuMode, execution_mode: ExecutionMode) -> Self {
-        let run_cycles = match execution_mode {
-            ExecutionMode::Bare => |cpu: &mut Cpu| {
-                // Check if CPU is halted
-                #[cfg(not(feature = "maxperf"))]
-                if cpu.halted {
-                    bail!("CPU is halted");
-                }
-
-                // Fetch
-                #[cfg(feature = "maxperf")]
-                let pc_translated = unsafe {
-                    cpu.translate_address_if_needed(cpu.reg_pc_64)
-                        .unwrap_unchecked()
-                };
-                #[cfg(not(feature = "maxperf"))]
-                let pc_translated = cpu.translate_address_if_needed(cpu.reg_pc_64)?;
-                #[cfg(feature = "maxperf")]
-                let instruction = (cpu.vtable.fetch_instruction)(cpu, pc_translated);
-                #[cfg(not(feature = "maxperf"))]
-                let instruction = cpu.fetch_instruction(pc_translated)?;
-
-                #[cfg(not(feature = "maxperf"))]
-                if cpu.debug_enabled {
-                    println!("\nPC({:#x}) {}", cpu.reg_pc_64, instruction);
-                }
-
-                // Increase PC
-                cpu.current_instruction_pc_64 = cpu.reg_pc_64;
-                cpu.reg_pc_64 += 4;
-
-                #[cfg(not(feature = "maxperf"))]
-                cpu.pc_history.push((
-                    cpu.current_instruction_pc_64,
-                    Some(instruction.instruction),
-                    cpu.csr_table.read64(CSRAddress::Satp.as_u12()),
-                ));
-
-                // Execute
-                #[cfg(feature = "maxperf")]
-                (instruction.instruction.operation)(cpu, &instruction.word);
-                #[cfg(not(feature = "maxperf"))]
-                cpu.execute_program_line(&instruction)?;
-
-                plic_check_pending(cpu);
-                check_pending_interrupts(cpu, PrivilegeMode::Machine);
-                check_pending_interrupts(cpu, PrivilegeMode::Supervisor);
-
-                Ok(())
-            },
-            ExecutionMode::UserSpace => |cpu: &mut Cpu| {
-                // Check if CPU is halted
-                #[cfg(not(feature = "maxperf"))]
-                if cpu.halted {
-                    bail!("CPU is halted");
-                }
-
-                // Fetch
-                #[cfg(feature = "maxperf")]
-                let instruction = cpu.program_cache.get_line_unchecked(cpu.reg_pc_64);
-                #[cfg(not(feature = "maxperf"))]
-                let instruction = cpu.fetch_instruction(cpu.reg_pc_64)?;
-
-                #[cfg(not(feature = "maxperf"))]
-                if cpu.debug_enabled {
-                    println!("\nPC({:#x}) {}", cpu.reg_pc_64, instruction);
-                }
-
-                // Increase PC
-                cpu.current_instruction_pc_64 = cpu.reg_pc_64;
-                cpu.reg_pc_64 += 4;
-
-                #[cfg(not(feature = "maxperf"))]
-                cpu.pc_history.push((
-                    cpu.current_instruction_pc_64,
-                    Some(instruction.instruction),
-                    cpu.csr_table.read64(CSRAddress::Satp.as_u12()),
-                ));
-
-                // Execute
-                #[cfg(feature = "maxperf")]
-                {
-                    let operation = instruction.instruction.operation;
-                    let word = instruction.word;
-                    operation(cpu, &word);
-                }
-                #[cfg(not(feature = "maxperf"))]
-                cpu.execute_program_line(&instruction)?;
-
-                Ok(())
-            },
-        };
-        let fetch_instruction = match mode {
-            CpuMode::RV32 => |cpu: &mut Cpu, pc: u64| unsafe {
-                #[cfg(not(feature = "maxperf"))]
-                return decode_program_line(
-                    Word(cpu.memory.read_mem_u32(pc).unwrap_unchecked()),
-                    cpu.arch_mode,
-                )
-                .unwrap();
-                #[cfg(feature = "maxperf")]
-                return decode_program_line(
-                    Word(cpu.memory.read_mem_u32(pc).unwrap_unchecked()),
-                    cpu.arch_mode,
-                )
-                .unwrap_unchecked();
-            },
-            CpuMode::RV64 => |cpu: &mut Cpu, pc: u64| unsafe {
-                #[cfg(not(feature = "maxperf"))]
-                return decode_program_line(
-                    Word(cpu.memory.read_mem_u32(pc).unwrap_unchecked()),
-                    cpu.arch_mode,
-                )
-                .unwrap();
-                #[cfg(feature = "maxperf")]
-                return decode_program_line_unchecked_rv64(&Word(
-                    cpu.memory.read_mem_u32(pc).unwrap_unchecked(),
-                ));
-            },
-        };
-        match mode {
-            CpuMode::RV64 => Self {
-                run_cycles,
-                fetch_instruction,
-            },
-            CpuMode::RV32 => Self {
-                run_cycles,
-                fetch_instruction,
-            },
-        }
+pub fn run_cycle_bare(cpu: &mut Cpu) -> Result<()> {
+    // Check if CPU is halted
+    #[cfg(not(feature = "maxperf"))]
+    if cpu.halted {
+        bail!("CPU is halted");
     }
+
+    // Fetch
+    #[cfg(feature = "maxperf")]
+    let pc_translated = unsafe {
+        cpu.translate_address_if_needed(cpu.reg_pc_64)
+            .unwrap_unchecked()
+    };
+    #[cfg(not(feature = "maxperf"))]
+    let pc_translated = cpu.translate_address_if_needed(cpu.reg_pc_64)?;
+    #[cfg(feature = "maxperf")]
+    let instruction = unsafe {
+        decode_program_line_unchecked(
+            &Word(cpu.memory.read_mem_u32(pc_translated).unwrap_unchecked()),
+            cpu.arch_mode,
+        )
+    };
+    #[cfg(not(feature = "maxperf"))]
+    let instruction = cpu.fetch_instruction(pc_translated)?;
+
+    #[cfg(not(feature = "maxperf"))]
+    if cpu.debug_enabled {
+        println!("\nPC({:#x}) {}", cpu.reg_pc_64, instruction);
+    }
+
+    // Increase PC
+    cpu.current_instruction_pc_64 = cpu.reg_pc_64;
+    cpu.reg_pc_64 += 4;
+
+    #[cfg(not(feature = "maxperf"))]
+    cpu.pc_history.push((
+        cpu.current_instruction_pc_64,
+        Some(instruction.instruction),
+        cpu.csr_table.read64(CSRAddress::Satp.as_u12()),
+    ));
+
+    // Execute
+    #[cfg(feature = "maxperf")]
+    let _ = (instruction.instruction.operation)(cpu, &instruction.word);
+    #[cfg(not(feature = "maxperf"))]
+    cpu.execute_program_line(&instruction)?;
+
+    plic_check_pending(cpu);
+    check_pending_interrupts(cpu, PrivilegeMode::Machine);
+    check_pending_interrupts(cpu, PrivilegeMode::Supervisor);
+
+    Ok(())
+}
+
+pub fn run_cycle_userspace(cpu: &mut Cpu) -> Result<()> {
+    // Check if CPU is halted
+    #[cfg(not(feature = "maxperf"))]
+    if cpu.halted {
+        bail!("CPU is halted");
+    }
+
+    // Fetch
+    #[cfg(feature = "maxperf")]
+    let instruction = cpu.program_cache.get_line_unchecked(cpu.reg_pc_64);
+    #[cfg(not(feature = "maxperf"))]
+    let instruction = cpu.fetch_instruction(cpu.reg_pc_64)?;
+
+    #[cfg(not(feature = "maxperf"))]
+    if cpu.debug_enabled {
+        println!("\nPC({:#x}) {}", cpu.reg_pc_64, instruction);
+    }
+
+    // Increase PC
+    cpu.current_instruction_pc_64 = cpu.reg_pc_64;
+    cpu.reg_pc_64 += 4;
+
+    #[cfg(not(feature = "maxperf"))]
+    cpu.pc_history.push((
+        cpu.current_instruction_pc_64,
+        Some(instruction.instruction),
+        cpu.csr_table.read64(CSRAddress::Satp.as_u12()),
+    ));
+
+    // Execute
+    #[cfg(feature = "maxperf")]
+    {
+        let operation = instruction.instruction.operation;
+        let word = instruction.word;
+        let _ = operation(cpu, &word);
+    }
+    #[cfg(not(feature = "maxperf"))]
+    cpu.execute_program_line(&instruction)?;
+
+    Ok(())
 }
 
 #[derive(clap::ValueEnum, Clone, Debug, PartialEq, Eq)]
@@ -567,7 +524,6 @@ impl Cpu {
             privilege_mode: PrivilegeMode::Machine,
             pc_history: CircularBuffer::new(500),
             block_device,
-            vtable: ExecutionVTable::new(mode, execution_mode.clone()),
             memory_access_vtable: MemoryAccessVTable::new(execution_mode.clone()),
             execution_mode,
             peripherals: Some(Peripherals {
@@ -678,7 +634,26 @@ impl Cpu {
 
     #[inline(always)]
     pub fn run_cycle(&mut self) -> Result<()> {
-        return (self.vtable.run_cycles)(self);
+        match self.execution_mode {
+            ExecutionMode::Bare => run_cycle_bare(self),
+            ExecutionMode::UserSpace => run_cycle_userspace(self),
+        }
+    }
+
+    pub fn run_cycles(&mut self, count: u64) -> Result<()> {
+        match self.execution_mode {
+            ExecutionMode::Bare => {
+                for _ in 0..count {
+                    let _ = run_cycle_bare(self);
+                }
+            }
+            ExecutionMode::UserSpace => {
+                for _ in 0..count {
+                    let _ = run_cycle_userspace(self);
+                }
+            }
+        }
+        return Ok(());
     }
 
     #[inline(always)]

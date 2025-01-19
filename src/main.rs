@@ -2,6 +2,7 @@
 
 use anyhow::Result;
 use clap::Parser;
+use ctrlc::set_handler;
 use minifb::{Key, Window, WindowOptions};
 use nix::libc::{BRKINT, ECHO, ICRNL, INPCK, ISTRIP};
 use risc_sim::cpu::cpu_core::{Cpu, CpuMode, ExecutionMode};
@@ -15,11 +16,12 @@ use risc_sim::system::uart::{init_uart, write_char};
 use risc_sim::system::virtio::{init_virtio, BlockDevice};
 use risc_sim::types::ABIRegister;
 use std::io::{self, Read};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::sync::mpsc::Receiver;
-use termios::{Termios, ICANON, IXON, TCSANOW, VMIN, VTIME};
-
+use std::sync::Arc;
 use std::thread;
+use termios::{Termios, ICANON, IXON, TCSANOW, VMIN, VTIME};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -58,6 +60,14 @@ fn create_stdio_channel() -> Receiver<u8> {
 
 fn main() -> Result<()> {
     let args = Args::parse();
+
+    let running = Arc::new(AtomicBool::new(true));
+    let r = running.clone();
+
+    set_handler(move || {
+        r.store(false, Ordering::SeqCst);
+    })
+    .expect("Error setting Ctrl-C handler");
 
     const SCREEN_WIDTH: u64 = 320;
     const SCREEN_HEIGHT: u64 = 200;
@@ -163,6 +173,10 @@ fn main() -> Result<()> {
     let mut stdio_count = 0;
     const STDIO_READ_INTERVAL: u64 = 2;
     let res = loop {
+        if !running.load(Ordering::SeqCst) {
+            break anyhow::anyhow!("Interrupted by Ctrl-C");
+        }
+
         #[cfg(not(feature = "maxperf"))]
         {
             count += 1;
@@ -252,28 +266,7 @@ fn main() -> Result<()> {
             }
         }
         #[cfg(feature = "maxperf")]
-        {
-            let mut finished = false;
-            for _ in 0..COUNT_INTERVAL {
-                match cpu.run_cycle() {
-                    Ok(_) => {
-                        continue;
-                    }
-                    Err(e) => {
-                        println!("Error: {:?}", e);
-                        cpu.print_pc_history();
-                        finished = true;
-                        break;
-                    }
-                };
-            }
-            if finished {
-                break anyhow::anyhow!("Error");
-            }
-            // if start_time.elapsed() > std::time::Duration::from_secs(30) {
-            //     break anyhow::anyhow!("Timeout");
-            // }
-        }
+        let _ = cpu.run_cycles(COUNT_INTERVAL);
     };
 
     let elapsed_time = start_time.elapsed();
