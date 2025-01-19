@@ -11,7 +11,7 @@ pub const RV32I_SET_UJ: [Instruction; 8] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_uj(word);
 
-            cpu.write_x_u32(instruction.rd.value(), cpu.read_pc_u32())?;
+            cpu.write_x_u32(instruction.rd.value(), cpu.read_pc_u32());
 
             let extended_offset = instruction.imm.as_i32();
             let moved_pc = cpu
@@ -30,15 +30,15 @@ pub const RV32I_SET_UJ: [Instruction; 8] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
 
-            cpu.write_x_u32(instruction.rd.value(), cpu.read_pc_u32())?;
+            cpu.write_x_u32(instruction.rd.value(), cpu.read_pc_u32());
 
             let offset = instruction.imm.as_i32();
-            let rs1 = cpu.read_x_u32(instruction.rs1.value())?;
+            let rs1 = cpu.read_x_u32(instruction.rs1.value());
 
             cpu.debug_print(|| format!("rs1: {:#x}", rs1));
 
             let result = cpu
-                .read_x_u32(instruction.rs1.value())?
+                .read_x_u32(instruction.rs1.value())
                 .wrapping_add_signed(offset)
                 & !(0b1);
 
@@ -55,8 +55,8 @@ pub const RV32I_SET_UJ: [Instruction; 8] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_sb(word);
 
-            let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
-            let rs2 = cpu.read_x_i32(instruction.rs2.value())?;
+            let rs1 = cpu.read_x_i32(instruction.rs1.value());
+            let rs2 = cpu.read_x_i32(instruction.rs2.value());
 
             cpu.debug_print(|| format!("rs1: {:#x}", rs1));
             cpu.debug_print(|| format!("rs2: {:#x}", rs2));
@@ -91,8 +91,8 @@ pub const RV32I_SET_UJ: [Instruction; 8] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_sb(word);
 
-            let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
-            let rs2 = cpu.read_x_i32(instruction.rs2.value())?;
+            let rs1 = cpu.read_x_i32(instruction.rs1.value());
+            let rs2 = cpu.read_x_i32(instruction.rs2.value());
 
             cpu.debug_print(|| format!("rs1: {:#x}", rs1));
             cpu.debug_print(|| format!("rs2: {:#x}", rs2));
@@ -116,8 +116,8 @@ pub const RV32I_SET_UJ: [Instruction; 8] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_sb(word);
 
-            let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
-            let rs2 = cpu.read_x_i32(instruction.rs2.value())?;
+            let rs1 = cpu.read_x_i32(instruction.rs1.value());
+            let rs2 = cpu.read_x_i32(instruction.rs2.value());
 
             if rs1 < rs2 {
                 let extended_offset = instruction.imm.as_i32();
@@ -138,8 +138,8 @@ pub const RV32I_SET_UJ: [Instruction; 8] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_sb(word);
 
-            let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
-            let rs2 = cpu.read_x_i32(instruction.rs2.value())?;
+            let rs1 = cpu.read_x_i32(instruction.rs1.value());
+            let rs2 = cpu.read_x_i32(instruction.rs2.value());
 
             if rs1 >= rs2 {
                 let extended_offset = instruction.imm.as_i32();
@@ -160,8 +160,8 @@ pub const RV32I_SET_UJ: [Instruction; 8] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_sb(word);
 
-            let rs1 = cpu.read_x_u32(instruction.rs1.value())?;
-            let rs2 = cpu.read_x_u32(instruction.rs2.value())?;
+            let rs1 = cpu.read_x_u32(instruction.rs1.value());
+            let rs2 = cpu.read_x_u32(instruction.rs2.value());
 
             if rs1 < rs2 {
                 let extended_offset = instruction.imm.as_i32();
@@ -182,8 +182,8 @@ pub const RV32I_SET_UJ: [Instruction; 8] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_sb(word);
 
-            let rs1 = cpu.read_x_u32(instruction.rs1.value())?;
-            let rs2 = cpu.read_x_u32(instruction.rs2.value())?;
+            let rs1 = cpu.read_x_u32(instruction.rs1.value());
+            let rs2 = cpu.read_x_u32(instruction.rs2.value());
 
             if rs1 >= rs2 {
                 let extended_offset = instruction.imm.as_i32();

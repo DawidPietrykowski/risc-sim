@@ -11,7 +11,7 @@ pub const RV64I_SET_UJ: [Instruction; 8] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_uj(word);
 
-            cpu.write_x_u64(instruction.rd.value(), cpu.read_pc_u64())?;
+            cpu.write_x_u64(instruction.rd.value(), cpu.read_pc_u64());
 
             let extended_offset = instruction.imm.as_i64();
             let moved_pc = cpu
@@ -30,10 +30,10 @@ pub const RV64I_SET_UJ: [Instruction; 8] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
 
-            cpu.write_x_u64(instruction.rd.value(), cpu.read_pc_u64())?;
+            cpu.write_x_u64(instruction.rd.value(), cpu.read_pc_u64());
 
             let offset = instruction.imm.as_i64();
-            let rs1 = cpu.read_x_u64(instruction.rs1.value())?;
+            let rs1 = cpu.read_x_u64(instruction.rs1.value());
 
             cpu.debug_print(|| format!("rs1: {:#x}", rs1));
 
@@ -52,8 +52,8 @@ pub const RV64I_SET_UJ: [Instruction; 8] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_sb(word);
 
-            let rs1 = cpu.read_x_i64(instruction.rs1.value())?;
-            let rs2 = cpu.read_x_i64(instruction.rs2.value())?;
+            let rs1 = cpu.read_x_i64(instruction.rs1.value());
+            let rs2 = cpu.read_x_i64(instruction.rs2.value());
 
             cpu.debug_print(|| format!("rs1: {:#x}", rs1));
             cpu.debug_print(|| format!("rs2: {:#x}", rs2));
@@ -88,8 +88,8 @@ pub const RV64I_SET_UJ: [Instruction; 8] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_sb(word);
 
-            let rs1 = cpu.read_x_i64(instruction.rs1.value())?;
-            let rs2 = cpu.read_x_i64(instruction.rs2.value())?;
+            let rs1 = cpu.read_x_i64(instruction.rs1.value());
+            let rs2 = cpu.read_x_i64(instruction.rs2.value());
 
             cpu.debug_print(|| format!("rs1: {:#x}", rs1));
             cpu.debug_print(|| format!("rs2: {:#x}", rs2));
@@ -113,8 +113,8 @@ pub const RV64I_SET_UJ: [Instruction; 8] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_sb(word);
 
-            let rs1 = cpu.read_x_i64(instruction.rs1.value())?;
-            let rs2 = cpu.read_x_i64(instruction.rs2.value())?;
+            let rs1 = cpu.read_x_i64(instruction.rs1.value());
+            let rs2 = cpu.read_x_i64(instruction.rs2.value());
 
             if rs1 < rs2 {
                 let extended_offset = instruction.imm.as_i64();
@@ -135,8 +135,8 @@ pub const RV64I_SET_UJ: [Instruction; 8] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_sb(word);
 
-            let rs1 = cpu.read_x_i64(instruction.rs1.value())?;
-            let rs2 = cpu.read_x_i64(instruction.rs2.value())?;
+            let rs1 = cpu.read_x_i64(instruction.rs1.value());
+            let rs2 = cpu.read_x_i64(instruction.rs2.value());
 
             if rs1 >= rs2 {
                 let extended_offset = instruction.imm.as_i64();
@@ -157,8 +157,8 @@ pub const RV64I_SET_UJ: [Instruction; 8] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_sb(word);
 
-            let rs1 = cpu.read_x_u64(instruction.rs1.value())?;
-            let rs2 = cpu.read_x_u64(instruction.rs2.value())?;
+            let rs1 = cpu.read_x_u64(instruction.rs1.value());
+            let rs2 = cpu.read_x_u64(instruction.rs2.value());
 
             if rs1 < rs2 {
                 let extended_offset = instruction.imm.as_i64();
@@ -179,8 +179,8 @@ pub const RV64I_SET_UJ: [Instruction; 8] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_sb(word);
 
-            let rs1 = cpu.read_x_u64(instruction.rs1.value())?;
-            let rs2 = cpu.read_x_u64(instruction.rs2.value())?;
+            let rs1 = cpu.read_x_u64(instruction.rs1.value());
+            let rs2 = cpu.read_x_u64(instruction.rs2.value());
 
             if rs1 >= rs2 {
                 let extended_offset = instruction.imm.as_i64();

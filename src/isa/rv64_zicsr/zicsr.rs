@@ -29,11 +29,11 @@ pub const RV64_ZICSR_SET: [Instruction; 6] = [
         instruction_type: InstructionType::I,
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
-            let rs1_value = cpu.read_x_u64(instruction.rs1.value())?;
+            let rs1_value = cpu.read_x_u64(instruction.rs1.value());
             let csr_addr = instruction.imm;
             let old_csr_value = cpu.csr_table.read64(csr_addr);
 
-            cpu.write_x_u64(instruction.rd.value(), old_csr_value)?;
+            cpu.write_x_u64(instruction.rd.value(), old_csr_value);
             cpu.csr_table.write64(csr_addr, rs1_value);
 
             // TODO: Remove
@@ -83,10 +83,10 @@ pub const RV64_ZICSR_SET: [Instruction; 6] = [
         instruction_type: InstructionType::I,
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
-            let rs1_value = cpu.read_x_u64(instruction.rs1.value())?;
+            let rs1_value = cpu.read_x_u64(instruction.rs1.value());
             let old_csr_value = cpu.csr_table.read64(instruction.imm);
 
-            cpu.write_x_u64(instruction.rd.value(), old_csr_value)?;
+            cpu.write_x_u64(instruction.rd.value(), old_csr_value);
             cpu.csr_table
                 .write64(instruction.imm, old_csr_value | rs1_value);
 
@@ -100,10 +100,10 @@ pub const RV64_ZICSR_SET: [Instruction; 6] = [
         instruction_type: InstructionType::I,
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
-            let rs1_value = cpu.read_x_u64(instruction.rs1.value())?;
+            let rs1_value = cpu.read_x_u64(instruction.rs1.value());
             let old_csr_value = cpu.csr_table.read64(instruction.imm);
 
-            cpu.write_x_u64(instruction.rd.value(), old_csr_value)?;
+            cpu.write_x_u64(instruction.rd.value(), old_csr_value);
             cpu.csr_table
                 .write64(instruction.imm, old_csr_value & !rs1_value);
 
@@ -120,7 +120,7 @@ pub const RV64_ZICSR_SET: [Instruction; 6] = [
             let imm_value = instruction.rs1.value() as u64;
             let old_csr_value = cpu.csr_table.read64(instruction.imm);
 
-            cpu.write_x_u64(instruction.rd.value(), old_csr_value)?;
+            cpu.write_x_u64(instruction.rd.value(), old_csr_value);
             cpu.csr_table.write64(instruction.imm, imm_value);
 
             Ok(())
@@ -136,7 +136,7 @@ pub const RV64_ZICSR_SET: [Instruction; 6] = [
             let imm_value = instruction.rs1.value() as u64;
             let old_csr_value = cpu.csr_table.read64(instruction.imm);
 
-            cpu.write_x_u64(instruction.rd.value(), old_csr_value)?;
+            cpu.write_x_u64(instruction.rd.value(), old_csr_value);
             cpu.csr_table
                 .write64(instruction.imm, old_csr_value | imm_value);
 
@@ -153,7 +153,7 @@ pub const RV64_ZICSR_SET: [Instruction; 6] = [
             let imm_value = instruction.rs1.value() as u64;
             let old_csr_value = cpu.csr_table.read64(instruction.imm);
 
-            cpu.write_x_u64(instruction.rd.value(), old_csr_value)?;
+            cpu.write_x_u64(instruction.rd.value(), old_csr_value);
             cpu.csr_table
                 .write64(instruction.imm, old_csr_value & !imm_value);
 

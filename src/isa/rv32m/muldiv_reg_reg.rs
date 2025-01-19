@@ -10,10 +10,10 @@ pub const RV32M_SET_R: [Instruction; 8] = [
         instruction_type: InstructionType::R,
         operation: |cpu, word| {
             let instruction = parse_instruction_r(word);
-            let rs1 = cpu.read_x_i32(instruction.rs1.value())? as i64;
-            let rs2 = cpu.read_x_i32(instruction.rs2.value())? as i64;
+            let rs1 = cpu.read_x_i32(instruction.rs1.value()) as i64;
+            let rs2 = cpu.read_x_i32(instruction.rs2.value()) as i64;
             let (res, _) = rs1.overflowing_mul(rs2);
-            cpu.write_x_i32(instruction.rd.value(), res as i32)?;
+            cpu.write_x_i32(instruction.rd.value(), res as i32);
 
             cpu.debug_print(|| format!("MUL: rs1={}, rs2={}, res={}", rs1, rs2, res));
 
@@ -27,10 +27,10 @@ pub const RV32M_SET_R: [Instruction; 8] = [
         instruction_type: InstructionType::R,
         operation: |cpu, word| {
             let instruction = parse_instruction_r(word);
-            let rs1 = cpu.read_x_i32(instruction.rs1.value())? as i64;
-            let rs2 = cpu.read_x_i32(instruction.rs2.value())? as i64;
+            let rs1 = cpu.read_x_i32(instruction.rs1.value()) as i64;
+            let rs2 = cpu.read_x_i32(instruction.rs2.value()) as i64;
             let (res, _) = rs1.overflowing_mul(rs2);
-            cpu.write_x_i32(instruction.rd.value(), (res >> 32) as i32)?;
+            cpu.write_x_i32(instruction.rd.value(), (res >> 32) as i32);
 
             cpu.debug_print(|| format!("MUL: rs1={}, rs2={}, res={}", rs1, rs2, res));
 
@@ -45,10 +45,10 @@ pub const RV32M_SET_R: [Instruction; 8] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_r(word);
 
-            let rs1 = cpu.read_x_i32(instruction.rs1.value())? as i64;
-            let rs2 = cpu.read_x_u32(instruction.rs2.value())? as i64;
+            let rs1 = cpu.read_x_i32(instruction.rs1.value()) as i64;
+            let rs2 = cpu.read_x_u32(instruction.rs2.value()) as i64;
             let (res, _) = rs1.overflowing_mul(rs2);
-            cpu.write_x_u32(instruction.rd.value(), (res >> 32) as u32)?;
+            cpu.write_x_u32(instruction.rd.value(), (res >> 32) as u32);
 
             Ok(())
         },
@@ -61,10 +61,10 @@ pub const RV32M_SET_R: [Instruction; 8] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_r(word);
 
-            let rs1 = cpu.read_x_u32(instruction.rs1.value())? as u64;
-            let rs2 = cpu.read_x_u32(instruction.rs2.value())? as u64;
+            let rs1 = cpu.read_x_u32(instruction.rs1.value()) as u64;
+            let rs2 = cpu.read_x_u32(instruction.rs2.value()) as u64;
             let (res, _) = rs1.overflowing_mul(rs2);
-            cpu.write_x_u32(instruction.rd.value(), (res >> 32) as u32)?;
+            cpu.write_x_u32(instruction.rd.value(), (res >> 32) as u32);
 
             Ok(())
         },
@@ -78,15 +78,15 @@ pub const RV32M_SET_R: [Instruction; 8] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_r(word);
 
-            let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
-            let rs2 = cpu.read_x_i32(instruction.rs2.value())?;
+            let rs1 = cpu.read_x_i32(instruction.rs1.value());
+            let rs2 = cpu.read_x_i32(instruction.rs2.value());
 
             if rs2 == 0 {
-                cpu.write_x_i32(instruction.rd.value(), -1)?;
+                cpu.write_x_i32(instruction.rd.value(), -1);
             } else if rs1 == i32::MIN && rs2 == -1 {
-                cpu.write_x_i32(instruction.rd.value(), i32::MIN)?;
+                cpu.write_x_i32(instruction.rd.value(), i32::MIN);
             } else {
-                cpu.write_x_i32(instruction.rd.value(), rs1 / rs2)?;
+                cpu.write_x_i32(instruction.rd.value(), rs1 / rs2);
             }
             Ok(())
         },
@@ -100,13 +100,13 @@ pub const RV32M_SET_R: [Instruction; 8] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_r(word);
 
-            let rs1 = cpu.read_x_u32(instruction.rs1.value())?;
-            let rs2 = cpu.read_x_u32(instruction.rs2.value())?;
+            let rs1 = cpu.read_x_u32(instruction.rs1.value());
+            let rs2 = cpu.read_x_u32(instruction.rs2.value());
 
             if rs2 == 0 {
-                cpu.write_x_u32(instruction.rd.value(), u32::MAX)?;
+                cpu.write_x_u32(instruction.rd.value(), u32::MAX);
             } else {
-                cpu.write_x_u32(instruction.rd.value(), rs1 / rs2)?;
+                cpu.write_x_u32(instruction.rd.value(), rs1 / rs2);
             }
 
             Ok(())
@@ -121,13 +121,13 @@ pub const RV32M_SET_R: [Instruction; 8] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_r(word);
 
-            let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
-            let rs2 = cpu.read_x_i32(instruction.rs2.value())?;
+            let rs1 = cpu.read_x_i32(instruction.rs1.value());
+            let rs2 = cpu.read_x_i32(instruction.rs2.value());
 
             if rs2 == 0 {
-                cpu.write_x_i32(instruction.rd.value(), rs1)?;
+                cpu.write_x_i32(instruction.rd.value(), rs1);
             } else {
-                cpu.write_x_i32(instruction.rd.value(), rs1 % rs2)?;
+                cpu.write_x_i32(instruction.rd.value(), rs1 % rs2);
             }
             Ok(())
         },
@@ -140,13 +140,13 @@ pub const RV32M_SET_R: [Instruction; 8] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_r(word);
 
-            let rs1 = cpu.read_x_u32(instruction.rs1.value())?;
-            let rs2 = cpu.read_x_u32(instruction.rs2.value())?;
+            let rs1 = cpu.read_x_u32(instruction.rs1.value());
+            let rs2 = cpu.read_x_u32(instruction.rs2.value());
 
             if rs2 == 0 {
-                cpu.write_x_u32(instruction.rd.value(), rs1)?;
+                cpu.write_x_u32(instruction.rd.value(), rs1);
             } else {
-                cpu.write_x_u32(instruction.rd.value(), rs1 % rs2)?;
+                cpu.write_x_u32(instruction.rd.value(), rs1 % rs2);
             }
             Ok(())
         },

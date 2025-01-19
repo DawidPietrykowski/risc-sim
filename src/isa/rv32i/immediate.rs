@@ -12,9 +12,9 @@ pub const RV32I_SET_I: [Instruction; 11] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let imm = sign_extend_12bit_to_32bit(instruction.imm.value());
-            let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
+            let rs1 = cpu.read_x_i32(instruction.rs1.value());
             let (res, _) = imm.overflowing_add(rs1);
-            cpu.write_x_i32(instruction.rd.value(), res)?;
+            cpu.write_x_i32(instruction.rd.value(), res);
 
             cpu.debug_print(|| {
                 format!(
@@ -26,7 +26,7 @@ pub const RV32I_SET_I: [Instruction; 11] = [
                     imm
                 )
             });
-            cpu.debug_print(|| format!("rd: {}", cpu.read_x_i32(instruction.rd.value()).unwrap()));
+            cpu.debug_print(|| format!("rd: {}", cpu.read_x_i32(instruction.rd.value())));
             Ok(())
         },
     },
@@ -38,8 +38,8 @@ pub const RV32I_SET_I: [Instruction; 11] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let imm = sign_extend_12bit_to_32bit(instruction.imm.value());
-            let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
-            cpu.write_x_i32(instruction.rd.value(), if rs1 < imm { 1 } else { 0 })?;
+            let rs1 = cpu.read_x_i32(instruction.rs1.value());
+            cpu.write_x_i32(instruction.rd.value(), if rs1 < imm { 1 } else { 0 });
             Ok(())
         },
     },
@@ -51,8 +51,8 @@ pub const RV32I_SET_I: [Instruction; 11] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let imm = i32_to_u32(sign_extend_12bit_to_32bit(instruction.imm.value()));
-            let rs1 = cpu.read_x_u32(instruction.rs1.value())?;
-            cpu.write_x_i32(instruction.rd.value(), if rs1 < imm { 1 } else { 0 })?;
+            let rs1 = cpu.read_x_u32(instruction.rs1.value());
+            cpu.write_x_i32(instruction.rd.value(), if rs1 < imm { 1 } else { 0 });
             Ok(())
         },
     },
@@ -64,7 +64,7 @@ pub const RV32I_SET_I: [Instruction; 11] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let imm = sign_extend_12bit_to_32bit(instruction.imm.value());
-            let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
+            let rs1 = cpu.read_x_i32(instruction.rs1.value());
             cpu.debug_print(|| {
                 format!(
                     "ANDI: r{}({:#x}) = r{}({}) & {}",
@@ -75,7 +75,7 @@ pub const RV32I_SET_I: [Instruction; 11] = [
                     imm
                 )
             });
-            cpu.write_x_i32(instruction.rd.value(), rs1 & imm)?;
+            cpu.write_x_i32(instruction.rd.value(), rs1 & imm);
             Ok(())
         },
     },
@@ -87,8 +87,8 @@ pub const RV32I_SET_I: [Instruction; 11] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let imm = sign_extend_12bit_to_32bit(instruction.imm.value());
-            let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
-            cpu.write_x_i32(instruction.rd.value(), rs1 | imm)?;
+            let rs1 = cpu.read_x_i32(instruction.rs1.value());
+            cpu.write_x_i32(instruction.rd.value(), rs1 | imm);
             Ok(())
         },
     },
@@ -100,8 +100,8 @@ pub const RV32I_SET_I: [Instruction; 11] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let imm = sign_extend_12bit_to_32bit(instruction.imm.value());
-            let rs1 = cpu.read_x_i32(instruction.rs1.value())?;
-            cpu.write_x_i32(instruction.rd.value(), rs1 ^ imm)?;
+            let rs1 = cpu.read_x_i32(instruction.rs1.value());
+            cpu.write_x_i32(instruction.rd.value(), rs1 ^ imm);
             Ok(())
         },
     },
@@ -113,8 +113,8 @@ pub const RV32I_SET_I: [Instruction; 11] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let shamt = (instruction.imm.value() & 0b11111) as u32;
-            let res: u32 = cpu.read_x_u32(instruction.rs1.value())? << shamt;
-            cpu.write_x_u32(instruction.rd.value(), res)?;
+            let res: u32 = cpu.read_x_u32(instruction.rs1.value()) << shamt;
+            cpu.write_x_u32(instruction.rd.value(), res);
             Ok(())
         },
     },
@@ -126,8 +126,8 @@ pub const RV32I_SET_I: [Instruction; 11] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let shamt = (instruction.imm.value() & 0b11111) as u32;
-            let res: u32 = cpu.read_x_u32(instruction.rs1.value())? >> shamt;
-            cpu.write_x_u32(instruction.rd.value(), res)?;
+            let res: u32 = cpu.read_x_u32(instruction.rs1.value()) >> shamt;
+            cpu.write_x_u32(instruction.rd.value(), res);
             Ok(())
         },
     },
@@ -139,8 +139,8 @@ pub const RV32I_SET_I: [Instruction; 11] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let shamt = (instruction.imm.value() & 0b11111) as u32;
-            let res: i32 = cpu.read_x_i32(instruction.rs1.value())? >> shamt;
-            cpu.write_x_i32(instruction.rd.value(), res)?;
+            let res: i32 = cpu.read_x_i32(instruction.rs1.value()) >> shamt;
+            cpu.write_x_i32(instruction.rd.value(), res);
             Ok(())
         },
     },
@@ -151,7 +151,7 @@ pub const RV32I_SET_I: [Instruction; 11] = [
         instruction_type: InstructionType::U,
         operation: |cpu, word| {
             let instruction = parse_instruction_u(word);
-            cpu.write_x_u32(instruction.rd.value(), instruction.imm)?;
+            cpu.write_x_u32(instruction.rd.value(), instruction.imm);
             Ok(())
         },
     },
@@ -166,7 +166,7 @@ pub const RV32I_SET_I: [Instruction; 11] = [
                 .imm
                 .wrapping_add(cpu.read_current_instruction_addr_u32());
 
-            cpu.write_x_u32(instruction.rd.value(), res)?;
+            cpu.write_x_u32(instruction.rd.value(), res);
             Ok(())
         },
     },

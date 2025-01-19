@@ -16,7 +16,7 @@ pub const RV64F_SET_LS: [Instruction; 4] = [
 
             let extended_offset = instruction.imm.as_i64();
             let moved_addr = cpu
-                .read_x_u64(instruction.rs1.value())?
+                .read_x_u64(instruction.rs1.value())
                 .wrapping_add_signed(extended_offset);
 
             cpu.debug_print(|| {
@@ -24,7 +24,7 @@ pub const RV64F_SET_LS: [Instruction; 4] = [
                     "FLW: r{}({:#x}) = mem[r{:#x} + {:#x}] (addr: {:#x})",
                     instruction.rd.value(),
                     instruction.rs1.value(),
-                    cpu.read_x_u64(instruction.rs1.value()).unwrap(),
+                    cpu.read_x_u64(instruction.rs1.value()),
                     extended_offset,
                     moved_addr
                 )
@@ -49,7 +49,7 @@ pub const RV64F_SET_LS: [Instruction; 4] = [
 
             let extended_offset = instruction.imm.as_i64();
             let moved_addr = cpu
-                .read_x_u64(instruction.rs1.value())?
+                .read_x_u64(instruction.rs1.value())
                 .wrapping_add_signed(extended_offset);
 
             let read_value = u64_to_f64(cpu.read_mem_u64(moved_addr)?);
@@ -70,9 +70,9 @@ pub const RV64F_SET_LS: [Instruction; 4] = [
             let instruction = parse_instruction_s(word);
 
             let extended_offset = instruction.imm.as_i64();
-            let rs1 = cpu.read_x_u64(instruction.rs1.value())?;
+            let rs1 = cpu.read_x_u64(instruction.rs1.value());
             let moved_addr = cpu
-                .read_x_u64(instruction.rs1.value())?
+                .read_x_u64(instruction.rs1.value())
                 .wrapping_add_signed(extended_offset);
             let read_value = cpu.read_f32(instruction.rs2.value())?;
 
@@ -97,9 +97,9 @@ pub const RV64F_SET_LS: [Instruction; 4] = [
             let instruction = parse_instruction_s(word);
 
             let extended_offset = instruction.imm.as_i64();
-            let rs1 = cpu.read_x_u64(instruction.rs1.value())?;
+            let rs1 = cpu.read_x_u64(instruction.rs1.value());
             let moved_addr = cpu
-                .read_x_u64(instruction.rs1.value())?
+                .read_x_u64(instruction.rs1.value())
                 .wrapping_add_signed(extended_offset);
             let read_value = cpu.read_f64(instruction.rs2.value())?;
 

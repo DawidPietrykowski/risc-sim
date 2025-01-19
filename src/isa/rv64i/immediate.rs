@@ -12,9 +12,9 @@ pub const RV64I_SET_I: [Instruction; 15] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let imm = sign_extend_12bit_to_64bit(instruction.imm.value());
-            let rs1 = cpu.read_x_i64(instruction.rs1.value())?;
+            let rs1 = cpu.read_x_i64(instruction.rs1.value());
             let (res, _) = imm.overflowing_add(rs1);
-            cpu.write_x_i64(instruction.rd.value(), res)?;
+            cpu.write_x_i64(instruction.rd.value(), res);
 
             cpu.debug_print(|| {
                 format!(
@@ -26,7 +26,7 @@ pub const RV64I_SET_I: [Instruction; 15] = [
                     imm
                 )
             });
-            cpu.debug_print(|| format!("rd: {}", cpu.read_x_i64(instruction.rd.value()).unwrap()));
+            cpu.debug_print(|| format!("rd: {}", cpu.read_x_i64(instruction.rd.value())));
             Ok(())
         },
     },
@@ -38,9 +38,9 @@ pub const RV64I_SET_I: [Instruction; 15] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let imm = sign_extend_12bit_to_32bit(instruction.imm.value());
-            let rs1 = cpu.read_x_i64(instruction.rs1.value())? as i32;
+            let rs1 = cpu.read_x_i64(instruction.rs1.value()) as i32;
             let (res, _) = imm.overflowing_add(rs1);
-            cpu.write_x_i64(instruction.rd.value(), res as i64)?;
+            cpu.write_x_i64(instruction.rd.value(), res as i64);
 
             cpu.debug_print(|| {
                 format!(
@@ -52,7 +52,7 @@ pub const RV64I_SET_I: [Instruction; 15] = [
                     imm
                 )
             });
-            cpu.debug_print(|| format!("rd: {}", cpu.read_x_i64(instruction.rd.value()).unwrap()));
+            cpu.debug_print(|| format!("rd: {}", cpu.read_x_i64(instruction.rd.value())));
             Ok(())
         },
     },
@@ -64,8 +64,8 @@ pub const RV64I_SET_I: [Instruction; 15] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let imm = sign_extend_12bit_to_64bit(instruction.imm.value());
-            let rs1 = cpu.read_x_i64(instruction.rs1.value())?;
-            cpu.write_x_i64(instruction.rd.value(), if rs1 < imm { 1 } else { 0 })?;
+            let rs1 = cpu.read_x_i64(instruction.rs1.value());
+            cpu.write_x_i64(instruction.rd.value(), if rs1 < imm { 1 } else { 0 });
             Ok(())
         },
     },
@@ -77,8 +77,8 @@ pub const RV64I_SET_I: [Instruction; 15] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let imm = i64_to_u64(sign_extend_12bit_to_64bit(instruction.imm.value()));
-            let rs1 = cpu.read_x_u64(instruction.rs1.value())?;
-            cpu.write_x_i64(instruction.rd.value(), if rs1 < imm { 1 } else { 0 })?;
+            let rs1 = cpu.read_x_u64(instruction.rs1.value());
+            cpu.write_x_i64(instruction.rd.value(), if rs1 < imm { 1 } else { 0 });
             Ok(())
         },
     },
@@ -90,7 +90,7 @@ pub const RV64I_SET_I: [Instruction; 15] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let imm = sign_extend_12bit_to_64bit(instruction.imm.value());
-            let rs1 = cpu.read_x_i64(instruction.rs1.value())?;
+            let rs1 = cpu.read_x_i64(instruction.rs1.value());
             cpu.debug_print(|| {
                 format!(
                     "ANDI: r{}({:#x}) = r{}({}) & {}",
@@ -101,7 +101,7 @@ pub const RV64I_SET_I: [Instruction; 15] = [
                     imm
                 )
             });
-            cpu.write_x_i64(instruction.rd.value(), rs1 & imm)?;
+            cpu.write_x_i64(instruction.rd.value(), rs1 & imm);
             Ok(())
         },
     },
@@ -113,8 +113,8 @@ pub const RV64I_SET_I: [Instruction; 15] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let imm = sign_extend_12bit_to_64bit(instruction.imm.value());
-            let rs1 = cpu.read_x_i64(instruction.rs1.value())?;
-            cpu.write_x_i64(instruction.rd.value(), rs1 | imm)?;
+            let rs1 = cpu.read_x_i64(instruction.rs1.value());
+            cpu.write_x_i64(instruction.rd.value(), rs1 | imm);
             Ok(())
         },
     },
@@ -126,8 +126,8 @@ pub const RV64I_SET_I: [Instruction; 15] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let imm = sign_extend_12bit_to_64bit(instruction.imm.value());
-            let rs1 = cpu.read_x_i64(instruction.rs1.value())?;
-            cpu.write_x_i64(instruction.rd.value(), rs1 ^ imm)?;
+            let rs1 = cpu.read_x_i64(instruction.rs1.value());
+            cpu.write_x_i64(instruction.rd.value(), rs1 ^ imm);
             Ok(())
         },
     },
@@ -139,8 +139,8 @@ pub const RV64I_SET_I: [Instruction; 15] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let shamt = (instruction.imm.value() & (U6_MASK as u16)) as u64;
-            let res: u64 = cpu.read_x_u64(instruction.rs1.value())? << shamt;
-            cpu.write_x_u64(instruction.rd.value(), res)?;
+            let res: u64 = cpu.read_x_u64(instruction.rs1.value()) << shamt;
+            cpu.write_x_u64(instruction.rd.value(), res);
             Ok(())
         },
     },
@@ -152,8 +152,8 @@ pub const RV64I_SET_I: [Instruction; 15] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let shamt = (instruction.imm.value() & (U5_MASK as u16)) as u32;
-            let res: u32 = (cpu.read_x_u64(instruction.rs1.value())? as u32) << shamt;
-            cpu.write_x_i64(instruction.rd.value(), sign_extend_32bit_to_64bit(res))?;
+            let res: u32 = (cpu.read_x_u64(instruction.rs1.value()) as u32) << shamt;
+            cpu.write_x_i64(instruction.rd.value(), sign_extend_32bit_to_64bit(res));
             Ok(())
         },
     },
@@ -165,8 +165,8 @@ pub const RV64I_SET_I: [Instruction; 15] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let shamt = (instruction.imm.value() & (U6_MASK as u16)) as u64;
-            let res: u64 = cpu.read_x_u64(instruction.rs1.value())? >> shamt;
-            cpu.write_x_u64(instruction.rd.value(), res)?;
+            let res: u64 = cpu.read_x_u64(instruction.rs1.value()) >> shamt;
+            cpu.write_x_u64(instruction.rd.value(), res);
             Ok(())
         },
     },
@@ -178,8 +178,8 @@ pub const RV64I_SET_I: [Instruction; 15] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let shamt = (instruction.imm.value() & (U5_MASK as u16)) as u32;
-            let res: u32 = (cpu.read_x_u64(instruction.rs1.value())? as u32) >> shamt;
-            cpu.write_x_i64(instruction.rd.value(), sign_extend_32bit_to_64bit(res))?;
+            let res: u32 = (cpu.read_x_u64(instruction.rs1.value()) as u32) >> shamt;
+            cpu.write_x_i64(instruction.rd.value(), sign_extend_32bit_to_64bit(res));
             Ok(())
         },
     },
@@ -191,8 +191,8 @@ pub const RV64I_SET_I: [Instruction; 15] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let shamt = (instruction.imm.value() & (U6_MASK as u16)) as u64;
-            let res: i64 = cpu.read_x_i64(instruction.rs1.value())? >> shamt;
-            cpu.write_x_i64(instruction.rd.value(), res)?;
+            let res: i64 = cpu.read_x_i64(instruction.rs1.value()) >> shamt;
+            cpu.write_x_i64(instruction.rd.value(), res);
             Ok(())
         },
     },
@@ -204,8 +204,8 @@ pub const RV64I_SET_I: [Instruction; 15] = [
         operation: |cpu, word| {
             let instruction = parse_instruction_i(word);
             let shamt = (instruction.imm.value() & (U5_MASK as u16)) as u32;
-            let res: i32 = (cpu.read_x_i64(instruction.rs1.value())? as i32) >> shamt;
-            cpu.write_x_i64(instruction.rd.value(), res as i64)?;
+            let res: i32 = (cpu.read_x_i64(instruction.rs1.value()) as i32) >> shamt;
+            cpu.write_x_i64(instruction.rd.value(), res as i64);
             Ok(())
         },
     },
@@ -219,7 +219,7 @@ pub const RV64I_SET_I: [Instruction; 15] = [
             cpu.write_x_i64(
                 instruction.rd.value(),
                 sign_extend_32bit_to_64bit(instruction.imm),
-            )?;
+            );
             Ok(())
         },
     },
@@ -233,7 +233,7 @@ pub const RV64I_SET_I: [Instruction; 15] = [
             let res: u64 = (sign_extend_32bit_to_64bit(instruction.imm) as u64)
                 .wrapping_add(cpu.read_current_instruction_addr_u64());
 
-            cpu.write_x_u64(instruction.rd.value(), res)?;
+            cpu.write_x_u64(instruction.rd.value(), res);
             Ok(())
         },
     },

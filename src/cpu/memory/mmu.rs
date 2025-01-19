@@ -137,33 +137,6 @@ pub fn walk_page_table_sv39(va: u64, satp: u64, cpu: &mut Cpu) -> Result<u64> {
     let l0_page_table_addr = l1_pte.ppn() << 12;
     let l0_pte = Sv39_PTE(cpu.memory.read_mem_u64(l0_page_table_addr + vpn0 * 8)?);
     if !l0_pte.v() {
-        println!("Root page addr: {:#x}", l2_page_table_addr);
-        println!(
-            "L2 PTE: {:#x} {:#x}",
-            l2_pte.0,
-            l2_page_table_addr + vpn2 * 8
-        );
-        println!(
-            "L1 PTE: {:#x} {:#x}",
-            l1_pte.0,
-            l1_page_table_addr + vpn1 * 8
-        );
-        println!(
-            "L0 PTE: {:#x} {:#x}",
-            l0_pte.0,
-            l0_page_table_addr + vpn0 * 8
-        );
-        println!("L2 PTE: {:?}", l2_pte);
-        println!("L1 PTE: {:?}", l1_pte);
-        println!("L0 PTE: {:?}", l0_pte);
-        println!("VA: {:x}", virtual_address.0);
-        println!("PC: {:x}", cpu.read_pc());
-        println!("Offset: {:x}", offset);
-        println!("l2_page_addr: {:x}", l2_page_table_addr);
-        println!("l1_page_addr: {:x}", l1_page_table_addr);
-        println!("l0_page_addr: {:x}", l0_page_table_addr);
-        let bt = std::backtrace::Backtrace::capture();
-        println!("{}", bt);
         bail!(
             "Invalid L0 PTE, virtual address: {:#x}, addr: {:#x}, pte: {:#x}",
             va,

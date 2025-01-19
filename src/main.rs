@@ -285,7 +285,7 @@ fn main() -> Result<()> {
 
     cpu.print_pc_history();
 
-    let exit_code = cpu.read_x_u32(ABIRegister::A(0).to_x_reg_id() as u8)?;
+    let exit_code = cpu.read_x_u32(ABIRegister::A(0).to_x_reg_id() as u8);
     println!("Program exit code: {}", exit_code);
     if count > 1_000_000 {
         println!("Total cycle count: {} k", count / 1_000);
