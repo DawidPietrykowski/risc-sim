@@ -131,14 +131,14 @@ fn main() -> Result<()> {
             PassthroughKernel::default(),
             mode,
             block_dev,
-            args.execution_mode,
+            args.execution_mode.clone(),
         ),
         ExecutionMode::UserSpace => Cpu::new(
             RawVecMemory::default(),
             PassthroughKernel::default(),
             mode,
             block_dev,
-            args.execution_mode,
+            args.execution_mode.clone(),
         ),
     };
     cpu.load_program_from_elf(program)?;
@@ -166,17 +166,19 @@ fn main() -> Result<()> {
             break anyhow::anyhow!("Too many cycles");
         }
 
-        if stdio_count % STDIO_READ_INTERVAL == 0 {
-            if let Ok(c) = stdio_channel.try_recv() {
-                if c == 3 {
-                    break anyhow::anyhow!("Interrupted by Ctrl-C");
-                } else {
-                    write_char(&mut cpu, c);
+        if args.execution_mode == ExecutionMode::Bare {
+            if stdio_count % STDIO_READ_INTERVAL == 0 {
+                if let Ok(c) = stdio_channel.try_recv() {
+                    if c == 3 {
+                        break anyhow::anyhow!("Interrupted by Ctrl-C");
+                    } else {
+                        write_char(&mut cpu, c);
+                    }
                 }
+                stdio_count += 1;
+            } else {
+                stdio_count += 1;
             }
-            stdio_count += 1;
-        } else {
-            stdio_count += 1;
         }
 
         if simulate_display && cpu.read_mem_u32(SCREEN_ADDR_ADDR)? != 0 {
