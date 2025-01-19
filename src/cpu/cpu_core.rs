@@ -437,7 +437,7 @@ impl ExecutionVTable {
 
                 // Execute
                 #[cfg(feature = "maxperf")]
-                let _ = cpu.execute_program_line(&instruction);
+                (instruction.instruction.operation)(cpu, &instruction.word);
                 #[cfg(not(feature = "maxperf"))]
                 cpu.execute_program_line(&instruction)?;
 
@@ -478,7 +478,11 @@ impl ExecutionVTable {
 
                 // Execute
                 #[cfg(feature = "maxperf")]
-                let _ = cpu.execute_program_line(&instruction);
+                {
+                    let operation = instruction.instruction.operation;
+                    let word = instruction.word;
+                    operation(cpu, &word);
+                }
                 #[cfg(not(feature = "maxperf"))]
                 cpu.execute_program_line(&instruction)?;
 
@@ -672,6 +676,7 @@ impl Cpu {
             .write_xlen(CSRAddress::Mhartid.as_u12(), 0, self.arch_mode);
     }
 
+    #[inline(always)]
     pub fn run_cycle(&mut self) -> Result<()> {
         return (self.vtable.run_cycles)(self);
     }
@@ -767,22 +772,27 @@ impl Cpu {
         (self.memory_access_vtable.write_mem_u64)(self, addr, value)
     }
 
+    #[inline(always)]
     pub fn read_x_u32(&self, id: u8) -> u32 {
         unsafe { *self.reg_x32.get_unchecked(id as usize) }
     }
 
+    #[inline(always)]
     pub fn read_x_u64(&self, id: u8) -> u64 {
         unsafe { *self.reg_x64.get_unchecked(id as usize) }
     }
 
+    #[inline(always)]
     pub fn read_x_i32(&self, id: u8) -> i32 {
         u32_to_i32(self.read_x_u32(id))
     }
 
+    #[inline(always)]
     pub fn read_x_i64(&self, id: u8) -> i64 {
         u64_to_i64(self.read_x_u64(id))
     }
 
+    #[inline(always)]
     pub fn write_x_i32(&mut self, id: u8, value: i32) {
         if id == 0 {
             return; // x0 is hardwired to 0
@@ -792,6 +802,7 @@ impl Cpu {
         *reg_value = i32_to_u32(value);
     }
 
+    #[inline(always)]
     pub fn write_x_i64(&mut self, id: u8, value: i64) {
         if id == 0 {
             return; // x0 is hardwired to 0
@@ -801,6 +812,7 @@ impl Cpu {
         *reg_value = i64_to_u64(value);
     }
 
+    #[inline(always)]
     pub fn write_x_u32(&mut self, id: u8, value: u32) {
         if id == 0 {
             return; // x0 is hardwired to 0
@@ -823,6 +835,7 @@ impl Cpu {
         println!();
     }
 
+    #[inline(always)]
     pub fn write_x_u64(&mut self, id: u8, value: u64) {
         if id == 0 {
             return; // x0 is hardwired to 0

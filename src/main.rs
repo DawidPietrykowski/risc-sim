@@ -166,14 +166,13 @@ fn main() -> Result<()> {
         #[cfg(not(feature = "maxperf"))]
         {
             count += 1;
+            if count > MAX_CYCLES {
+                break anyhow::anyhow!("Too many cycles");
+            }
         }
         #[cfg(feature = "maxperf")]
         {
             count += COUNT_INTERVAL;
-        }
-
-        if count > MAX_CYCLES {
-            break anyhow::anyhow!("Too many cycles");
         }
 
         if args.execution_mode == ExecutionMode::Bare {
