@@ -1,3 +1,4 @@
+#[allow(unused_imports)]
 use anyhow::{bail, Result};
 
 use crate::cpu::cpu_core::{KERNEL_ADDR, KERNEL_SIZE};
@@ -18,6 +19,7 @@ impl ContinuousMemory {
         }
     }
 
+    #[cfg(not(feature = "maxperf"))]
     fn check_bounds(&self, addr: u64, size: u64) -> Result<()> {
         if addr + size > self.data.len() as u64 {
             bail!("Out of bounds memory access at {}", addr);

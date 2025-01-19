@@ -489,18 +489,35 @@ impl ExecutionVTable {
                 let pc = (cpu.vtable.get_current_pc_translated)(cpu);
                 cpu.program_cache.get_line_unchecked(pc)
             },
-            false => |cpu: &mut Cpu| unsafe {
-                let pc = (cpu.vtable.get_current_pc_translated)(cpu);
-                #[cfg(not(feature = "maxperf"))]
-                return decode_program_line(
-                    Word(cpu.memory.read_mem_u32(pc).unwrap_unchecked()),
-                    cpu.arch_mode,
-                )
-                .unwrap();
-                #[cfg(feature = "maxperf")]
-                return decode_program_line_unchecked_rv64(&Word(
-                    cpu.memory.read_mem_u32(pc).unwrap_unchecked(),
-                ));
+            false => match mode {
+                CpuMode::RV32 => |cpu: &mut Cpu| unsafe {
+                    let pc = (cpu.vtable.get_current_pc_translated)(cpu);
+                    #[cfg(not(feature = "maxperf"))]
+                    return decode_program_line(
+                        Word(cpu.memory.read_mem_u32(pc).unwrap_unchecked()),
+                        cpu.arch_mode,
+                    )
+                    .unwrap();
+                    #[cfg(feature = "maxperf")]
+                    return decode_program_line(
+                        Word(cpu.memory.read_mem_u32(pc).unwrap_unchecked()),
+                        cpu.arch_mode,
+                    )
+                    .unwrap_unchecked();
+                },
+                CpuMode::RV64 => |cpu: &mut Cpu| unsafe {
+                    let pc = (cpu.vtable.get_current_pc_translated)(cpu);
+                    #[cfg(not(feature = "maxperf"))]
+                    return decode_program_line(
+                        Word(cpu.memory.read_mem_u32(pc).unwrap_unchecked()),
+                        cpu.arch_mode,
+                    )
+                    .unwrap();
+                    #[cfg(feature = "maxperf")]
+                    return decode_program_line_unchecked_rv64(&Word(
+                        cpu.memory.read_mem_u32(pc).unwrap_unchecked(),
+                    ));
+                },
             },
         };
         let get_current_pc_translated = match execution_mode {
