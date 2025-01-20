@@ -3,7 +3,7 @@
 use anyhow::Result;
 use clap::Parser;
 use ctrlc::set_handler;
-use minifb::{Key, Window, WindowOptions};
+use minifb::{Key, KeyRepeat, Window, WindowOptions};
 use nix::libc::{BRKINT, ECHO, ICRNL, INPCK, ISTRIP};
 use risc_sim::cpu::cpu_core::{
     Cpu, CpuMode, ExecutionMode, INITIAL_STACK_POINTER_32, INITIAL_STACK_POINTER_64,
@@ -16,6 +16,7 @@ use risc_sim::system::passthrough_kernel::PassthroughKernel;
 use risc_sim::system::uart::{init_uart, write_char};
 use risc_sim::system::virtio::{init_virtio, BlockDevice};
 use risc_sim::types::ABIRegister;
+use std::collections::HashMap;
 use std::io::{self, Read};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
@@ -57,6 +58,18 @@ fn create_stdio_channel() -> Receiver<u8> {
     rx
 }
 
+pub const KEY_RIGHTARROW: u8 = 0xae;
+pub const KEY_LEFTARROW: u8 = 0xac;
+pub const KEY_UPARROW: u8 = 0xad;
+pub const KEY_DOWNARROW: u8 = 0xaf;
+pub const KEY_STRAFE_L: u8 = 0xa0;
+pub const KEY_STRAFE_R: u8 = 0xa1;
+pub const KEY_USE: u8 = 0xa2;
+pub const KEY_FIRE: u8 = 0xa3;
+pub const KEY_ESCAPE: u8 = 27;
+pub const KEY_ENTER: u8 = 13;
+pub const KEY_TAB: u8 = 9;
+
 fn main() -> Result<()> {
     let args = Args::parse();
 
@@ -72,9 +85,27 @@ fn main() -> Result<()> {
     const SCREEN_HEIGHT: u64 = 200;
     const MEMORY_BUFFER_SIZE: u64 = SCREEN_WIDTH * SCREEN_HEIGHT * 4;
     const SCREEN_ADDR_ADDR: u64 = 0x1000000 - 4;
-    const SCALE_SCREEN: u64 = 2;
+    const KEYQUEUE_ADDR_ADDR: u64 = 0x1000000 - 8;
+    const SCALE_SCREEN: u64 = 6;
     let simulate_display: bool = args.simulate_display;
 
+    let key_pairs = vec![
+        (Key::W, KEY_UPARROW),
+        (Key::S, KEY_DOWNARROW),
+        (Key::Left, KEY_LEFTARROW),
+        (Key::Right, KEY_RIGHTARROW),
+        (Key::Enter, KEY_ENTER),
+        (Key::Tab, KEY_TAB),
+        (Key::E, KEY_FIRE),
+        (Key::Q, KEY_USE),
+        (Key::A, KEY_STRAFE_L),
+        (Key::D, KEY_STRAFE_R),
+        (Key::Escape, KEY_ESCAPE),
+    ];
+    let mut key_states: HashMap<Key, bool> = HashMap::new();
+    for (key, _) in &key_pairs {
+        key_states.insert(*key, false);
+    }
     let mut frames_written = 0;
 
     let mut window = if simulate_display {
@@ -178,7 +209,7 @@ fn main() -> Result<()> {
 
     let mut count = 0;
     #[cfg(feature = "maxperf")]
-    const COUNT_INTERVAL: u64 = 200000;
+    const COUNT_INTERVAL: u64 = 100000;
     #[cfg(not(feature = "maxperf"))]
     const COUNT_INTERVAL: u64 = 1;
     let mut stdio_count = 0;
@@ -208,15 +239,15 @@ fn main() -> Result<()> {
         if simulate_display && cpu.read_mem_u32(SCREEN_ADDR_ADDR)? != 0 {
             frames_written += 1;
 
+            let window = window.as_mut().unwrap();
+            if window.is_key_down(Key::Backslash) {
+                break anyhow::anyhow!("Escape pressed");
+            }
             println!("Draw on cycle: {}", count);
 
             let screen_data_addr = cpu.read_mem_u32(SCREEN_ADDR_ADDR)? as u64;
 
             cpu.write_mem_u32(SCREEN_ADDR_ADDR, 0)?;
-
-            if window.as_ref().unwrap().is_key_down(Key::Escape) {
-                break anyhow::anyhow!("Escape pressed");
-            }
 
             let cmap = false;
 
@@ -246,13 +277,37 @@ fn main() -> Result<()> {
                 }
             }
 
-            if window.as_ref().unwrap().is_open() {
+            if window.is_open() {
                 window
-                    .as_mut()
-                    .unwrap()
                     .update_with_buffer(&buffer, SCREEN_WIDTH as usize, SCREEN_HEIGHT as usize)
                     .unwrap();
             }
+
+            let keyqueue_data_addr = cpu.read_mem_u32(KEYQUEUE_ADDR_ADDR)? as u64;
+            let mut queue_entry_count = 0;
+            for (key, doom_key) in &key_pairs {
+                let down = window.is_key_down(*key);
+                let down_prev = key_states[&key];
+                let pressed = down && !down_prev;
+                let released = !down && down_prev;
+                let state = key_states.get_mut(key).unwrap();
+                *state = down;
+                if pressed || released {
+                    if pressed {
+                        println!("\n\nPRESSED: {:?}\n\n\n", key);
+                    } else {
+                        println!("\n\nRELEASED: {:?}\n\n\n", key);
+                    }
+                    cpu.write_mem_u32(
+                        keyqueue_data_addr + queue_entry_count * 4,
+                        ((pressed as u32) << 31) | *doom_key as u32,
+                    )
+                    .unwrap();
+                    queue_entry_count += 1;
+                }
+            }
+            cpu.write_mem_u32(keyqueue_data_addr + queue_entry_count * 4, 0xFFFFFFFF)
+                .unwrap();
         }
 
         #[cfg(not(feature = "maxperf"))]
