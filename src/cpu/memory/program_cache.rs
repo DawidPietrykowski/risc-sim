@@ -5,7 +5,7 @@ use crate::{
 
 use super::memory_core::Memory;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 pub struct ProgramCache {
     start_addr: u64,
@@ -30,7 +30,11 @@ impl ProgramCache {
     ) -> Result<ProgramCache> {
         let mut data = Vec::new();
         for i in (start_addr..end_addr).step_by(4) {
-            data.push(decode_program_line(Word(memory.read_mem_u32(i)?), mode)?);
+            let word = memory.read_mem_u32(i)?;
+            data.push(
+                decode_program_line(Word(word), mode)
+                    .context(format!("Instruction not found at {:x} word: {:x}", i, word))?,
+            );
         }
         Ok(ProgramCache {
             start_addr,

@@ -178,7 +178,7 @@ fn main() -> Result<()> {
                 UserMemory::new(
                     INITIAL_STACK_POINTER_64 as u64 - STACK_SIZE,
                     0,
-                    STACK_SIZE,
+                    STACK_SIZE + 0x4,
                     HEAP_SIZE,
                 ),
                 PassthroughKernel::default(),

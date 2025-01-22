@@ -14,6 +14,10 @@ use crate::{
         rv64_zicsr::zicsr::RV64_ZICSR_SET,
         rv64_zifencei::zifencei::RV64_ZIFENCEI_SET,
         rv64a::amo::RV64A_SET_AMO,
+        rv64fd::{
+            conversion::RV64F_SET_CONVERSION, load_store::RV64F_SET_LS, mov::RV64F_SET_MOV,
+            muldiv::RV64F_SET_MULDIV,
+        },
         rv64i::{
             control_transfer::RV64I_SET_UJ, environment::RV64I_SET_E, immediate::RV64I_SET_I,
             integer_reg_reg::RV64I_SET_R, load_store::RV64I_SET_LS,
@@ -362,6 +366,8 @@ pub const FUNC12_MASK: u32 = (U12_MASK as u32) << 20;
 pub const FUNC12_POS: u32 = 20;
 pub const RS2_MASK: u32 = (U5_MASK as u32) << RS2_POS;
 pub const RS2_POS: u32 = 20;
+pub const FUNC2_MASK: u32 = (0b11 as u32) << FUNC2_POS;
+pub const FUNC2_POS: u32 = 25;
 
 pub const U7_MASK: u8 = 0b1111111;
 
@@ -510,6 +516,10 @@ static ALL_INSTRUCTIONS_64: Lazy<Vec<Instruction>> = Lazy::new(|| {
     all.extend_from_slice(&RV64I_SET_E);
     all.extend_from_slice(&RV64A_SET_AMO);
     all.extend_from_slice(&RV64M_SET_R);
+    all.extend_from_slice(&RV64F_SET_LS);
+    all.extend_from_slice(&RV64F_SET_CONVERSION);
+    all.extend_from_slice(&RV64F_SET_MULDIV);
+    all.extend_from_slice(&RV64F_SET_MOV);
     all.extend_from_slice(&RV64_ZIFENCEI_SET);
     all.extend_from_slice(&RV64_ZICSR_SET);
     all.extend_from_slice(&RV64_PRIVILEGED_SET);
@@ -568,4 +578,27 @@ impl ABIRegister {
             }
         }
     }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum RoundingMode {
+    RNE = 000, // Round to Nearest (Ties to Even) *approximated*
+    RTZ = 001, // Round towards Zero
+    RDN = 010, // Round Down (-∞)
+    RUP = 011, // Round Up (+∞)
+    RMM = 100, // Round to Max Magnitude (not implemented here)
+}
+
+impl From<u8> for RoundingMode {
+    fn from(value: u8) -> Self {
+        value.into()
+    }
+}
+
+#[derive(Default)]
+pub struct FCSR {
+    pub invalid: bool,   // Invalid operation
+    pub overflow: bool,  // Overflow
+    pub underflow: bool, // Underflow
+    pub inexact: bool,   // Inexact result
 }

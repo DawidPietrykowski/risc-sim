@@ -34,7 +34,7 @@ pub const RV64F_SET_LS: [Instruction; 4] = [
 
             cpu.debug_print(|| format!("FLW: {:x?}", read_value));
 
-            cpu.write_f32(instruction.rd.value(), read_value)?;
+            cpu.write_f32(instruction.rd.value(), read_value);
 
             Ok(())
         },
@@ -56,7 +56,7 @@ pub const RV64F_SET_LS: [Instruction; 4] = [
 
             cpu.debug_print(|| format!("FLD: {:#x?}", read_value));
 
-            cpu.write_f64(instruction.rd.value(), read_value)?;
+            cpu.write_f64(instruction.rd.value(), read_value);
 
             Ok(())
         },
@@ -74,7 +74,7 @@ pub const RV64F_SET_LS: [Instruction; 4] = [
             let moved_addr = cpu
                 .read_x_u64(instruction.rs1.value())
                 .wrapping_add_signed(extended_offset);
-            let read_value = cpu.read_f32(instruction.rs2.value())?;
+            let read_value = cpu.read_f32(instruction.rs2.value());
 
             cpu.debug_print(|| {
                 format!(
@@ -83,7 +83,7 @@ pub const RV64F_SET_LS: [Instruction; 4] = [
                 )
             });
 
-            cpu.write_mem_u32(moved_addr, f32_to_u32(read_value))?;
+            cpu.write_mem_u32(moved_addr, f32_to_u32(read_value));
 
             Ok(())
         },
@@ -101,7 +101,7 @@ pub const RV64F_SET_LS: [Instruction; 4] = [
             let moved_addr = cpu
                 .read_x_u64(instruction.rs1.value())
                 .wrapping_add_signed(extended_offset);
-            let read_value = cpu.read_f64(instruction.rs2.value())?;
+            let read_value = cpu.read_f64(instruction.rs2.value());
 
             cpu.debug_print(|| {
                 format!(
@@ -110,7 +110,7 @@ pub const RV64F_SET_LS: [Instruction; 4] = [
                 )
             });
 
-            cpu.write_mem_u64(moved_addr, f64_to_u64(read_value))?;
+            cpu.write_mem_u64(moved_addr, f64_to_u64(read_value));
 
             Ok(())
         },
