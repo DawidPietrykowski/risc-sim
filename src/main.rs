@@ -130,12 +130,7 @@ fn main() -> Result<()> {
     };
 
     let mut buffer: Vec<u32> = if simulate_display {
-        let buf: Vec<u32> = vec![
-            0;
-            (SCREEN_WIDTH * SCREEN_HEIGHT * SCALE_SCREEN * SCALE_SCREEN)
-                .try_into()
-                .unwrap()
-        ];
+        let buf: Vec<u32> = vec![0; (SCREEN_WIDTH * SCREEN_HEIGHT).try_into().unwrap()];
 
         window
             .as_mut()
@@ -214,7 +209,7 @@ fn main() -> Result<()> {
 
     let mut count = 0;
     #[cfg(feature = "maxperf")]
-    const COUNT_INTERVAL: u64 = 10000;
+    const COUNT_INTERVAL: u64 = 5000;
     #[cfg(not(feature = "maxperf"))]
     const COUNT_INTERVAL: u64 = 1;
     let mut stdio_count = 0;
@@ -273,12 +268,7 @@ fn main() -> Result<()> {
                         g = (val >> 8) & 0xFF;
                         b = (val >> 16) & 0xFF;
                     }
-                    for xt in 0..SCALE_SCREEN {
-                        for yt in 0..SCALE_SCREEN {
-                            let pixel_index = (xpos + xt) * (SCREEN_HEIGHT) + (ypos + yt);
-                            buffer[pixel_index as usize] = r | (g << 8) | (b << 16) | (0xFF << 24);
-                        }
-                    }
+                    buffer[pixel_index as usize] = r | (g << 8) | (b << 16) | (0xFF << 24);
                 }
             }
 
