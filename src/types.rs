@@ -497,9 +497,9 @@ pub fn find_instruction_by_name(name: &str) -> Result<Instruction> {
 static ALL_INSTRUCTIONS_32: Lazy<Vec<Instruction>> = Lazy::new(|| {
     let mut all = Vec::new();
     all.extend_from_slice(&RV32I_SET_I);
+    all.extend_from_slice(&RV32I_SET_LS);
     all.extend_from_slice(&RV32I_SET_R);
     all.extend_from_slice(&RV32I_SET_UJ);
-    all.extend_from_slice(&RV32I_SET_LS);
     all.extend_from_slice(&RV32I_SET_E);
     all.extend_from_slice(&RV32M_SET_R);
     all.extend_from_slice(&RV32_ZIFENCEI_SET);
@@ -510,9 +510,9 @@ static ALL_INSTRUCTIONS_32: Lazy<Vec<Instruction>> = Lazy::new(|| {
 static ALL_INSTRUCTIONS_64: Lazy<Vec<Instruction>> = Lazy::new(|| {
     let mut all = Vec::new();
     all.extend_from_slice(&RV64I_SET_I);
+    all.extend_from_slice(&RV64I_SET_LS);
     all.extend_from_slice(&RV64I_SET_R);
     all.extend_from_slice(&RV64I_SET_UJ);
-    all.extend_from_slice(&RV64I_SET_LS);
     all.extend_from_slice(&RV64I_SET_E);
     all.extend_from_slice(&RV64A_SET_AMO);
     all.extend_from_slice(&RV64M_SET_R);

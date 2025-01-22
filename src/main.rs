@@ -284,6 +284,10 @@ fn main() -> Result<()> {
             }
 
             let keyqueue_data_addr = cpu.read_mem_u32(KEYQUEUE_ADDR_ADDR)? as u64;
+            let keyqueue_data = cpu.read_mem_u32(keyqueue_data_addr)?;
+            if keyqueue_data != 0xFFFF_FFFF {
+                continue;
+            }
             let mut queue_entry_count = 0;
             for (key, doom_key) in &key_pairs {
                 let down = window.is_key_down(*key);
