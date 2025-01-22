@@ -3,7 +3,7 @@
 use anyhow::Result;
 use clap::Parser;
 use ctrlc::set_handler;
-use minifb::{Key, KeyRepeat, Window, WindowOptions};
+use minifb::{Key, Window, WindowOptions};
 use nix::libc::{BRKINT, ECHO, ICRNL, INPCK, ISTRIP};
 use risc_sim::cpu::cpu_core::{
     Cpu, CpuMode, ExecutionMode, INITIAL_STACK_POINTER_32, INITIAL_STACK_POINTER_64,
@@ -312,6 +312,10 @@ fn main() -> Result<()> {
             }
             cpu.write_mem_u32(keyqueue_data_addr + queue_entry_count * 4, 0xFFFFFFFF)
                 .unwrap();
+        }
+
+        if args.simulate_display && start_time.elapsed().as_secs_f32() >= 10.0 {
+            break anyhow::anyhow!("Timeout");
         }
 
         #[cfg(not(feature = "maxperf"))]
