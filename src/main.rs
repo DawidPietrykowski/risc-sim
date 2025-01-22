@@ -1,3 +1,4 @@
+#![feature(let_chains)]
 #![allow(dead_code)]
 
 use anyhow::Result;
@@ -43,6 +44,10 @@ pub struct Args {
     /// Optional filesystem image path
     #[arg(long)]
     pub fs_image: Option<String>,
+
+    /// Optional timeout
+    #[arg(long)]
+    pub timeout: Option<u32>,
 }
 
 fn create_stdio_channel() -> Receiver<u8> {
@@ -178,7 +183,7 @@ fn main() -> Result<()> {
                 UserMemory::new(
                     INITIAL_STACK_POINTER_64 as u64 - STACK_SIZE,
                     0,
-                    STACK_SIZE + 0x4,
+                    STACK_SIZE,
                     HEAP_SIZE,
                 ),
                 PassthroughKernel::default(),
@@ -209,7 +214,7 @@ fn main() -> Result<()> {
 
     let mut count = 0;
     #[cfg(feature = "maxperf")]
-    const COUNT_INTERVAL: u64 = 100000;
+    const COUNT_INTERVAL: u64 = 10000;
     #[cfg(not(feature = "maxperf"))]
     const COUNT_INTERVAL: u64 = 1;
     let mut stdio_count = 0;
@@ -297,11 +302,6 @@ fn main() -> Result<()> {
                 let state = key_states.get_mut(key).unwrap();
                 *state = down;
                 if pressed || released {
-                    if pressed {
-                        println!("\n\nPRESSED: {:?}\n\n\n", key);
-                    } else {
-                        println!("\n\nRELEASED: {:?}\n\n\n", key);
-                    }
                     cpu.write_mem_u32(
                         keyqueue_data_addr + queue_entry_count * 4,
                         ((pressed as u32) << 31) | *doom_key as u32,
@@ -314,7 +314,9 @@ fn main() -> Result<()> {
                 .unwrap();
         }
 
-        if args.simulate_display && start_time.elapsed().as_secs_f32() >= 10.0 {
+        if let Some(timeout) = args.timeout
+            && start_time.elapsed().as_secs_f32() >= timeout as f32
+        {
             break anyhow::anyhow!("Timeout");
         }
 
