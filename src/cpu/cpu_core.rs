@@ -740,6 +740,9 @@ impl Cpu {
     }
 
     pub fn print_pc_history(&mut self) {
+        if self.pc_history.size == 0 {
+            return;
+        }
         println!("pc history:");
         let mut last_pc = 0u64;
         while let Some((pc, ins, satp)) = self.pc_history.pop() {
@@ -798,7 +801,6 @@ impl Cpu {
         self.reg_pc_64 = val;
     }
 
-    // TODO: add better mechanism
     #[allow(unused)]
     fn print_breakpoint(&mut self, pc: u64, val: u64, name: &str) -> bool {
         if val == pc {

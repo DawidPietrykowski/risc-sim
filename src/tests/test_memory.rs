@@ -158,12 +158,12 @@ proptest! {
         }
         let mut cpu = setup_cpu();
         let addr = 1000u32;
-        cpu.write_x_u32(rs1, addr).unwrap();
+        cpu.write_x_u32(rs1, addr);
         cpu.write_mem_u8(addr.wrapping_add_signed(imm as i16 as i32) as u64, value as u8).unwrap();
 
         execute_i_instruction(&mut cpu, "LB", rd, rs1, imm).unwrap();
 
-        prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), value as i32);
+        prop_assert_eq!(cpu.read_x_i32(rd), value as i32);
     }
 
     #[test]
@@ -173,12 +173,12 @@ proptest! {
         }
         let mut cpu = setup_cpu();
         let addr = 1000u32;
-        cpu.write_x_u32(rs1, addr).unwrap();
+        cpu.write_x_u32(rs1, addr);
         cpu.write_mem_u16(addr.wrapping_add_signed(imm as i16 as i32) as u64, value as u16).unwrap();
 
         execute_i_instruction(&mut cpu, "LH", rd, rs1, imm).unwrap();
 
-        prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), value as i32);
+        prop_assert_eq!(cpu.read_x_i32(rd), value as i32);
     }
 
     #[test]
@@ -188,12 +188,12 @@ proptest! {
         }
         let mut cpu = setup_cpu();
         let addr = 1000u32;
-        cpu.write_x_u32(rs1, addr).unwrap();
+        cpu.write_x_u32(rs1, addr);
         cpu.write_mem_u32(addr.wrapping_add_signed(0) as u64, value as u32).unwrap();
 
         execute_i_instruction(&mut cpu, "LW", rd, rs1, 0).unwrap();
 
-        prop_assert_eq!(cpu.read_x_i32(rd).unwrap(), value);
+        prop_assert_eq!(cpu.read_x_i32(rd), value);
     }
 
     #[test]
@@ -203,12 +203,12 @@ proptest! {
         }
         let mut cpu = setup_cpu();
         let addr = 1000u32;
-        cpu.write_x_u32(rs1, addr).unwrap();
+        cpu.write_x_u32(rs1, addr);
         cpu.write_mem_u8(addr.wrapping_add_signed(imm as i16 as i32) as u64, value).unwrap();
 
         execute_i_instruction(&mut cpu, "LBU", rd, rs1, imm).unwrap();
 
-        prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), value as u32);
+        prop_assert_eq!(cpu.read_x_u32(rd), value as u32);
     }
 
     #[test]
@@ -219,12 +219,12 @@ proptest! {
         let mut cpu = setup_cpu();
         let addr = 1000u32;
 
-        cpu.write_x_u32(rs1, addr).unwrap();
+        cpu.write_x_u32(rs1, addr);
         cpu.write_mem_u16(addr.wrapping_add_signed(imm as i16 as i32) as u64, value).unwrap();
 
         execute_i_instruction(&mut cpu, "LHU", rd, rs1, imm).unwrap();
 
-        prop_assert_eq!(cpu.read_x_u32(rd).unwrap(), value as u32);
+        prop_assert_eq!(cpu.read_x_u32(rd), value as u32);
     }
 
     #[test]
@@ -234,8 +234,8 @@ proptest! {
         }
         let mut cpu = setup_cpu();
         let addr = 1000u32;
-        cpu.write_x_u32(rs1, addr).unwrap();
-        cpu.write_x_i32(rs2, value as i32).unwrap();
+        cpu.write_x_u32(rs1, addr);
+        cpu.write_x_i32(rs2, value as i32);
 
         execute_s_instruction(&mut cpu, "SB", rs1, rs2, imm).unwrap();
 
@@ -249,8 +249,8 @@ proptest! {
         }
         let mut cpu = setup_cpu();
         let addr = 1000u32;
-        cpu.write_x_u32(rs1, addr).unwrap();
-        cpu.write_x_i32(rs2, value as i32).unwrap();
+        cpu.write_x_u32(rs1, addr);
+        cpu.write_x_i32(rs2, value as i32);
 
         execute_s_instruction(&mut cpu, "SH", rs1, rs2, imm).unwrap();
 
@@ -264,8 +264,8 @@ proptest! {
         }
         let mut cpu = setup_cpu();
         let addr = 1000u32;
-        cpu.write_x_u32(rs1, addr).unwrap();
-        cpu.write_x_i32(rs2, value).unwrap();
+        cpu.write_x_u32(rs1, addr);
+        cpu.write_x_i32(rs2, value);
 
         execute_s_instruction(&mut cpu, "SW", rs1, rs2, imm).unwrap();
 
