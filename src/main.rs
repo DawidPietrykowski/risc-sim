@@ -310,8 +310,8 @@ fn main() -> Result<()> {
             break anyhow::anyhow!("Timeout");
         }
 
-        #[cfg(not(feature = "maxperf"))]
-        match cpu.run_cycle() {
+        //#[cfg(not(feature = "maxperf"))]
+        match cpu.run_cycles(COUNT_INTERVAL) {
             Ok(_) => {
                 continue;
             }
@@ -319,8 +319,8 @@ fn main() -> Result<()> {
                 break e;
             }
         }
-        #[cfg(feature = "maxperf")]
-        let _ = cpu.run_cycles(COUNT_INTERVAL);
+        //#[cfg(feature = "maxperf")]
+        //let _ = cpu.run_cycles(COUNT_INTERVAL);
     };
 
     let elapsed_time = start_time.elapsed();

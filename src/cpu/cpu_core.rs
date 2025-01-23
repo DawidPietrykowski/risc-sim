@@ -393,7 +393,6 @@ impl Default for Cpu {
 
 pub fn run_cycle_bare(cpu: &mut Cpu) -> Result<()> {
     // Check if CPU is halted
-    #[cfg(not(feature = "maxperf"))]
     if cpu.halted {
         bail!("CPU is halted");
     }
@@ -433,9 +432,6 @@ pub fn run_cycle_bare(cpu: &mut Cpu) -> Result<()> {
     ));
 
     // Execute
-    #[cfg(feature = "maxperf")]
-    let _ = (instruction.instruction.operation)(cpu, &instruction.word);
-    #[cfg(not(feature = "maxperf"))]
     cpu.execute_program_line(&instruction)?;
 
     plic_check_pending(cpu);
@@ -447,7 +443,6 @@ pub fn run_cycle_bare(cpu: &mut Cpu) -> Result<()> {
 
 pub fn run_cycle_userspace(cpu: &mut Cpu) -> Result<()> {
     // Check if CPU is halted
-    #[cfg(not(feature = "maxperf"))]
     if cpu.halted {
         bail!("CPU is halted");
     }
@@ -475,13 +470,6 @@ pub fn run_cycle_userspace(cpu: &mut Cpu) -> Result<()> {
     ));
 
     // Execute
-    #[cfg(feature = "maxperf")]
-    {
-        let operation = instruction.instruction.operation;
-        let word = instruction.word;
-        let _ = operation(cpu, &word);
-    }
-    #[cfg(not(feature = "maxperf"))]
     cpu.execute_program_line(&instruction)?;
 
     Ok(())
@@ -647,12 +635,18 @@ impl Cpu {
         match self.execution_mode {
             ExecutionMode::Bare => {
                 for _ in 0..count {
-                    let _ = run_cycle_bare(self);
+                    let res = run_cycle_bare(self);
+                    if res.is_err() {
+                        return res;
+                    }
                 }
             }
             ExecutionMode::UserSpace => {
                 for _ in 0..count {
-                    let _ = run_cycle_userspace(self);
+                    let res = run_cycle_userspace(self);
+                    if res.is_err() {
+                        return res;
+                    }
                 }
             }
         }
@@ -661,7 +655,8 @@ impl Cpu {
 
     #[inline(always)]
     pub fn execute_program_line(&mut self, program_line: &ProgramLine) -> Result<()> {
-        (program_line.instruction.operation)(self, &program_line.word)
+        let word = program_line.word;
+        (program_line.instruction.operation)(self, &word)
     }
 
     pub fn execute_word(&mut self, word: Word) -> Result<()> {
