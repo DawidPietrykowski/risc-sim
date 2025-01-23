@@ -251,7 +251,6 @@ proptest! {
         cpu.write_mem_u32(0, n).unwrap();
 
         while cpu.run_cycles(1).is_ok() {
-            // println!("{}", cpu);
         }
 
         prop_assert_eq!(cpu.read_x_u32(5), fib(n));

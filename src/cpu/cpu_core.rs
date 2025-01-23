@@ -364,15 +364,11 @@ pub fn run_cycle_bare(cpu: &mut Cpu) -> Result<()> {
     };
     #[cfg(not(feature = "maxperf"))]
     let pc_translated = cpu.translate_address_if_needed(cpu.reg_pc_64)?;
-    #[cfg(feature = "maxperf")]
-    let instruction = unsafe {
-        decode_program_line_unchecked(
-            &Word(cpu.memory.read_mem_u32(pc_translated).unwrap_unchecked()),
-            cpu.arch_mode,
-        )
-    };
-    #[cfg(not(feature = "maxperf"))]
-    let instruction = cpu.fetch_instruction(pc_translated)?;
+
+    let instruction = decode_program_line_unchecked(
+        &Word(cpu.memory.read_mem_u32(pc_translated)?),
+        cpu.arch_mode,
+    );
 
     #[cfg(not(feature = "maxperf"))]
     if cpu.debug_enabled {
@@ -407,10 +403,7 @@ pub fn run_cycle_userspace(cpu: &mut Cpu) -> Result<()> {
     }
 
     // Fetch
-    #[cfg(feature = "maxperf")]
     let instruction = cpu.program_cache.get_line_unchecked(cpu.reg_pc_64);
-    #[cfg(not(feature = "maxperf"))]
-    let instruction = cpu.fetch_instruction(cpu.reg_pc_64)?;
 
     #[cfg(not(feature = "maxperf"))]
     if cpu.debug_enabled {
@@ -596,22 +589,6 @@ impl Cpu {
     #[cfg(not(feature = "maxperf"))]
     pub fn set_debug_enabled(&mut self, debug_enabled: bool) {
         self.debug_enabled = debug_enabled;
-    }
-
-    #[cfg(not(feature = "maxperf"))]
-    fn fetch_instruction(&mut self, physical_addr: u64) -> Result<ProgramLine> {
-        if let Some(cache_line) = self.program_cache.try_get_line(physical_addr) {
-            Ok(cache_line)
-        } else {
-            decode_program_line(
-                Word(
-                    self.memory
-                        .read_mem_u32(physical_addr)
-                        .context("No instruction at pc")?,
-                ),
-                self.arch_mode,
-            )
-        }
     }
 
     pub fn translate_address_if_needed(&mut self, addr: u64) -> Result<u64> {
