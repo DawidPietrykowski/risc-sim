@@ -89,17 +89,6 @@ pub struct Peripherals {
     pub plic: ContinuousMemory,
 }
 
-struct MemoryAccessVTable {
-    read_mem_u64: fn(&mut Cpu, u64) -> Result<u64>,
-    read_mem_u32: fn(&mut Cpu, u64) -> Result<u32>,
-    read_mem_u16: fn(&mut Cpu, u64) -> Result<u16>,
-    read_mem_u8: fn(&mut Cpu, u64) -> Result<u8>,
-    write_mem_u8: fn(&mut Cpu, u64, u8) -> Result<()>,
-    write_mem_u16: fn(&mut Cpu, u64, u16) -> Result<()>,
-    write_mem_u32: fn(&mut Cpu, u64, u32) -> Result<()>,
-    write_mem_u64: fn(&mut Cpu, u64, u64) -> Result<()>,
-}
-
 // TODO: Add peripheral memory
 fn bare_read_mem_u64(cpu: &mut Cpu, addr: u64) -> Result<u64> {
     let addr = cpu.translate_address_if_needed(addr)?;
@@ -270,32 +259,6 @@ fn user_space_write_mem_u32(cpu: &mut Cpu, addr: u64, value: u32) -> Result<()> 
 fn user_space_write_mem_u64(cpu: &mut Cpu, addr: u64, value: u64) -> Result<()> {
     cpu.memory.write_mem_u64(addr, value)
 }
-impl MemoryAccessVTable {
-    fn new(execution_mode: ExecutionMode) -> Self {
-        match execution_mode {
-            ExecutionMode::Bare => Self {
-                read_mem_u64: bare_read_mem_u64,
-                read_mem_u32: bare_read_mem_u32,
-                read_mem_u16: bare_read_mem_u16,
-                read_mem_u8: bare_read_mem_u8,
-                write_mem_u8: bare_write_mem_u8,
-                write_mem_u16: bare_write_mem_u16,
-                write_mem_u32: bare_write_mem_u32,
-                write_mem_u64: bare_write_mem_u64,
-            },
-            ExecutionMode::UserSpace => Self {
-                read_mem_u64: user_space_read_mem_u64,
-                read_mem_u32: user_space_read_mem_u32,
-                read_mem_u16: user_space_read_mem_u16,
-                read_mem_u8: user_space_read_mem_u8,
-                write_mem_u8: user_space_write_mem_u8,
-                write_mem_u16: user_space_write_mem_u16,
-                write_mem_u32: user_space_write_mem_u32,
-                write_mem_u64: user_space_write_mem_u64,
-            },
-        }
-    }
-}
 
 pub struct Cpu {
     reg_x32: [u32; 32],
@@ -317,7 +280,6 @@ pub struct Cpu {
     pub pc_history: CircularBuffer<(u64, Option<Instruction>, u64)>,
     pub block_device: Option<BlockDevice>,
     pub execution_mode: ExecutionMode,
-    memory_access_vtable: MemoryAccessVTable,
     pub peripherals: Option<Peripherals>,
 }
 
@@ -383,7 +345,6 @@ impl Default for Cpu {
             pc_history: CircularBuffer::new(500),
             block_device: None,
             execution_mode: ExecutionMode::UserSpace,
-            memory_access_vtable: MemoryAccessVTable::new(ExecutionMode::UserSpace),
             peripherals: None,
         };
         cpu.setup_csrs();
@@ -512,7 +473,6 @@ impl Cpu {
             privilege_mode: PrivilegeMode::Machine,
             pc_history: CircularBuffer::new(500),
             block_device,
-            memory_access_vtable: MemoryAccessVTable::new(execution_mode.clone()),
             execution_mode,
             peripherals: Some(Peripherals {
                 uart: ContinuousMemory::new(UART_ADDR, 0x100),
@@ -714,35 +674,59 @@ impl Cpu {
     }
 
     pub fn read_mem_u64(&mut self, addr: u64) -> Result<u64> {
-        (self.memory_access_vtable.read_mem_u64)(self, addr)
+        match self.execution_mode {
+            ExecutionMode::Bare => bare_read_mem_u64(self, addr),
+            ExecutionMode::UserSpace => user_space_read_mem_u64(self, addr),
+        }
     }
 
     pub fn read_mem_u32(&mut self, addr: u64) -> Result<u32> {
-        (self.memory_access_vtable.read_mem_u32)(self, addr)
+        match self.execution_mode {
+            ExecutionMode::Bare => bare_read_mem_u32(self, addr),
+            ExecutionMode::UserSpace => user_space_read_mem_u32(self, addr),
+        }
     }
 
     pub fn read_mem_u16(&mut self, addr: u64) -> Result<u16> {
-        (self.memory_access_vtable.read_mem_u16)(self, addr)
+        match self.execution_mode {
+            ExecutionMode::Bare => bare_read_mem_u16(self, addr),
+            ExecutionMode::UserSpace => user_space_read_mem_u16(self, addr),
+        }
     }
 
     pub fn read_mem_u8(&mut self, addr: u64) -> Result<u8> {
-        (self.memory_access_vtable.read_mem_u8)(self, addr)
+        match self.execution_mode {
+            ExecutionMode::Bare => bare_read_mem_u8(self, addr),
+            ExecutionMode::UserSpace => user_space_read_mem_u8(self, addr),
+        }
     }
 
     pub fn write_mem_u8(&mut self, addr: u64, value: u8) -> Result<()> {
-        (self.memory_access_vtable.write_mem_u8)(self, addr, value)
+        match self.execution_mode {
+            ExecutionMode::Bare => bare_write_mem_u8(self, addr, value),
+            ExecutionMode::UserSpace => user_space_write_mem_u8(self, addr, value),
+        }
     }
 
     pub fn write_mem_u16(&mut self, addr: u64, value: u16) -> Result<()> {
-        (self.memory_access_vtable.write_mem_u16)(self, addr, value)
+        match self.execution_mode {
+            ExecutionMode::Bare => bare_write_mem_u16(self, addr, value),
+            ExecutionMode::UserSpace => user_space_write_mem_u16(self, addr, value),
+        }
     }
 
     pub fn write_mem_u32(&mut self, addr: u64, value: u32) -> Result<()> {
-        (self.memory_access_vtable.write_mem_u32)(self, addr, value)
+        match self.execution_mode {
+            ExecutionMode::Bare => bare_write_mem_u32(self, addr, value),
+            ExecutionMode::UserSpace => user_space_write_mem_u32(self, addr, value),
+        }
     }
 
     pub fn write_mem_u64(&mut self, addr: u64, value: u64) -> Result<()> {
-        (self.memory_access_vtable.write_mem_u64)(self, addr, value)
+        match self.execution_mode {
+            ExecutionMode::Bare => bare_write_mem_u64(self, addr, value),
+            ExecutionMode::UserSpace => user_space_write_mem_u64(self, addr, value),
+        }
     }
 
     #[inline(always)]
