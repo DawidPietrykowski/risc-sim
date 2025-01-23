@@ -258,7 +258,6 @@ proptest! {
 
     #[test]
     fn test_encode_decode_i16(rd in 1u8..30, rs1 in 1u8..30, immi16 in -2048i16..2047){
-        println!();
         let imm = U12(i16_to_u16(immi16) & 0xFFF);
         let addi_instruction = IInstructionData {
             rd: U5(rd),

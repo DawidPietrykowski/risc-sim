@@ -276,7 +276,6 @@ impl Display for ProgramHeader {
 pub struct ProgramFile {
     pub entry_point: u64,
     pub program_memory_offset: u64,
-    pub lines: Vec<ProgramLine>,
     pub program_size: u64,
     pub end_of_data_addr: u64,
 }
@@ -635,27 +634,6 @@ pub fn load_program_to_memory(
         if section.name == ".text" {
             text_section_addr = section.addr;
             text_section_size = section.size;
-
-            // section.size = 1024;
-            let mut pc = 0;
-            while pc < section.size {
-                #[cfg(feature = "maxperf")]
-                {
-                    let instruction =
-                        u32::from_le_bytes(section.data[pc..(pc + 4)].try_into().unwrap());
-
-                    let decoded_instruction = decode_program_line(Word(instruction), mode);
-                    match decoded_instruction {
-                        Ok(decoded_instruction) => {
-                            program.push(decoded_instruction);
-                        }
-                        Err(e) => {
-                            println!("Error decoding instruction: {} at {}", e, pc - 4);
-                        }
-                    }
-                }
-                pc += 4;
-            }
         }
     }
 
@@ -663,7 +641,6 @@ pub fn load_program_to_memory(
         entry_point: elf.header.entry_point,
         program_memory_offset: text_section_addr as u64,
         program_size: text_section_size as u64,
-        lines: program,
         end_of_data_addr: end_of_data_addr as u64,
     })
 }

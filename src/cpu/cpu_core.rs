@@ -89,7 +89,6 @@ pub struct Peripherals {
     pub plic: ContinuousMemory,
 }
 
-// TODO: Add peripheral memory
 fn bare_read_mem_u64(cpu: &mut Cpu, addr: u64) -> Result<u64> {
     let addr = cpu.translate_address_if_needed(addr)?;
     cpu.memory.read_mem_u64(addr)

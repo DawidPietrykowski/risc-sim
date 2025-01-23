@@ -1,25 +1,6 @@
-use crate::{cpu::cpu_core::Cpu, isa::csr::csr_types::CSRAddress, types::*};
+use crate::types::*;
 
 use anyhow::Ok;
-
-#[allow(unused)]
-fn test_vma(cpu: &mut Cpu, va: u64, pa: u64, sz: u64) {
-    const ADDRESSES: u64 = 100;
-    let span = sz / ADDRESSES;
-    let mut wrong = false;
-    for i in 0..ADDRESSES {
-        let cur = va + span * i;
-        let expected = pa + span * i;
-        let res = cpu.translate_address_if_needed(cur).unwrap();
-        //assert_eq!(res, expected);
-        if res != expected {
-            wrong = true;
-        }
-    }
-    if wrong {
-        println!("wrong mapping of {:x} to {:x}", va, pa);
-    }
-}
 
 pub const RV64_ZICSR_SET: [Instruction; 6] = [
     Instruction {
@@ -35,43 +16,6 @@ pub const RV64_ZICSR_SET: [Instruction; 6] = [
 
             cpu.write_x_u64(instruction.rd.value(), old_csr_value);
             cpu.csr_table.write64(csr_addr, rs1_value);
-
-            // TODO: Remove
-            if csr_addr == CSRAddress::Satp.as_u12() {
-                //println!(
-                //    "Satp: {:#018x} (PPN={:#010x}, ASID={:#06x}, MODE={:#04x}) PC: {:#x}",
-                //    rs1_value,
-                //    rs1_value & ((1u64 << 44) - 1),
-                //    (rs1_value >> 44) & 0xfff,
-                //    (rs1_value >> 60),
-                //    cpu.current_instruction_pc_64
-                //);
-                if rs1_value == 0x8000000000087f4e {
-                    // test kernel address
-                    //const KERNEL_ADDR: u64 = 0x80000000;
-                    //const VMA_TEST_ADDR_VA: u64 = 0x10002000;
-                    //const VMA_TEST_ADDR_PA: u64 = 0x10003000;
-                    //const VMA_TEST_ADDR_SZ: u64 = 4096;
-                    //
-                    //test_vma(cpu, 0, 0x87f4b000, 0x1000);
-
-                    //test_vma(cpu, KERNEL_ADDR, KERNEL_ADDR, 4096);
-                    //test_vma(cpu, VMA_TEST_ADDR_VA, VMA_TEST_ADDR_PA, VMA_TEST_ADDR_SZ);
-                    // let res = cpu.translate_address_if_needed(KERNEL_ADDR)?;
-                    // println!("Kernel address {:#x} translated to {:#x}", KERNEL_ADDR, res);
-
-                    // let res = cpu.translate_address_if_needed(VMA_TEST_ADDR_VA)?;
-                    // println!(
-                    //     "VMA test address {:#x} translated to {:#x}",
-                    //     VMA_TEST_ADDR_VA, res);
-                    // let res = cpu.translate_address_if_needed(VMA_TEST_ADDR_VA + VMA_TEST_ADDR_SZ - 1)?;
-                    // println!(
-                    //     "VMA test address end {:#x} translated to {:#x}",
-                    //     VMA_TEST_ADDR_VA + VMA_TEST_ADDR_SZ - 1, res);
-
-                    // troublesome_addresses.insert(VMA_TEST_ADDR_VA, VMA_TEST_ADDR_PA);
-                }
-            }
 
             Ok(())
         },

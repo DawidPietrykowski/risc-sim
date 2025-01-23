@@ -129,9 +129,6 @@ impl BlockDevice {
         if block_num >= self.size_in_blocks {
             panic!("Block number exceeds device size");
         }
-        //if data.len() != SECTOR_SIZE {
-        //    panic!("Data size must match block size");
-        //}
 
         let start = block_num * SECTOR_SIZE;
         self.storage[start..start + len].copy_from_slice(data);
@@ -232,9 +229,6 @@ fn read_mem_virtio_blk_req(cpu: &mut Cpu, addr: u64) -> VirtioBlkReq {
 
 pub fn process_queue(cpu: &mut Cpu) {
     let virtio = &mut cpu.peripherals.as_mut().unwrap().virtio;
-    //println!("process_queue");
-
-    //print_desc_table(cpu);
 
     let virtio_avail = read_mem_virtio_avail(cpu);
     let last_avail_idx = virtio_avail.idx.wrapping_sub(1);
@@ -242,7 +236,6 @@ pub fn process_queue(cpu: &mut Cpu) {
 
     let req_desc = read_mem_virtio_desc(cpu, desc_idx);
     let req = read_mem_virtio_blk_req(cpu, req_desc.addr);
-    //println!("REQ: {:?}", req);
     assert_eq!(req_desc.flags, VRING_DESC_F_NEXT);
 
     let data_desc = read_mem_virtio_desc(cpu, req_desc.next);
@@ -252,8 +245,6 @@ pub fn process_queue(cpu: &mut Cpu) {
     let status_desc = read_mem_virtio_desc(cpu, data_desc.next);
     assert_eq!(status_desc.len, 1);
     assert_eq!(status_desc.flags, VRING_DESC_F_WRITE);
-
-    //println!("\nvirtio requested write: {}\n\n", write);
 
     match req.req_type {
         VirtioBlkReqType::In => {
@@ -276,7 +267,6 @@ pub fn process_queue(cpu: &mut Cpu) {
     };
 
     let current_status = cpu.read_mem_u8(status_desc.addr).unwrap();
-    //println!("current status: {}", current_status);
     cpu.write_mem_u8(status_desc.addr, VIRTIO_BLK_S_OK).unwrap();
 
     let mut virtio_used = read_mem_virtio_used(cpu);
@@ -289,13 +279,6 @@ pub fn process_queue(cpu: &mut Cpu) {
     write_mem_virtio_used(cpu, &virtio_used);
 
     plic_trigger_irq(cpu, VIRTIO0_IRQ);
-}
-
-fn print_desc_table(cpu: &mut Cpu) {
-    for i in 0..VIRTIO_DESC_NUM {
-        let desc = read_mem_virtio_desc(cpu, i as u16);
-        println!("DESC{}: {:?}", i, desc);
-    }
 }
 
 pub fn init_virtio(cpu: &mut Cpu) {
