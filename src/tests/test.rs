@@ -39,7 +39,7 @@ fn test_example_c_programs() {
                     anyhow::anyhow!("Too many cycles").context(format!("File: {:?}", file_path))
                 );
             }
-            match cpu.run_cycle() {
+            match cpu.run_cycles(1) {
                 Ok(_) => continue,
                 Err(e) => {
                     break Ok(e);
@@ -250,7 +250,7 @@ proptest! {
 
         cpu.write_mem_u32(0, n).unwrap();
 
-        while cpu.run_cycle().is_ok() {
+        while cpu.run_cycles(1).is_ok() {
             // println!("{}", cpu);
         }
 

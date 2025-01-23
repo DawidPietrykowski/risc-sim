@@ -325,7 +325,7 @@ pub const KERNEL_SIZE: u64 = 128 * 1024 * 1024;
 
 impl Default for Cpu {
     fn default() -> Self {
-        let mut cpu = Cpu {
+        Cpu {
             reg_x32: [0x0; 32],
             reg_x64: [0x0; 32],
             reg_f: [0.0; 32],
@@ -339,16 +339,14 @@ impl Default for Cpu {
             #[cfg(not(feature = "maxperf"))]
             debug_enabled: false,
             kernel: Box::<PassthroughKernel>::default(),
-            csr_table: CSRTable::new(),
+            csr_table: CSRTable::new(CpuMode::RV32),
             arch_mode: CpuMode::RV32,
             privilege_mode: PrivilegeMode::Machine,
             pc_history: CircularBuffer::new(500),
             block_device: None,
             execution_mode: ExecutionMode::UserSpace,
             peripherals: None,
-        };
-        cpu.setup_csrs();
-        cpu
+        }
     }
 }
 
@@ -454,7 +452,7 @@ impl Cpu {
         M: Memory + 'static,
         K: Kernel + 'static,
     {
-        let mut cpu = Cpu {
+        Cpu {
             reg_x32: [0x0; 32],
             reg_x64: [0x0; 32],
             reg_f: [0.0; 32],
@@ -468,7 +466,7 @@ impl Cpu {
             #[cfg(not(feature = "maxperf"))]
             debug_enabled: false,
             kernel: Box::new(kernel),
-            csr_table: CSRTable::new(),
+            csr_table: CSRTable::new(mode.clone()),
             arch_mode: mode,
             privilege_mode: PrivilegeMode::Machine,
             pc_history: CircularBuffer::new(500),
@@ -479,9 +477,7 @@ impl Cpu {
                 virtio: ContinuousMemory::new(VIRTIO_0_ADDR, 0x100),
                 plic: ContinuousMemory::new(PLIC_ADDR, 0x201004 + 0x8),
             }),
-        };
-        cpu.setup_csrs();
-        cpu
+        }
     }
 
     pub fn load_program_from_elf(&mut self, elf: ElfFile) -> Result<()> {
@@ -512,8 +508,6 @@ impl Cpu {
         }
         self.program_brk = program_file.end_of_data_addr;
 
-        self.setup_csrs();
-
         Ok(())
     }
 
@@ -529,8 +523,6 @@ impl Cpu {
             self.arch_mode,
         )
         .unwrap();
-
-        self.setup_csrs();
 
         Ok(())
     }
@@ -563,34 +555,6 @@ impl Cpu {
         Ok(())
     }
 
-    fn setup_csrs(&mut self) {
-        let mut misa = MisaCSR(0);
-        misa.set_extension_i(true);
-        misa.set_extension_m(true);
-        match self.arch_mode {
-            CpuMode::RV32 => {
-                misa.set_mxl_32(1);
-                self.csr_table
-                    .write32(CSRAddress::Misa.as_u12(), misa.0 as u32);
-            }
-            CpuMode::RV64 => {
-                misa.set_mxl_64(2);
-                self.csr_table.write64(CSRAddress::Misa.as_u12(), misa.0);
-            }
-        }
-        self.csr_table.write32(CSRAddress::Mvendorid.as_u12(), 0);
-        self.csr_table
-            .write_xlen(CSRAddress::Mhartid.as_u12(), 0, self.arch_mode);
-    }
-
-    #[inline(always)]
-    pub fn run_cycle(&mut self) -> Result<()> {
-        match self.execution_mode {
-            ExecutionMode::Bare => run_cycle_bare(self),
-            ExecutionMode::UserSpace => run_cycle_userspace(self),
-        }
-    }
-
     pub fn run_cycles(&mut self, count: u64) -> Result<()> {
         match self.execution_mode {
             ExecutionMode::Bare => {
@@ -610,7 +574,8 @@ impl Cpu {
                 }
             }
         }
-        return Ok(());
+
+        Ok(())
     }
 
     #[inline(always)]
@@ -631,21 +596,6 @@ impl Cpu {
     #[cfg(not(feature = "maxperf"))]
     pub fn set_debug_enabled(&mut self, debug_enabled: bool) {
         self.debug_enabled = debug_enabled;
-    }
-
-    #[allow(unused)]
-    pub fn debug_print<F>(&self, message: F)
-    where
-        F: FnOnce() -> String,
-    {
-        #[cfg(not(feature = "maxperf"))]
-        if self.debug_enabled {
-            println!("{}", message());
-        }
-    }
-
-    pub fn read_pc(&self) -> u64 {
-        self.reg_pc_64
     }
 
     #[cfg(not(feature = "maxperf"))]
@@ -727,6 +677,16 @@ impl Cpu {
             ExecutionMode::Bare => bare_write_mem_u64(self, addr, value),
             ExecutionMode::UserSpace => user_space_write_mem_u64(self, addr, value),
         }
+    }
+
+    pub fn read_buf(&mut self, addr: u64, buf: &mut [u8]) -> Result<()> {
+        let addr = self.translate_address_if_needed(addr)?;
+        self.memory.read_buf(addr, buf)
+    }
+
+    pub fn write_buf(&mut self, addr: u64, buf: &[u8]) -> Result<()> {
+        let addr = self.translate_address_if_needed(addr)?;
+        self.memory.write_buf(addr, buf)
     }
 
     #[inline(always)]
@@ -835,80 +795,22 @@ impl Cpu {
     }
 
     pub fn write_pc_u64(&mut self, val: u64) {
-        // TODO: Remove
-        // self.print_breakpoint(0x80000a54, val, "printfinit");
-        // self.print_breakpoint(0x80000540, val, "consoleinit");
-        // self.print_breakpoint(0x80002aa4, val, "scheduler");
-        // self.print_breakpoint(0x80000db4, val, "kfree");
-        // self.print_breakpoint(0x80000ebc, val, "kinit");
-        // self.print_breakpoint(0x80000e44, val, "freerange");
-        //self.print_breakpoint(0x800034d0, val, "usertrapret");
-        //self.print_breakpoint(0x800090b0, val, "userret");
-        //self.print_breakpoint(0x80009000, val, "trampoline");
-        //self.print_breakpoint(0x8000146c, val, "main");
-        //self.print_breakpoint(0x80003824, val, "kerneltrap");
-        //self.print_breakpoint(0x0000000080001404, val, "scheduler");
-        //self.print_breakpoint(0x8000167c, val, "mappages");
-        //if self.print_breakpoint(0x00000000800033fc, val, "swtch") {
-        //    let ra = self
-        //        .read_x_u64(ABIRegister::RA.to_x_reg_id() as u8)
-        //        .unwrap();
-        //    println!("ra: {:#x}", ra);
-        //    let sp = self
-        //        .read_x_u64(ABIRegister::SP.to_x_reg_id() as u8)
-        //        .unwrap();
-        //    println!("sp: {:#x}", sp);
-        //    println!();
-        //}
-        //if self.print_breakpoint(0x80002500, val, "back from swtch") {
-        //    let ra = self
-        //        .read_x_u64(ABIRegister::RA.to_x_reg_id() as u8)
-        //        .unwrap();
-        //    println!("ra: {:#x}", ra);
-        //    let sp = self
-        //        .read_x_u64(ABIRegister::SP.to_x_reg_id() as u8)
-        //        .unwrap();
-        //    println!("sp: {:#x}", sp);
-        //    println!();
-        //}
-        //self.print_breakpoint(0x0000000080002864, val, "userinit");
-        // if self.current_instruction_pc_64 != 0x80000e1c {
-        // self.print_breakpoint(0x8000112c, val, "release");
-        // }
-        // if self.current_instruction_pc_64 != 0x8000115c {
-        // self.print_breakpoint(0x800010b8, val, "pop_off");
-        // }
-        // self.print_breakpoint(0x8000466c, val, "ialoc");
-        // self.print_breakpoint(0x80000664, val, "printf");
-        // self.print_breakpoint(0x80000a08, val, "panic");
-
-        //if self.print_breakpoint(0x0, val, "zero") {
-        //    let ra = self
-        //        .read_x_u64(ABIRegister::RA.to_x_reg_id() as u8)
-        //        .unwrap();
-        //    println!("ra: {:#x}", ra);
-        //    let sp = self
-        //        .read_x_u64(ABIRegister::SP.to_x_reg_id() as u8)
-        //        .unwrap();
-        //    println!("sp: {:#x}", sp);
-        //    println!();
-        //    // panic!()
-        //}
         self.reg_pc_64 = val;
     }
 
     // TODO: add better mechanism
-    //fn print_breakpoint(&mut self, pc: u64, val: u64, name: &str) -> bool {
-    //    if val == pc {
-    //        println!(
-    //            "jump to {:#x} from {:#x} into {}",
-    //            pc, self.current_instruction_pc_64, name
-    //        );
-    //        println!();
-    //        return true;
-    //    }
-    //    false
-    //}
+    #[allow(unused)]
+    fn print_breakpoint(&mut self, pc: u64, val: u64, name: &str) -> bool {
+        if val == pc {
+            println!(
+                "jump to {:#x} from {:#x} into {}",
+                pc, self.current_instruction_pc_64, name
+            );
+            println!();
+            return true;
+        }
+        false
+    }
 
     pub fn read_current_instruction_addr_u32(&self) -> u32 {
         self.current_instruction_pc_64 as u32
@@ -916,16 +818,6 @@ impl Cpu {
 
     pub fn read_current_instruction_addr_u64(&self) -> u64 {
         self.current_instruction_pc_64
-    }
-
-    pub fn read_buf(&mut self, addr: u64, buf: &mut [u8]) -> Result<()> {
-        let addr = self.translate_address_if_needed(addr)?;
-        self.memory.read_buf(addr, buf)
-    }
-
-    pub fn write_buf(&mut self, addr: u64, buf: &[u8]) -> Result<()> {
-        let addr = self.translate_address_if_needed(addr)?;
-        self.memory.write_buf(addr, buf)
     }
 
     pub fn read_c_string(&mut self, addr: u64) -> Result<String> {

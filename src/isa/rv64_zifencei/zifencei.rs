@@ -7,9 +7,5 @@ pub const RV64_ZIFENCEI_SET: [Instruction; 1] = [Instruction {
     bits: 0b0001111 | 0b001 << FUNC3_POS,
     name: "FENCE.I",
     instruction_type: InstructionType::R,
-    operation: |cpu, _word| {
-        cpu.debug_print(|| "FENCE.I: skipping".to_string());
-
-        Ok(())
-    },
+    operation: |_cpu, _word| Ok(()),
 }];

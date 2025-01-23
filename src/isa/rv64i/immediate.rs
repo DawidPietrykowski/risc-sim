@@ -16,17 +16,6 @@ pub const RV64I_SET_I: [Instruction; 15] = [
             let (res, _) = imm.overflowing_add(rs1);
             cpu.write_x_i64(instruction.rd.value(), res);
 
-            cpu.debug_print(|| {
-                format!(
-                    "ADDI: r{}({:#x}) = r{}({}) + {}",
-                    instruction.rd.value(),
-                    res,
-                    instruction.rs1.value(),
-                    rs1,
-                    imm
-                )
-            });
-            cpu.debug_print(|| format!("rd: {}", cpu.read_x_i64(instruction.rd.value())));
             Ok(())
         },
     },
@@ -42,17 +31,6 @@ pub const RV64I_SET_I: [Instruction; 15] = [
             let (res, _) = imm.overflowing_add(rs1);
             cpu.write_x_i64(instruction.rd.value(), res as i64);
 
-            cpu.debug_print(|| {
-                format!(
-                    "ADDI: r{}({:#x}) = r{}({}) + {}",
-                    instruction.rd.value(),
-                    res,
-                    instruction.rs1.value(),
-                    rs1,
-                    imm
-                )
-            });
-            cpu.debug_print(|| format!("rd: {}", cpu.read_x_i64(instruction.rd.value())));
             Ok(())
         },
     },
@@ -91,16 +69,6 @@ pub const RV64I_SET_I: [Instruction; 15] = [
             let instruction = parse_instruction_i(word);
             let imm = sign_extend_12bit_to_64bit(instruction.imm.value());
             let rs1 = cpu.read_x_i64(instruction.rs1.value());
-            cpu.debug_print(|| {
-                format!(
-                    "ANDI: r{}({:#x}) = r{}({}) & {}",
-                    instruction.rd.value(),
-                    rs1 & imm,
-                    instruction.rs1.value(),
-                    rs1,
-                    imm
-                )
-            });
             cpu.write_x_i64(instruction.rd.value(), rs1 & imm);
             Ok(())
         },

@@ -143,11 +143,29 @@ pub struct CSRTable {
 }
 
 impl CSRTable {
-    pub fn new() -> Self {
-        CSRTable {
+    pub fn new(cpu_mode: CpuMode) -> Self {
+        let mut csr_table = CSRTable {
             csrs32: [0; 4096],
             csrs64: [0; 4096],
+        };
+
+        let mut misa = MisaCSR(0);
+        misa.set_extension_i(true);
+        misa.set_extension_m(true);
+        match cpu_mode {
+            CpuMode::RV32 => {
+                misa.set_mxl_32(1);
+                csr_table.write32(CSRAddress::Misa.as_u12(), misa.0 as u32);
+            }
+            CpuMode::RV64 => {
+                misa.set_mxl_64(2);
+                csr_table.write64(CSRAddress::Misa.as_u12(), misa.0);
+            }
         }
+        csr_table.write32(CSRAddress::Mvendorid.as_u12(), 0);
+        csr_table.write_xlen(CSRAddress::Mhartid.as_u12(), 0, cpu_mode);
+
+        csr_table
     }
 
     pub fn read32(&self, addr: U12) -> u32 {
@@ -239,6 +257,6 @@ impl CSRTable {
 
 impl Default for CSRTable {
     fn default() -> Self {
-        Self::new()
+        Self::new(CpuMode::RV32)
     }
 }

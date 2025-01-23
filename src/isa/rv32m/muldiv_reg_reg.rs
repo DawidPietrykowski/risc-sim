@@ -15,8 +15,6 @@ pub const RV32M_SET_R: [Instruction; 8] = [
             let (res, _) = rs1.overflowing_mul(rs2);
             cpu.write_x_i32(instruction.rd.value(), res as i32);
 
-            cpu.debug_print(|| format!("MUL: rs1={}, rs2={}, res={}", rs1, rs2, res));
-
             Ok(())
         },
     },
@@ -31,8 +29,6 @@ pub const RV32M_SET_R: [Instruction; 8] = [
             let rs2 = cpu.read_x_i32(instruction.rs2.value()) as i64;
             let (res, _) = rs1.overflowing_mul(rs2);
             cpu.write_x_i32(instruction.rd.value(), (res >> 32) as i32);
-
-            cpu.debug_print(|| format!("MUL: rs1={}, rs2={}, res={}", rs1, rs2, res));
 
             Ok(())
         },

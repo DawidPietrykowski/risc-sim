@@ -15,8 +15,6 @@ pub const RV64M_SET_R: [Instruction; 13] = [
             let (res, _) = rs1.overflowing_mul(rs2);
             cpu.write_x_i64(instruction.rd.value(), res);
 
-            cpu.debug_print(|| format!("MUL: rs1={}, rs2={}, res={}", rs1, rs2, res));
-
             Ok(())
         },
     },
@@ -32,8 +30,6 @@ pub const RV64M_SET_R: [Instruction; 13] = [
             let (res, _) = rs1.overflowing_mul(rs2);
             cpu.write_x_i64(instruction.rd.value(), res as i64);
 
-            cpu.debug_print(|| format!("MUL: rs1={}, rs2={}, res={}", rs1, rs2, res));
-
             Ok(())
         },
     },
@@ -48,8 +44,6 @@ pub const RV64M_SET_R: [Instruction; 13] = [
             let rs2 = cpu.read_x_i64(instruction.rs2.value()) as i128;
             let (res, _) = rs1.overflowing_mul(rs2);
             cpu.write_x_i64(instruction.rd.value(), (res >> 64) as i64);
-
-            cpu.debug_print(|| format!("MUL: rs1={}, rs2={}, res={}", rs1, rs2, res));
 
             Ok(())
         },

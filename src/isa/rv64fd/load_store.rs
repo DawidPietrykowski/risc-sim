@@ -19,20 +19,7 @@ pub const RV64F_SET_LS: [Instruction; 4] = [
                 .read_x_u64(instruction.rs1.value())
                 .wrapping_add_signed(extended_offset);
 
-            cpu.debug_print(|| {
-                format!(
-                    "FLW: r{}({:#x}) = mem[r{:#x} + {:#x}] (addr: {:#x})",
-                    instruction.rd.value(),
-                    instruction.rs1.value(),
-                    cpu.read_x_u64(instruction.rs1.value()),
-                    extended_offset,
-                    moved_addr
-                )
-            });
-
             let read_value = u32_to_f32(cpu.read_mem_u32(moved_addr)?);
-
-            cpu.debug_print(|| format!("FLW: {:x?}", read_value));
 
             cpu.write_f32(instruction.rd.value(), read_value);
 
@@ -54,8 +41,6 @@ pub const RV64F_SET_LS: [Instruction; 4] = [
 
             let read_value = u64_to_f64(cpu.read_mem_u64(moved_addr)?);
 
-            cpu.debug_print(|| format!("FLD: {:#x?}", read_value));
-
             cpu.write_f64(instruction.rd.value(), read_value);
 
             Ok(())
@@ -70,20 +55,12 @@ pub const RV64F_SET_LS: [Instruction; 4] = [
             let instruction = parse_instruction_s(word);
 
             let extended_offset = instruction.imm.as_i64();
-            let rs1 = cpu.read_x_u64(instruction.rs1.value());
             let moved_addr = cpu
                 .read_x_u64(instruction.rs1.value())
                 .wrapping_add_signed(extended_offset);
             let read_value = cpu.read_f32(instruction.rs2.value());
 
-            cpu.debug_print(|| {
-                format!(
-                    "FSW: {:#x} = {:#x?} (addr: {:#x} + {}) word: {:#x}",
-                    moved_addr, read_value, rs1, extended_offset, word.0
-                )
-            });
-
-            cpu.write_mem_u32(moved_addr, f32_to_u32(read_value));
+            cpu.write_mem_u32(moved_addr, f32_to_u32(read_value))?;
 
             Ok(())
         },
@@ -97,20 +74,12 @@ pub const RV64F_SET_LS: [Instruction; 4] = [
             let instruction = parse_instruction_s(word);
 
             let extended_offset = instruction.imm.as_i64();
-            let rs1 = cpu.read_x_u64(instruction.rs1.value());
             let moved_addr = cpu
                 .read_x_u64(instruction.rs1.value())
                 .wrapping_add_signed(extended_offset);
             let read_value = cpu.read_f64(instruction.rs2.value());
 
-            cpu.debug_print(|| {
-                format!(
-                    "SD: {:#x} = {:#x?} (addr: {:#x} + {}) dword: {:#x}",
-                    moved_addr, read_value, rs1, extended_offset, word.0
-                )
-            });
-
-            cpu.write_mem_u64(moved_addr, f64_to_u64(read_value));
+            cpu.write_mem_u64(moved_addr, f64_to_u64(read_value))?;
 
             Ok(())
         },

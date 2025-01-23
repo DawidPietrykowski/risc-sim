@@ -15,8 +15,6 @@ pub const RV64I_SET_R: [Instruction; 15] = [
             let (res, _) = rs1.overflowing_add(rs2);
             cpu.write_x_i64(instruction.rd.value(), res);
 
-            cpu.debug_print(|| format!("ADD: rs1={}, rs2={}, res={}", rs1, rs2, res));
-
             Ok(())
         },
     },
@@ -45,8 +43,6 @@ pub const RV64I_SET_R: [Instruction; 15] = [
             let rs2 = cpu.read_x_i64(instruction.rs2.value()) as i32;
             let (res, _) = rs1.overflowing_add(rs2);
             cpu.write_x_i64(instruction.rd.value(), res as i64);
-
-            cpu.debug_print(|| format!("ADD: rs1={}, rs2={}, res={}", rs1, rs2, res));
 
             Ok(())
         },

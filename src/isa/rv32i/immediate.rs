@@ -15,18 +15,6 @@ pub const RV32I_SET_I: [Instruction; 11] = [
             let rs1 = cpu.read_x_i32(instruction.rs1.value());
             let (res, _) = imm.overflowing_add(rs1);
             cpu.write_x_i32(instruction.rd.value(), res);
-
-            cpu.debug_print(|| {
-                format!(
-                    "ADDI: r{}({:#x}) = r{}({}) + {}",
-                    instruction.rd.value(),
-                    res,
-                    instruction.rs1.value(),
-                    rs1,
-                    imm
-                )
-            });
-            cpu.debug_print(|| format!("rd: {}", cpu.read_x_i32(instruction.rd.value())));
             Ok(())
         },
     },
@@ -65,16 +53,6 @@ pub const RV32I_SET_I: [Instruction; 11] = [
             let instruction = parse_instruction_i(word);
             let imm = sign_extend_12bit_to_32bit(instruction.imm.value());
             let rs1 = cpu.read_x_i32(instruction.rs1.value());
-            cpu.debug_print(|| {
-                format!(
-                    "ANDI: r{}({:#x}) = r{}({}) & {}",
-                    instruction.rd.value(),
-                    rs1 & imm,
-                    instruction.rs1.value(),
-                    rs1,
-                    imm
-                )
-            });
             cpu.write_x_i32(instruction.rd.value(), rs1 & imm);
             Ok(())
         },

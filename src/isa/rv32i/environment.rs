@@ -84,7 +84,6 @@ pub const RV32I_SET_E: [Instruction; 3] = [
                 57 => {
                     // Close syscall
                     let fd = cpu.read_x_u32(ABIRegister::A(0).to_x_reg_id() as u8);
-                    cpu.debug_print(|| format!("close: {}", fd));
 
                     cpu.write_x_u32(ABIRegister::A(0).to_x_reg_id() as u8, 0);
 
@@ -110,8 +109,6 @@ pub const RV32I_SET_E: [Instruction; 3] = [
                     let seek_type =
                         SeekType::from(cpu.read_x_u32(ABIRegister::A(2).to_x_reg_id() as u8));
 
-                    cpu.debug_print(|| format!("seek: {} {} {:?}", fd, offset, seek_type));
-
                     if fd == 0 {
                         bail!("Seek: unsupported file descriptor: {}", fd)
                     }
@@ -133,8 +130,6 @@ pub const RV32I_SET_E: [Instruction; 3] = [
                     let fd = cpu.read_x_u32(ABIRegister::A(0).to_x_reg_id() as u8);
                     let buffer_addr = cpu.read_x_u32(ABIRegister::A(1).to_x_reg_id() as u8);
                     let len = cpu.read_x_u32(ABIRegister::A(2).to_x_reg_id() as u8);
-
-                    cpu.debug_print(|| format!("read: {} {} {}", fd, buffer_addr, len));
 
                     if fd == 0 {
                         bail!("Read: unsupported file descriptor: {}", fd)
@@ -189,13 +184,11 @@ pub const RV32I_SET_E: [Instruction; 3] = [
                             cpu.write_x_u32(ABIRegister::A(10).to_x_reg_id() as u8, 1);
                         }
                     }
-                    cpu.debug_print(|| format!("write: {} {:#x} {}", fd, buffer_addr, len));
                 }
                 80 => {
                     // fstat
                     let fd = cpu.read_x_u32(ABIRegister::A(0).to_x_reg_id() as u8);
                     let stat_addr = cpu.read_x_u32(ABIRegister::A(1).to_x_reg_id() as u8);
-                    cpu.debug_print(|| format!("fstat: {} addr: {:#x}", fd, stat_addr));
                     let stat = cpu.kernel.fstat_fd(fd)?;
 
                     cpu.write_x_u32(ABIRegister::A(0).to_x_reg_id() as u8, 0);
@@ -209,7 +202,6 @@ pub const RV32I_SET_E: [Instruction; 3] = [
                 214 => {
                     // brk
                     let addr = cpu.read_x_u32(ABIRegister::A(0).to_x_reg_id() as u8);
-                    cpu.debug_print(|| format!("brk call: {:#x}", addr));
                     if addr != 0 {
                         cpu.program_brk = addr as u64;
                     }
@@ -217,7 +209,6 @@ pub const RV32I_SET_E: [Instruction; 3] = [
                         ABIRegister::A(0).to_x_reg_id() as u8,
                         cpu.program_brk as u32,
                     );
-                    cpu.debug_print(|| format!("brk: {:#x}", cpu.program_brk));
                 }
                 403 => {
                     // clock_gettime
@@ -240,8 +231,6 @@ pub const RV32I_SET_E: [Instruction; 3] = [
                     cpu.write_buf(timespec_addr as u64, &time_t.to_bytes() as &[u8])?;
 
                     cpu.write_x_u32(ABIRegister::A(0).to_x_reg_id() as u8, 0);
-
-                    cpu.debug_print(|| format!("clock_gettime: {} {}", seconds, nanos));
                 }
                 1024 => {
                     // open
@@ -282,10 +271,6 @@ pub const RV32I_SET_E: [Instruction; 3] = [
         bits: 0b0001111,
         name: "FENCE",
         instruction_type: InstructionType::R,
-        operation: |cpu, _word| {
-            cpu.debug_print(|| "FENCE: skipping".to_string());
-
-            Ok(())
-        },
+        operation: |_cpu, _word| Ok(()),
     },
 ];

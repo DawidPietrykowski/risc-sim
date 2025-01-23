@@ -35,8 +35,6 @@ pub const RV64I_SET_UJ: [Instruction; 8] = [
             let offset = instruction.imm.as_i64();
             let rs1 = cpu.read_x_u64(instruction.rs1.value());
 
-            cpu.debug_print(|| format!("rs1: {:#x}", rs1));
-
             let result = rs1.wrapping_add_signed(offset) & !(0b1);
 
             cpu.write_pc_u64(result);
@@ -54,20 +52,6 @@ pub const RV64I_SET_UJ: [Instruction; 8] = [
 
             let rs1 = cpu.read_x_i64(instruction.rs1.value());
             let rs2 = cpu.read_x_i64(instruction.rs2.value());
-
-            cpu.debug_print(|| format!("rs1: {:#x}", rs1));
-            cpu.debug_print(|| format!("rs2: {:#x}", rs2));
-            cpu.debug_print(|| format!("imm: {:#x}", instruction.imm.as_u64()));
-            cpu.debug_print(|| format!("ext: {:#x}", instruction.imm.as_i64() as u64));
-            cpu.debug_print(|| format!("exti64: {}", instruction.imm.as_i64()));
-            cpu.debug_print(|| format!("pc: {:#x}", cpu.read_pc_u64()));
-            cpu.debug_print(|| {
-                format!(
-                    "pc+ext: {:#x}",
-                    cpu.read_pc_u64()
-                        .wrapping_add_signed(instruction.imm.as_i64())
-                )
-            });
 
             if rs1 == rs2 {
                 let extended_offset = instruction.imm.as_i64();
@@ -90,9 +74,6 @@ pub const RV64I_SET_UJ: [Instruction; 8] = [
 
             let rs1 = cpu.read_x_i64(instruction.rs1.value());
             let rs2 = cpu.read_x_i64(instruction.rs2.value());
-
-            cpu.debug_print(|| format!("rs1: {:#x}", rs1));
-            cpu.debug_print(|| format!("rs2: {:#x}", rs2));
 
             if rs1 != rs2 {
                 let extended_offset = instruction.imm.as_i64();
