@@ -8,8 +8,9 @@ use risc_sim::{
         memory::{
             btree_memory::BTreeMemory, hashmap_memory::FxHashMemory, memory_core::Memory,
             raw_table_memory::RawTableMemory, raw_vec_memory::RawVecMemory,
-            table_memory::TableMemory, vec_binsearch_memory::VecBsearchMemory,
-            vec_memory::VecMemory, vec_u8_memory::VecU8Memory,
+            table_memory::TableMemory, user_memory::UserMemory,
+            vec_binsearch_memory::VecBsearchMemory, vec_memory::VecMemory,
+            vec_u8_memory::VecU8Memory,
         },
     },
     elf::elf_loader::decode_file,
@@ -82,6 +83,11 @@ fn bench_mem_read_write(c: &mut Criterion) {
 
     group.bench_function("RawVecMemory", |b| {
         let mem = RawVecMemory::new();
+        b.iter(|| run_benchmark_with_mem(mem.clone()))
+    });
+
+    group.bench_function("UserMemory", |b| {
+        let mem = UserMemory::new_32();
         b.iter(|| run_benchmark_with_mem(mem.clone()))
     });
 

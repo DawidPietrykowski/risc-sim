@@ -1,11 +1,11 @@
 #[allow(unused_imports)]
 use anyhow::{bail, Result};
 
-use crate::cpu::cpu_core::INITIAL_STACK_POINTER_32;
+use crate::cpu::cpu_core::{INITIAL_STACK_POINTER_32, INITIAL_STACK_POINTER_64};
 
 use super::{memory_core::Memory, raw_memory::ContinuousMemory};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct UserMemory {
     stack: ContinuousMemory,
     heap: ContinuousMemory,
@@ -20,6 +20,24 @@ impl UserMemory {
             stack: ContinuousMemory::new(stack_addr, stack_size),
             heap: ContinuousMemory::new(heap_addr, heap_size),
         }
+    }
+
+    pub fn new_64() -> Self {
+        UserMemory::new(
+            INITIAL_STACK_POINTER_64 as u64 - STACK_SIZE,
+            0,
+            STACK_SIZE,
+            HEAP_SIZE,
+        )
+    }
+
+    pub fn new_32() -> Self {
+        UserMemory::new(
+            INITIAL_STACK_POINTER_32 as u64 - STACK_SIZE,
+            0,
+            STACK_SIZE,
+            HEAP_SIZE,
+        )
     }
 }
 

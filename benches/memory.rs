@@ -6,9 +6,11 @@ use criterion::{
 };
 use risc_sim::cpu::memory::{
     btree_memory::BTreeMemory, hashmap_memory::FxHashMemory, memory_core::Memory,
-    raw_table_memory::RawTableMemory, table_memory::TableMemory,
+    raw_memory::ContinuousMemory, raw_table_memory::RawTableMemory, table_memory::TableMemory,
     vec_binsearch_memory::VecBsearchMemory, vec_memory::VecMemory, vec_u8_memory::VecU8Memory,
 };
+
+const TOP_ADDR: u64 = 0x100000;
 
 fn read_write_randon_mem(locations: u64, mem: &mut impl Memory) {
     const RW_CYCLES: usize = 1;
@@ -18,7 +20,7 @@ fn read_write_randon_mem(locations: u64, mem: &mut impl Memory) {
     for _ in 0..RW_CYCLES {
         for (j, data) in BUF.iter().enumerate().take(BUF_SIZE) {
             for i in 0..locations {
-                let addr: u64 = (u32::MAX as u64 / locations) * i;
+                let addr: u64 = (TOP_ADDR / locations) * i;
                 mem.write_mem_u32(addr + (j * 4) as u64, *data).unwrap();
                 mem.read_mem_u32(addr + (j * 4) as u64).unwrap();
             }
@@ -74,6 +76,11 @@ fn bench_mem_read_write(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::new("BTreeMemory", span), &span, |b, &s| {
             let mut mem = BTreeMemory::new();
+            b.iter(|| read_write_randon_mem(black_box(s), &mut mem))
+        });
+
+        group.bench_with_input(BenchmarkId::new("ContinousMemory", span), &span, |b, &s| {
+            let mut mem = ContinuousMemory::new(0, TOP_ADDR + 0x8);
             b.iter(|| read_write_randon_mem(black_box(s), &mut mem))
         });
     }

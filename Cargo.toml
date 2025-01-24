@@ -36,10 +36,10 @@ name = "memory"
 harness = false
 required-features = ["maxperf"]
 
-# [[bench]]
-# name = "doom"
-# harness = false
-# required-features = ["maxperf"]
+[[bench]]
+name = "doom"
+harness = false
+required-features = ["maxperf"]
 
 
 [features]

@@ -1,4 +1,4 @@
-pub const MEMORY_SIZE: u64 = u32::MAX as u64;
+pub const MEMORY_SIZE: u64 = 0x100000;
 pub const MEMORY_CAPACITY: usize = 48;
 use std::fmt::Debug;
 

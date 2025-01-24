@@ -5,7 +5,7 @@ use crate::cpu::cpu_core::{KERNEL_ADDR, KERNEL_SIZE};
 
 use super::memory_core::Memory;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ContinuousMemory {
     data: Vec<u8>,
     addr: u64,
