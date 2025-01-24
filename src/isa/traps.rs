@@ -115,7 +115,7 @@ pub fn execute_trap(cpu: &mut Cpu, cause: u64, interrupt: bool) {
         .write_xlen(status_csr.as_u12(), mstatus.0, cpu.arch_mode);
 
     match cpu.arch_mode {
-        crate::cpu::cpu_core::CpuMode::RV32 => todo!(),
+        crate::cpu::cpu_core::CpuMode::RV32 => unimplemented!(),
         crate::cpu::cpu_core::CpuMode::RV64 => {
             let mut mcause: u64 = 0;
             mcause |= cause;

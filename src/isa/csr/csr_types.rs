@@ -78,14 +78,12 @@ pub enum CSRAddress {
     Pmpcfg3 = 0x3A3,
     Pmpaddr0 = 0x3B0,
     Pmpaddr1 = 0x3B1,
-    // ... TODO
 
     // Machine Counter/Timers
     Mcycle = 0xB00,
     Minstret = 0xB02,
     Mhpmcounter3 = 0xB03,
     Mhpmcounter4 = 0xB04,
-    // ... TODO
 
     // Machine Counter Setup
     Mcountinhibit = 0x320,

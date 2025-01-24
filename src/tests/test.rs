@@ -331,7 +331,7 @@ proptest! {
         prop_assert_eq!(cpu.read_x_u32(rd), if rs1_val < imm2 as i32 {1} else {0});
     }
 
-    #[test] // TODO: Verify this test
+    #[test]
     fn test_andi(rd in 1u8..30, rs1 in 1u8..30, imm1 in 0u16..0xFFFF, imm2 in 0u16..0xFFFF){
         let mut cpu = Cpu::default();
         let mut andi_instruction = IInstructionData {

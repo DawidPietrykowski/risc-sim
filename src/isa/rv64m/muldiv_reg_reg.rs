@@ -81,7 +81,6 @@ pub const RV64M_SET_R: [Instruction; 13] = [
         },
     },
     Instruction {
-        // TODO: Verify specifics of div calculations
         mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
         bits: 0b0110011 | 0b100 << FUNC3_POS | 0b0000001 << FUNC7_POS,
         name: "DIV",
@@ -124,7 +123,6 @@ pub const RV64M_SET_R: [Instruction; 13] = [
         },
     },
     Instruction {
-        // TODO: Verify specifics of div calculations
         mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
         bits: 0b0110011 | 0b101 << FUNC3_POS | 0b0000001 << FUNC7_POS,
         name: "DIVU",
@@ -168,7 +166,6 @@ pub const RV64M_SET_R: [Instruction; 13] = [
         },
     },
     Instruction {
-        // TODO: Verify specifics of div calculations
         mask: OPCODE_MASK | FUNC3_MASK | FUNC7_MASK,
         bits: 0b0110011 | 0b110 << FUNC3_POS | 0b0000001 << FUNC7_POS,
         name: "REM",

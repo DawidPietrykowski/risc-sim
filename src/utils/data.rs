@@ -1,3 +1,5 @@
+use crate::types::Instruction;
+
 pub struct CircularBuffer<T> {
     buffer: Vec<T>,
     head: usize,
@@ -37,4 +39,20 @@ where
             None
         }
     }
+}
+
+pub fn print_pc_history(buffer: &mut CircularBuffer<(u64, Option<Instruction>, u64)>) {
+    if buffer.size == 0 {
+        return;
+    }
+    println!("pc history:");
+    let mut last_pc = 0u64;
+    while let Some((pc, ins, satp)) = buffer.pop() {
+        if pc != last_pc + 0x4 {
+            println!("jmp");
+        }
+        println!("{:x} {} {:x}", pc, ins.unwrap().name, satp);
+        last_pc = pc;
+    }
+    println!();
 }

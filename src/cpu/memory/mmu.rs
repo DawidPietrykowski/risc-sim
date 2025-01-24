@@ -73,7 +73,7 @@ pub fn read_memory_mode(csr: u64, cpu_mode: CpuMode) -> MemoryMode {
 pub fn read_root_page_table_pointer(satp: u64, cpu_mode: CpuMode) -> u64 {
     match cpu_mode {
         CpuMode::RV32 => {
-            todo!()
+            unimplemented!()
         }
         CpuMode::RV64 => (satp & ((1 << 44) - 1)) << 12,
     }

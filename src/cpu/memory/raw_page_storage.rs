@@ -236,13 +236,11 @@ impl<T: RawPageStorage> Memory for RawPageMemory<T> {
         let lower_u32 = self.read_u32_from_page(addr)? as u64;
         let upper_u32 = self.read_u32_from_page(addr + 4)? as u64;
         Ok(lower_u32 | (upper_u32 << 32))
-        // TODO: implement more optimized u64 read
     }
 
     fn write_mem_u64(&mut self, addr: u64, value: u64) -> Result<()> {
         self.write_u32_to_page(addr, (value & 0xFFFF_FFFF) as u32)?;
         self.write_u32_to_page(addr + 4, (value >> 32) as u32)?;
         Ok(())
-        // TODO: implement more optimized u64 write
     }
 }

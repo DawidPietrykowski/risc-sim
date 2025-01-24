@@ -40,6 +40,12 @@ pub enum CpuMode {
     RV64,
 }
 
+#[derive(clap::ValueEnum, Clone, Debug, PartialEq, Eq)]
+pub enum ExecutionMode {
+    UserSpace,
+    Bare,
+}
+
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub enum PrivilegeMode {
     User = 0,
@@ -105,12 +111,11 @@ impl Display for Cpu {
             "Program Memory Offset: {:#010x}",
             self.program_memory_offset
         )
-        //writeln!(f, "Memory: {:?}", self.memory)
     }
 }
 
-pub const INITIAL_STACK_POINTER_32: u32 = 0xbfffff00; // TODO: Calculate during program load
-pub const INITIAL_STACK_POINTER_64: u64 = 0x00007FFFFFFFFFFF; // TODO: Calculate during program load
+pub const INITIAL_STACK_POINTER_32: u32 = 0xbfffff00;
+pub const INITIAL_STACK_POINTER_64: u64 = 0x00007FFFFFFFFFFF;
 pub const KERNEL_ADDR: u64 = 0x80000000;
 pub const KERNEL_SIZE: u64 = 128 * 1024 * 1024;
 
@@ -137,12 +142,6 @@ impl Default for Cpu {
             peripherals: None,
         }
     }
-}
-
-#[derive(clap::ValueEnum, Clone, Debug, PartialEq, Eq)]
-pub enum ExecutionMode {
-    UserSpace,
-    Bare,
 }
 
 impl Cpu {
@@ -525,22 +524,6 @@ impl Cpu {
 
         let reg_value = unsafe { self.reg_x32.get_unchecked_mut(id as usize) }; // SAFETY: For properly compiled code 0 <= id < 32
         *reg_value = value;
-    }
-
-    pub fn print_pc_history(&mut self) {
-        if self.pc_history.size == 0 {
-            return;
-        }
-        println!("pc history:");
-        let mut last_pc = 0u64;
-        while let Some((pc, ins, satp)) = self.pc_history.pop() {
-            if pc != last_pc + 0x4 {
-                println!("jmp");
-            }
-            println!("{:x} {} {:x}", pc, ins.unwrap().name, satp);
-            last_pc = pc;
-        }
-        println!();
     }
 
     #[inline(always)]
