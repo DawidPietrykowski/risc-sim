@@ -1,5 +1,5 @@
 #![feature(let_chains)]
-#![allow(dead_code)]
+//#![allow(dead_code)]
 
 use anyhow::Result;
 use clap::Parser;
@@ -88,7 +88,6 @@ fn main() -> Result<()> {
 
     const SCREEN_WIDTH: u64 = 320;
     const SCREEN_HEIGHT: u64 = 200;
-    const MEMORY_BUFFER_SIZE: u64 = SCREEN_WIDTH * SCREEN_HEIGHT * 4;
     const SCREEN_ADDR_ADDR: u64 = 0x1000000 - 4;
     const KEYQUEUE_ADDR_ADDR: u64 = 0x1000000 - 8;
     const SCALE_SCREEN: u64 = 6;
@@ -208,10 +207,7 @@ fn main() -> Result<()> {
     let start_time = std::time::Instant::now();
 
     let mut count = 0;
-    #[cfg(feature = "maxperf")]
     const COUNT_INTERVAL: u64 = 5000;
-    #[cfg(not(feature = "maxperf"))]
-    const COUNT_INTERVAL: u64 = 1;
     let mut stdio_count = 0;
     const STDIO_READ_INTERVAL: u64 = 2;
     let res = loop {
@@ -243,7 +239,6 @@ fn main() -> Result<()> {
             if window.is_key_down(Key::Backslash) {
                 break anyhow::anyhow!("Escape pressed");
             }
-            println!("Draw on cycle: {}", count);
 
             let screen_data_addr = cpu.read_mem_u32(SCREEN_ADDR_ADDR)? as u64;
 
@@ -310,7 +305,6 @@ fn main() -> Result<()> {
             break anyhow::anyhow!("Timeout");
         }
 
-        //#[cfg(not(feature = "maxperf"))]
         match cpu.run_cycles(COUNT_INTERVAL) {
             Ok(_) => {
                 continue;
@@ -319,8 +313,6 @@ fn main() -> Result<()> {
                 break e;
             }
         }
-        //#[cfg(feature = "maxperf")]
-        //let _ = cpu.run_cycles(COUNT_INTERVAL);
     };
 
     let elapsed_time = start_time.elapsed();
