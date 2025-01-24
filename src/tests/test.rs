@@ -250,7 +250,8 @@ proptest! {
 
         cpu.write_mem_u32(0, n).unwrap();
 
-        while cpu.run_cycles(1).is_ok() {
+        while ((cpu.read_pc_u32() - entry_point as u32) as usize) < FIB_PROGRAM_BIN.len() * 4 - 4 {
+            cpu.run_cycles(1).unwrap();
         }
 
         prop_assert_eq!(cpu.read_x_u32(5), fib(n));
