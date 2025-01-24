@@ -1,33 +1,38 @@
 use std::{fmt::Display, fs::File};
 
-#[allow(unused)]
 use crate::{
     elf::elf_loader::{load_kernel_to_memory, load_program_to_memory, ElfFile},
     isa::{
-        csr::csr_types::{CSRAddress, CSRTable, MisaCSR},
+        csr::csr_types::{CSRAddress, CSRTable},
         traps::check_pending_interrupts,
     },
     system::{
         kernel::Kernel,
         passthrough_kernel::PassthroughKernel,
-        plic::{
-            plic_check_pending, plic_handle_claim_read, plic_handle_claim_write,
-            plic_handle_pending_write, PLIC_ADDR, PLIC_CLAIM, PLIC_PENDING,
-        },
-        uart::{uart_handle_read, uart_handle_write, UART_ADDR},
-        virtio::{process_queue, BlockDevice, VIRTIO_0_ADDR, VIRTIO_MMIO_QUEUE_NOTIFY},
+        plic::{plic_check_pending, PLIC_ADDR},
+        uart::UART_ADDR,
+        virtio::{BlockDevice, VIRTIO_0_ADDR},
     },
     types::{decode_program_line_unchecked, ABIRegister, Instruction},
     utils::binary_utils::*,
 };
 
-use super::memory::{
-    memory_core::Memory, mmu::walk_page_table_sv39, program_cache::ProgramCache,
-    raw_memory::ContinuousMemory, raw_vec_memory::RawVecMemory,
+use super::{
+    memory::{
+        memory_core::Memory,
+        mmu::walk_page_table_sv39,
+        program_cache::ProgramCache,
+        raw_memory::ContinuousMemory,
+        raw_vec_memory::RawVecMemory,
+        user_memory::{UserMemory, HEAP_SIZE, STACK_SIZE},
+    },
+    memory_access::*,
 };
-use crate::types::{decode_program_line, ProgramLine, Word};
-#[allow(unused)]
-use anyhow::{bail, Context, Ok, Result};
+use crate::{
+    types::{decode_program_line, ProgramLine, Word},
+    utils::data::CircularBuffer,
+};
+use anyhow::{bail, Ok, Result};
 
 #[derive(PartialEq, Clone, Copy)]
 pub enum CpuMode {
@@ -42,221 +47,10 @@ pub enum PrivilegeMode {
     Machine = 3,
 }
 
-pub struct CircularBuffer<T> {
-    buffer: Vec<T>,
-    head: usize,
-    tail: usize,
-    size: usize,
-}
-
-impl<T> CircularBuffer<T>
-where
-    T: Default,
-    T: Clone,
-{
-    fn new(size: usize) -> Self {
-        CircularBuffer {
-            buffer: vec![Default::default(); size],
-            head: 0,
-            tail: 0,
-            size,
-        }
-    }
-
-    #[allow(unused)]
-    fn push(&mut self, item: T) {
-        self.buffer[self.head] = item;
-        self.head = (self.head + 1) % self.size;
-        if self.head == self.tail {
-            self.tail = (self.tail + 1) % self.size;
-        }
-    }
-
-    fn pop(&mut self) -> Option<T> {
-        if self.tail != self.head {
-            let item = self.buffer[self.tail].clone();
-            self.tail = (self.tail + 1) % self.size;
-            Some(item)
-        } else {
-            None
-        }
-    }
-}
-
 pub struct Peripherals {
     pub uart: ContinuousMemory,
     pub virtio: ContinuousMemory,
     pub plic: ContinuousMemory,
-}
-
-fn bare_read_mem_u64(cpu: &mut Cpu, addr: u64) -> Result<u64> {
-    let addr = cpu.translate_address_if_needed(addr)?;
-    cpu.memory.read_mem_u64(addr)
-}
-
-fn bare_read_mem_u32(cpu: &mut Cpu, addr: u64) -> Result<u32> {
-    let addr = cpu.translate_address_if_needed(addr)?;
-    if addr <= KERNEL_ADDR {
-        if addr < UART_ADDR {
-            // PLIC
-            if addr == PLIC_CLAIM {
-                return Ok(plic_handle_claim_read(cpu));
-            }
-            return cpu.peripherals.as_mut().unwrap().plic.read_mem_u32(addr);
-        } else if addr < VIRTIO_0_ADDR {
-            // UART
-            return cpu.peripherals.as_mut().unwrap().uart.read_mem_u32(addr);
-        } else {
-            // VIRTIO
-            return cpu.peripherals.as_mut().unwrap().virtio.read_mem_u32(addr);
-        }
-    }
-    cpu.memory.read_mem_u32(addr)
-}
-
-fn bare_read_mem_u16(cpu: &mut Cpu, addr: u64) -> Result<u16> {
-    let addr = cpu.translate_address_if_needed(addr)?;
-    cpu.memory.read_mem_u16(addr)
-}
-
-fn bare_read_mem_u8(cpu: &mut Cpu, addr: u64) -> Result<u8> {
-    let addr = cpu.translate_address_if_needed(addr)?;
-    if addr <= KERNEL_ADDR {
-        if addr < UART_ADDR {
-            // PLIC
-            return cpu.peripherals.as_mut().unwrap().plic.read_mem_u8(addr);
-        } else if addr < VIRTIO_0_ADDR {
-            // UART
-            if addr == UART_ADDR {
-                return Ok(uart_handle_read(cpu) as u8);
-            }
-            return cpu.peripherals.as_mut().unwrap().uart.read_mem_u8(addr);
-        } else {
-            // VIRTIO
-            return cpu.peripherals.as_mut().unwrap().virtio.read_mem_u8(addr);
-        }
-    }
-    cpu.memory.read_mem_u8(addr)
-}
-
-fn bare_write_mem_u8(cpu: &mut Cpu, addr: u64, value: u8) -> Result<()> {
-    let addr = cpu.translate_address_if_needed(addr)?;
-    if addr <= KERNEL_ADDR {
-        if addr < UART_ADDR {
-            // PLIC
-            return cpu
-                .peripherals
-                .as_mut()
-                .unwrap()
-                .plic
-                .write_mem_u8(addr, value);
-        } else if addr < VIRTIO_0_ADDR {
-            // UART
-            if addr == UART_ADDR {
-                uart_handle_write(cpu, value);
-                return Ok(());
-            }
-            return cpu
-                .peripherals
-                .as_mut()
-                .unwrap()
-                .uart
-                .write_mem_u8(addr, value);
-        } else {
-            // VIRTIO
-            return cpu
-                .peripherals
-                .as_mut()
-                .unwrap()
-                .virtio
-                .write_mem_u8(addr, value);
-        }
-    }
-    cpu.memory.write_mem_u8(addr, value)
-}
-
-fn bare_write_mem_u16(cpu: &mut Cpu, addr: u64, value: u16) -> Result<()> {
-    let addr = cpu.translate_address_if_needed(addr)?;
-    cpu.memory.write_mem_u16(addr, value)
-}
-
-fn bare_write_mem_u32(cpu: &mut Cpu, addr: u64, value: u32) -> Result<()> {
-    let addr = cpu.translate_address_if_needed(addr)?;
-    if addr <= KERNEL_ADDR {
-        if addr < UART_ADDR {
-            // PLIC
-            if addr == PLIC_PENDING {
-                plic_handle_pending_write(cpu, value);
-            }
-            if addr == PLIC_CLAIM {
-                plic_handle_claim_write(cpu, value);
-                return Ok(());
-            }
-            return cpu
-                .peripherals
-                .as_mut()
-                .unwrap()
-                .plic
-                .write_mem_u32(addr, value);
-        } else if addr < VIRTIO_0_ADDR {
-            // UART
-            return cpu
-                .peripherals
-                .as_mut()
-                .unwrap()
-                .uart
-                .write_mem_u32(addr, value);
-        } else {
-            // VIRTIO
-            if addr == VIRTIO_0_ADDR + VIRTIO_MMIO_QUEUE_NOTIFY as u64 {
-                process_queue(cpu);
-            }
-            return cpu
-                .peripherals
-                .as_mut()
-                .unwrap()
-                .virtio
-                .write_mem_u32(addr, value);
-        }
-    }
-    cpu.memory.write_mem_u32(addr, value)
-}
-
-fn bare_write_mem_u64(cpu: &mut Cpu, addr: u64, value: u64) -> Result<()> {
-    let addr = cpu.translate_address_if_needed(addr)?;
-    cpu.memory.write_mem_u64(addr, value)
-}
-
-fn user_space_read_mem_u64(cpu: &mut Cpu, addr: u64) -> Result<u64> {
-    cpu.memory.read_mem_u64(addr)
-}
-
-fn user_space_read_mem_u32(cpu: &mut Cpu, addr: u64) -> Result<u32> {
-    cpu.memory.read_mem_u32(addr)
-}
-
-fn user_space_read_mem_u16(cpu: &mut Cpu, addr: u64) -> Result<u16> {
-    cpu.memory.read_mem_u16(addr)
-}
-
-fn user_space_read_mem_u8(cpu: &mut Cpu, addr: u64) -> Result<u8> {
-    cpu.memory.read_mem_u8(addr)
-}
-
-fn user_space_write_mem_u8(cpu: &mut Cpu, addr: u64, value: u8) -> Result<()> {
-    cpu.memory.write_mem_u8(addr, value)
-}
-
-fn user_space_write_mem_u16(cpu: &mut Cpu, addr: u64, value: u16) -> Result<()> {
-    cpu.memory.write_mem_u16(addr, value)
-}
-
-fn user_space_write_mem_u32(cpu: &mut Cpu, addr: u64, value: u32) -> Result<()> {
-    cpu.memory.write_mem_u32(addr, value)
-}
-
-fn user_space_write_mem_u64(cpu: &mut Cpu, addr: u64, value: u64) -> Result<()> {
-    cpu.memory.write_mem_u64(addr, value)
 }
 
 pub struct Cpu {
@@ -270,8 +64,6 @@ pub struct Cpu {
     program_memory_offset: u64,
     halted: bool,
     pub program_brk: u64,
-    #[cfg(not(feature = "maxperf"))]
-    pub debug_enabled: bool,
     pub kernel: Box<dyn Kernel>,
     pub csr_table: CSRTable,
     pub arch_mode: CpuMode,
@@ -335,8 +127,6 @@ impl Default for Cpu {
             program_memory_offset: 0x0,
             halted: false,
             program_brk: 0,
-            #[cfg(not(feature = "maxperf"))]
-            debug_enabled: false,
             kernel: Box::<PassthroughKernel>::default(),
             csr_table: CSRTable::new(CpuMode::RV32),
             arch_mode: CpuMode::RV32,
@@ -347,83 +137,6 @@ impl Default for Cpu {
             peripherals: None,
         }
     }
-}
-
-pub fn run_cycle_bare(cpu: &mut Cpu) -> Result<()> {
-    // Check if CPU is halted
-    if cpu.halted {
-        bail!("CPU is halted");
-    }
-
-    // Fetch
-    #[cfg(feature = "maxperf")]
-    let pc_translated = unsafe {
-        cpu.translate_address_if_needed(cpu.reg_pc_64)
-            .unwrap_unchecked()
-    };
-    #[cfg(not(feature = "maxperf"))]
-    let pc_translated = cpu.translate_address_if_needed(cpu.reg_pc_64)?;
-
-    let instruction = decode_program_line_unchecked(
-        &Word(cpu.memory.read_mem_u32(pc_translated)?),
-        cpu.arch_mode,
-    );
-
-    #[cfg(not(feature = "maxperf"))]
-    if cpu.debug_enabled {
-        println!("\nPC({:#x}) {}", cpu.reg_pc_64, instruction);
-    }
-
-    // Increase PC
-    cpu.current_instruction_pc_64 = cpu.reg_pc_64;
-    cpu.reg_pc_64 += 4;
-
-    #[cfg(not(feature = "maxperf"))]
-    cpu.pc_history.push((
-        cpu.current_instruction_pc_64,
-        Some(instruction.instruction),
-        cpu.csr_table.read64(CSRAddress::Satp.as_u12()),
-    ));
-
-    // Execute
-    cpu.execute_program_line(&instruction)?;
-
-    plic_check_pending(cpu);
-    check_pending_interrupts(cpu, PrivilegeMode::Machine);
-    check_pending_interrupts(cpu, PrivilegeMode::Supervisor);
-
-    Ok(())
-}
-
-pub fn run_cycle_userspace(cpu: &mut Cpu) -> Result<()> {
-    // Check if CPU is halted
-    if cpu.halted {
-        bail!("CPU is halted");
-    }
-
-    // Fetch
-    let instruction = cpu.program_cache.get_line_unchecked(cpu.reg_pc_64);
-
-    #[cfg(not(feature = "maxperf"))]
-    if cpu.debug_enabled {
-        println!("\nPC({:#x}) {}", cpu.reg_pc_64, instruction);
-    }
-
-    // Increase PC
-    cpu.current_instruction_pc_64 = cpu.reg_pc_64;
-    cpu.reg_pc_64 += 4;
-
-    #[cfg(not(feature = "maxperf"))]
-    cpu.pc_history.push((
-        cpu.current_instruction_pc_64,
-        Some(instruction.instruction),
-        cpu.csr_table.read64(CSRAddress::Satp.as_u12()),
-    ));
-
-    // Execute
-    cpu.execute_program_line(&instruction)?;
-
-    Ok(())
 }
 
 #[derive(clap::ValueEnum, Clone, Debug, PartialEq, Eq)]
@@ -455,8 +168,6 @@ impl Cpu {
             program_memory_offset: 0x0,
             halted: false,
             program_brk: 0,
-            #[cfg(not(feature = "maxperf"))]
-            debug_enabled: false,
             kernel: Box::new(kernel),
             csr_table: CSRTable::new(mode.clone()),
             arch_mode: mode,
@@ -472,8 +183,114 @@ impl Cpu {
         }
     }
 
+    pub fn new_userspace(mode: CpuMode) -> Cpu {
+        match mode {
+            CpuMode::RV64 => Cpu::new(
+                UserMemory::new(
+                    INITIAL_STACK_POINTER_64 as u64 - STACK_SIZE,
+                    0,
+                    STACK_SIZE,
+                    HEAP_SIZE,
+                ),
+                PassthroughKernel::default(),
+                mode,
+                None,
+                ExecutionMode::UserSpace,
+            ),
+            CpuMode::RV32 => Cpu::new(
+                UserMemory::new(
+                    INITIAL_STACK_POINTER_32 as u64 - STACK_SIZE,
+                    0,
+                    STACK_SIZE,
+                    HEAP_SIZE,
+                ),
+                PassthroughKernel::default(),
+                mode,
+                None,
+                ExecutionMode::UserSpace,
+            ),
+        }
+    }
+
+    pub fn new_bare(block_device: Option<BlockDevice>) -> Cpu {
+        Cpu::new(
+            ContinuousMemory::default(),
+            PassthroughKernel::default(),
+            CpuMode::RV64,
+            block_device,
+            ExecutionMode::Bare,
+        )
+    }
+
+    fn run_cycle_bare(&mut self) -> Result<()> {
+        // Check if CPU is halted
+        if self.halted {
+            bail!("CPU is halted");
+        }
+
+        // Fetch
+        #[cfg(feature = "maxperf")]
+        let pc_translated = unsafe {
+            self.translate_address_if_needed(self.reg_pc_64)
+                .unwrap_unchecked()
+        };
+        #[cfg(not(feature = "maxperf"))]
+        let pc_translated = self.translate_address_if_needed(self.reg_pc_64)?;
+
+        let instruction = decode_program_line_unchecked(
+            &Word(self.memory.read_mem_u32(pc_translated)?),
+            self.arch_mode,
+        );
+
+        // Increase PC
+        self.current_instruction_pc_64 = self.reg_pc_64;
+        self.reg_pc_64 += 4;
+
+        #[cfg(not(feature = "maxperf"))]
+        self.pc_history.push((
+            self.current_instruction_pc_64,
+            Some(instruction.instruction),
+            self.csr_table.read64(CSRAddress::Satp.as_u12()),
+        ));
+
+        // Execute
+        self.execute_program_line(&instruction)?;
+
+        plic_check_pending(self);
+        check_pending_interrupts(self, PrivilegeMode::Machine);
+        check_pending_interrupts(self, PrivilegeMode::Supervisor);
+
+        Ok(())
+    }
+
+    fn run_cycle_userspace(&mut self) -> Result<()> {
+        // Check if CPU is halted
+        if self.halted {
+            bail!("CPU is halted");
+        }
+
+        // Fetch
+        let instruction = self.program_cache.get_line_unchecked(self.reg_pc_64);
+
+        // Increase PC
+        self.current_instruction_pc_64 = self.reg_pc_64;
+        self.reg_pc_64 += 4;
+
+        #[cfg(not(feature = "maxperf"))]
+        self.pc_history.push((
+            self.current_instruction_pc_64,
+            Some(instruction.instruction),
+            self.csr_table.read64(CSRAddress::Satp.as_u12()),
+        ));
+
+        // Execute
+        self.execute_program_line(&instruction)?;
+
+        Ok(())
+    }
+
     pub fn load_program_from_elf(&mut self, elf: ElfFile) -> Result<()> {
-        let program_file = load_program_to_memory(elf, self.memory.as_mut(), self.arch_mode)?;
+        let program_file = load_program_to_memory(elf, self.memory.as_mut())?;
 
         self.reg_pc_64 = program_file.entry_point;
 
@@ -551,7 +368,7 @@ impl Cpu {
         match self.execution_mode {
             ExecutionMode::Bare => {
                 for _ in 0..count {
-                    let res = run_cycle_bare(self);
+                    let res = self.run_cycle_bare();
                     if res.is_err() {
                         return res;
                     }
@@ -559,7 +376,7 @@ impl Cpu {
             }
             ExecutionMode::UserSpace => {
                 for _ in 0..count {
-                    let res = run_cycle_userspace(self);
+                    let res = self.run_cycle_userspace();
                     if res.is_err() {
                         return res;
                     }
@@ -583,11 +400,6 @@ impl Cpu {
 
     pub fn set_halted(&mut self) {
         self.halted = true;
-    }
-
-    #[cfg(not(feature = "maxperf"))]
-    pub fn set_debug_enabled(&mut self, debug_enabled: bool) {
-        self.debug_enabled = debug_enabled;
     }
 
     pub fn translate_address_if_needed(&mut self, addr: u64) -> Result<u64> {

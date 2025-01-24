@@ -43,5 +43,5 @@ required-features = ["maxperf"]
 
 
 [features]
-# default = ["maxperf"]
+default = ["maxperf"]
 maxperf = []

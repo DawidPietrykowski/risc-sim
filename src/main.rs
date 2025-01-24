@@ -6,14 +6,9 @@ use clap::Parser;
 use ctrlc::set_handler;
 use minifb::{Key, Window, WindowOptions};
 use nix::libc::{BRKINT, ECHO, ICRNL, INPCK, ISTRIP};
-use risc_sim::cpu::cpu_core::{
-    Cpu, CpuMode, ExecutionMode, INITIAL_STACK_POINTER_32, INITIAL_STACK_POINTER_64,
-};
-use risc_sim::cpu::memory::raw_memory::ContinuousMemory;
-use risc_sim::cpu::memory::user_memory::{UserMemory, HEAP_SIZE, STACK_SIZE};
+use risc_sim::cpu::cpu_core::{Cpu, CpuMode, ExecutionMode};
 use risc_sim::elf::elf_loader::{decode_file, WordSize};
 use risc_sim::isa::csr::csr_types::CSRAddress;
-use risc_sim::system::passthrough_kernel::PassthroughKernel;
 use risc_sim::system::uart::{init_uart, write_char};
 use risc_sim::system::virtio::{init_virtio, BlockDevice};
 use risc_sim::types::ABIRegister;
@@ -165,39 +160,8 @@ fn main() -> Result<()> {
         None
     };
     let mut cpu = match args.execution_mode {
-        ExecutionMode::Bare => Cpu::new(
-            ContinuousMemory::default(),
-            PassthroughKernel::default(),
-            mode,
-            block_dev,
-            args.execution_mode.clone(),
-        ),
-        ExecutionMode::UserSpace => match mode {
-            CpuMode::RV64 => Cpu::new(
-                UserMemory::new(
-                    INITIAL_STACK_POINTER_64 as u64 - STACK_SIZE,
-                    0,
-                    STACK_SIZE,
-                    HEAP_SIZE,
-                ),
-                PassthroughKernel::default(),
-                mode,
-                block_dev,
-                args.execution_mode.clone(),
-            ),
-            CpuMode::RV32 => Cpu::new(
-                UserMemory::new(
-                    INITIAL_STACK_POINTER_32 as u64 - STACK_SIZE,
-                    0,
-                    STACK_SIZE,
-                    HEAP_SIZE,
-                ),
-                PassthroughKernel::default(),
-                mode,
-                block_dev,
-                args.execution_mode.clone(),
-            ),
-        },
+        ExecutionMode::Bare => Cpu::new_bare(block_dev),
+        ExecutionMode::UserSpace => Cpu::new_userspace(mode),
     };
     cpu.load_program_from_elf(program)?;
 

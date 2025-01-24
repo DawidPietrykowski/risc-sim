@@ -4,7 +4,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 
 use risc_sim::{
     cpu::{
-        cpu_core::{Cpu, CpuMode},
+        cpu_core::{Cpu, CpuMode, ExecutionMode},
         memory::{
             btree_memory::BTreeMemory, hashmap_memory::FxHashMemory, memory_core::Memory,
             raw_table_memory::RawTableMemory, raw_vec_memory::RawVecMemory,
@@ -22,26 +22,19 @@ where
 {
     let mut kernel = PassthroughKernel::default();
     kernel.set_print_stdout(false);
-    let mut cpu = Cpu::new(mem, kernel, CpuMode::RV32);
+    let mut cpu = Cpu::new(mem, kernel, CpuMode::RV32, None, ExecutionMode::UserSpace);
     let program = decode_file("tests/coremark.elf");
     cpu.load_program_from_elf(program).unwrap();
     const COUNT_INTERVAL: u64 = 50000;
     loop {
-        let mut finished = false;
-        for _ in 0..COUNT_INTERVAL {
-            match cpu.run_cycle_uncheked() {
-                Ok(_) => {
-                    continue;
-                }
-                Err(_e) => {
-                    finished = true;
-                    break;
-                }
-            };
-        }
-        if finished {
-            break;
-        }
+        match cpu.run_cycles(COUNT_INTERVAL) {
+            Ok(_) => {
+                continue;
+            }
+            Err(_e) => {
+                break;
+            }
+        };
     }
 }
 

@@ -200,7 +200,6 @@ impl fmt::Display for SectionFlags {
     }
 }
 
-#[allow(unused)]
 pub struct Section {
     name: String,
     section_type: SectionType,
@@ -330,8 +329,6 @@ pub fn decode_file(path: &str) -> ElfFile {
         _ => ABI::Other,
     };
 
-    // Ignore ABI Version
-
     // Ignore padding
 
     let elf_type = match u16::from_le_bytes(file[0x10..0x12].try_into().unwrap()) {
@@ -358,8 +355,6 @@ pub fn decode_file(path: &str) -> ElfFile {
         0x2B => ISA::SPARC,
         _ => ISA::OTHER,
     };
-
-    // Ignore ABI Version
 
     let entry_point = read_file_word_size(&file, 0, word_size, 0x18, 0x18);
 
@@ -588,14 +583,7 @@ fn read_file_word_size(
     }
 }
 
-#[allow(unused_variables)]
-pub fn load_program_to_memory(
-    elf: ElfFile,
-    memory: &mut dyn Memory,
-    mode: CpuMode,
-) -> Result<ProgramFile> {
-    #[allow(unused_mut)]
-    let mut program: Vec<ProgramLine> = vec![];
+pub fn load_program_to_memory(elf: ElfFile, memory: &mut dyn Memory) -> Result<ProgramFile> {
     let mut text_section_addr = 0;
     let mut text_section_size = 0;
     let mut end_of_data_addr = 0;
