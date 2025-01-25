@@ -63,7 +63,9 @@ fn main() -> Result<()> {
         }
 
         if args.simulate_display {
-            update_window(&mut cpu, emulation.as_mut().unwrap())?;
+            if let Err(e) = update_window(&mut cpu, emulation.as_mut().unwrap()) {
+                break e;
+            }
         }
 
         if let Some(timeout) = args.timeout
