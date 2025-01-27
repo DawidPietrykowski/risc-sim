@@ -4,7 +4,7 @@ use crate::{
     elf::elf_loader::{load_kernel_to_memory, load_program_to_memory, ElfFile},
     isa::{
         csr::csr_types::{CSRAddress, CSRTable},
-        traps::check_pending_interrupts,
+        traps::{check_pending_interrupts, update_timers},
     },
     system::{
         kernel::Kernel,
@@ -255,6 +255,7 @@ impl Cpu {
         // Execute
         self.execute_program_line(&instruction)?;
 
+        update_timers(self);
         plic_check_pending(self);
         check_pending_interrupts(self, PrivilegeMode::Machine);
         check_pending_interrupts(self, PrivilegeMode::Supervisor);

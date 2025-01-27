@@ -32,7 +32,29 @@ pub enum TrapInterruptCause {
     SupervisorExternalGuestInterrupt = 12,
 }
 
+pub fn update_timers(cpu: &mut Cpu) {
+    cpu.csr_table.write64(
+        CSRAddress::Time.as_u12(),
+        cpu.csr_table.read64(CSRAddress::Time.as_u12()) + 1,
+    );
+}
+
 pub fn check_pending_interrupts(cpu: &mut Cpu, privilege_mode: PrivilegeMode) {
+    if privilege_mode == PrivilegeMode::Supervisor {
+        if cpu.csr_table.read64(CSRAddress::Time.as_u12())
+            > cpu.csr_table.read64(CSRAddress::Stimecmp.as_u12())
+        {
+            let sip = cpu.csr_table.read64(CSRAddress::Sip.as_u12());
+            let mip = cpu.csr_table.read64(CSRAddress::Mip.as_u12());
+
+            const STIP_BIT_POS: u64 = 5;
+
+            cpu.csr_table
+                .write64(CSRAddress::Sip.as_u12(), sip | (1 << STIP_BIT_POS));
+            cpu.csr_table
+                .write64(CSRAddress::Mip.as_u12(), mip | (1 << STIP_BIT_POS));
+        }
+    }
     let ip_csr = match privilege_mode {
         PrivilegeMode::Machine => CSRAddress::Mip,
         PrivilegeMode::Supervisor => CSRAddress::Sip,

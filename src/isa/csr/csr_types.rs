@@ -46,6 +46,9 @@ pub enum CSRAddress {
     Stval = 0x143,
     Sip = 0x144,
 
+    // Supervisor Timers
+    Stimecmp = 0x14D,
+
     // Supervisor Protection and Translation
     Satp = 0x180,
 
