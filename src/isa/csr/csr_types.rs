@@ -4,6 +4,25 @@ use crate::{
 };
 use bitfield::bitfield;
 
+// Supervisor status register (sstatus) bit positions
+pub const SSTATUS_SIE: u64 = 1 << 1; // Supervisor Interrupt Enable
+pub const SSTATUS_SPIE: u64 = 1 << 5; // Previous SIE
+pub const SSTATUS_SPP: u64 = 1 << 8; // Previous privilege mode
+pub const SSTATUS_FS: u64 = 3 << 13; // FPU status
+pub const SSTATUS_XS: u64 = 3 << 15; // Extension status
+pub const SSTATUS_SUM: u64 = 1 << 18; // Supervisor User Memory access
+pub const SSTATUS_MXR: u64 = 1 << 19; // Make eXecutable Readable
+pub const SSTATUS_SD: u64 = 1 << 63; // State Dirty (read-only)
+
+pub const SSTATUS_MASK: u64 = SSTATUS_SIE
+    | SSTATUS_SPIE
+    | SSTATUS_SPP
+    | SSTATUS_FS
+    | SSTATUS_XS
+    | SSTATUS_SUM
+    | SSTATUS_MXR
+    | SSTATUS_SD;
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum CSRAddress {
     // User Trap Setup
@@ -178,10 +197,50 @@ impl CSRTable {
     }
 
     pub fn read64(&self, addr: U12) -> u64 {
+        if addr == CSRAddress::Sie.as_u12() {
+            let mideleg = self.read64(CSRAddress::Mideleg.as_u12());
+            let mie = self.read64(CSRAddress::Mie.as_u12());
+            return mie & mideleg;
+        }
+        if addr == CSRAddress::Sip.as_u12() {
+            let mideleg = self.read64(CSRAddress::Mideleg.as_u12());
+            let mip = self.read64(CSRAddress::Mip.as_u12());
+            return mip & mideleg;
+        }
+        if addr == CSRAddress::Sstatus.as_u12() {
+            let mstatus = self.read64(CSRAddress::Mstatus.as_u12());
+            return mstatus & SSTATUS_MASK;
+        }
         self.csrs64[addr.value() as usize]
     }
 
     pub fn write64(&mut self, addr: U12, value: u64) {
+        if addr == CSRAddress::Sie.as_u12() {
+            let mideleg = self.read64(CSRAddress::Mideleg.as_u12());
+            let mie = self.read64(CSRAddress::Mie.as_u12());
+            self.write64(
+                CSRAddress::Mie.as_u12(),
+                (mie & !mideleg) | (value & mideleg),
+            );
+            return;
+        }
+        if addr == CSRAddress::Sip.as_u12() {
+            let mideleg = self.read64(CSRAddress::Mideleg.as_u12());
+            let mip = self.read64(CSRAddress::Mip.as_u12());
+            self.write64(
+                CSRAddress::Mip.as_u12(),
+                (mip & !mideleg) | (value & mideleg),
+            );
+            return;
+        }
+        if addr == CSRAddress::Sstatus.as_u12() {
+            let mstatus = self.read64(CSRAddress::Mstatus.as_u12());
+            self.write64(
+                CSRAddress::Mstatus.as_u12(),
+                (mstatus & !SSTATUS_MASK) | (value & SSTATUS_MASK),
+            );
+            return;
+        }
         self.csrs64[addr.value() as usize] = value;
     }
 

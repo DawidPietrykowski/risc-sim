@@ -111,6 +111,7 @@ pub(crate) fn bare_write_mem_u32(cpu: &mut Cpu, addr: u64, value: u32) -> Result
             // PLIC
             if addr == PLIC_PENDING {
                 plic_handle_pending_write(cpu, value);
+                return Ok(());
             }
             if addr == PLIC_CLAIM {
                 plic_handle_claim_write(cpu, value);

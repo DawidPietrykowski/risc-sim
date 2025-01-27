@@ -257,8 +257,7 @@ impl Cpu {
 
         update_timers(self);
         plic_check_pending(self);
-        check_pending_interrupts(self, PrivilegeMode::Machine);
-        check_pending_interrupts(self, PrivilegeMode::Supervisor);
+        check_pending_interrupts(self);
 
         Ok(())
     }

@@ -39,7 +39,7 @@ fn main() -> Result<()> {
     let mut count = 0;
     const COUNT_INTERVAL: u64 = 5000;
     let mut stdio_count = 0;
-    const STDIO_READ_INTERVAL: u64 = 1;
+    const STDIO_READ_INTERVAL: u64 = 500000;
     let res = loop {
         if !running.load(Ordering::SeqCst) {
             break anyhow::anyhow!("Interrupted by Ctrl-C");
@@ -48,7 +48,7 @@ fn main() -> Result<()> {
         count += COUNT_INTERVAL;
 
         if args.execution_mode == ExecutionMode::Bare {
-            if stdio_count % STDIO_READ_INTERVAL == 0 {
+            if stdio_count > STDIO_READ_INTERVAL {
                 if let Ok(c) = stdio_channel.try_recv() {
                     if c == 3 {
                         break anyhow::anyhow!("Interrupted by Ctrl-C");
@@ -56,9 +56,9 @@ fn main() -> Result<()> {
                         write_char(&mut cpu, c);
                     }
                 }
-                stdio_count += 1;
+                stdio_count = 0;
             } else {
-                stdio_count += 1;
+                stdio_count += COUNT_INTERVAL;
             }
         }
 

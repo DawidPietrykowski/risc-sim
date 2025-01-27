@@ -39,53 +39,49 @@ pub fn update_timers(cpu: &mut Cpu) {
     );
 }
 
-pub fn check_pending_interrupts(cpu: &mut Cpu, privilege_mode: PrivilegeMode) {
-    if privilege_mode == PrivilegeMode::Supervisor {
-        if cpu.csr_table.read64(CSRAddress::Time.as_u12())
-            > cpu.csr_table.read64(CSRAddress::Stimecmp.as_u12())
-        {
-            let sip = cpu.csr_table.read64(CSRAddress::Sip.as_u12());
-            let mip = cpu.csr_table.read64(CSRAddress::Mip.as_u12());
+pub fn check_pending_interrupts(cpu: &mut Cpu) {
+    if cpu.csr_table.read64(CSRAddress::Time.as_u12())
+        > cpu.csr_table.read64(CSRAddress::Stimecmp.as_u12())
+    {
+        let mip = cpu.csr_table.read64(CSRAddress::Mip.as_u12());
 
-            const STIP_BIT_POS: u64 = 5;
+        const STIP_BIT_POS: u64 = 5;
 
-            cpu.csr_table
-                .write64(CSRAddress::Sip.as_u12(), sip | (1 << STIP_BIT_POS));
-            cpu.csr_table
-                .write64(CSRAddress::Mip.as_u12(), mip | (1 << STIP_BIT_POS));
-        }
+        cpu.csr_table
+            .write64(CSRAddress::Mip.as_u12(), mip | (1 << STIP_BIT_POS));
     }
-    let ip_csr = match privilege_mode {
-        PrivilegeMode::Machine => CSRAddress::Mip,
-        PrivilegeMode::Supervisor => CSRAddress::Sip,
-        PrivilegeMode::User => {
-            return;
-        }
-    };
-    let ie_csr = match privilege_mode {
-        PrivilegeMode::Machine => CSRAddress::Mie,
-        PrivilegeMode::Supervisor => CSRAddress::Sie,
-        PrivilegeMode::User => {
-            return;
-        }
-    };
-    let status_csr = match privilege_mode {
-        PrivilegeMode::Machine => CSRAddress::Mstatus,
-        PrivilegeMode::Supervisor => CSRAddress::Sstatus,
-        PrivilegeMode::User => {
-            return;
-        }
-    };
-    let ie = cpu.csr_table.read64(ie_csr.as_u12());
-    let ip = cpu.csr_table.read64(ip_csr.as_u12());
-    let mstatus = MstatusCSR(cpu.csr_table.read_xlen(status_csr.as_u12(), cpu.arch_mode));
+    let mip_addr = CSRAddress::Mip.as_u12();
+    let sip_addr = CSRAddress::Sip.as_u12();
+    let mie_addr = CSRAddress::Mie.as_u12();
+    let sie_addr = CSRAddress::Sie.as_u12();
+    let mideleg = cpu.csr_table.read64(CSRAddress::Mideleg.as_u12());
 
-    let interrupts = ie & ip;
-    if interrupts != 0 && mstatus.sie() {
+    let mip = cpu.csr_table.read64(mip_addr);
+    let sip = cpu.csr_table.read64(sip_addr);
+    let mie_csr = cpu.csr_table.read64(mie_addr);
+    let sie = cpu.csr_table.read64(sie_addr);
+
+    let pending = mip & mie_csr;
+    let spending = pending & sie & mideleg;
+
+    let mstatus = MstatusCSR(cpu.csr_table.read64(CSRAddress::Mstatus.as_u12()));
+    let mie = mstatus.mie();
+    let sie = mstatus.sie();
+
+    if pending != 0 && mie {
         for i in 0..13 {
-            if (interrupts & (1 << i)) != 0 {
+            if (pending & (1 << i)) != 0 {
                 // clears the interrupt bit in the ip register
-                cpu.csr_table.write64(ip_csr.as_u12(), ip & !(1 << i));
+                cpu.csr_table.write64(mip_addr, mip & !(1 << i));
+                execute_trap(cpu, i, true);
+                break;
+            }
+        }
+    } else if spending != 0 && sie {
+        for i in 0..13 {
+            if (spending & (1 << i)) != 0 {
+                // clears the interrupt bit in the ip register
+                cpu.csr_table.write64(sip_addr, sip & !(1 << i));
                 execute_trap(cpu, i, true);
                 break;
             }
