@@ -2,6 +2,8 @@
 
 A highly functional RISC-V emulator capable of running complex userspace applications like the original DOOM or operating systems such as xv6.
 
+![xv6 init boot](./images/xv6-init.png)
+
 ## Features
 
 - 32-bit and 64-bit support
@@ -33,7 +35,10 @@ A highly functional RISC-V emulator capable of running complex userspace applica
 ## Build and Run
 
 ```
-cargo run -- <path-to-executable>
+# userspace mode
+cargo run -- /path/to/executable
+# bare mode
+cargo run -- path/to/kernel --execution-mode bare --fs-image path/to/fs.img
 ``` 
 
 ## Testing
@@ -58,13 +63,27 @@ The project includes automated benchmarking tools. To run benchmarks and generat
 cargo bench
 ```
 
-##### Coremark
+### Coremark
 To compile coremark for use with the bench harness you need to installl the riscv-gcc toolchain and run the following make command in the coremark repository.
 
-For 32bit:
-```make compile PORT_DIR=simple ITERATIONS=500 CC=riscv32-unknown-elf-gcc LD=riscv32-unknown-elf-ld AS=riscv32-unknown-elf-as XCFLAGS="-march=rv32im -mabi=ilp32"```
-For 64bit:
-```make compile PORT_DIR=simple ITERATIONS=500 CC=riscv64-unknown-elf-gcc LD=riscv64-unknown-elf-ld AS=riscv64-unknown-elf-as XCFLAGS="-march=rv64g -mabi=lp64d"```
+```
+# For 32bit:
+make compile PORT_DIR=simple ITERATIONS=500 CC=riscv32-unknown-elf-gcc LD=riscv32-unknown-elf-ld AS=riscv32-unknown-elf-as XCFLAGS="-march=rv32im -mabi=ilp32"
+# For 64bit:
+make compile PORT_DIR=simple ITERATIONS=500 CC=riscv64-unknown-elf-gcc LD=riscv64-unknown-elf-ld AS=riscv64-unknown-elf-as XCFLAGS="-march=rv64g -mabi=lp64d"
+```
+
+## DOOM
+
+The excellent [doomgeneric](https://github.com/ozkl/doomgeneric) project has been [forked](https://github.com/DawidPietrykowski/doomgeneric-risc-sim) to include a custom keystroke and framebuffer handling such that it can be ran using this emulator.
+
+To run the DOOM game you need to compile the forked project and have the doom.wad file in your current directory.
+```
+# --simulate-display mode has to be enabled to correctly render the game and handle input
+cargo run -- path/to/doomgeneric --simulate-display
+```
+
+![DOOM screenshot](./images/doom.png)
 
 ## License
 
